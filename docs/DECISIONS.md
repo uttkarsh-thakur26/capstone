@@ -184,6 +184,8 @@ Scripts: `lint` (`eslint .`), `typecheck` (`tsc -b`), `test` (`vitest run`), `fo
 
 **Consequences.** The frontend check is `npm run lint && npm run typecheck && npm test && npm run build`, plus `npm run format:check` in CI. Specification 3.2 rule 1 was corrected.
 
+Implementation note (2026-10-07): `lint` runs `eslint . --max-warnings 0`. ESLint exits successfully on warnings, and the recommended React Hooks rules report a missing effect dependency (`react-hooks/exhaustive-deps`) only as a warning, so without the flag CI passed with that bug.
+
 ---
 
 ### ADR-012: Node.js 24 LTS line

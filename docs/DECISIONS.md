@@ -9,6 +9,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-003](#adr-003-java-25-lts-on-every-build-path-d4) | D4 | Java 25 LTS on every build path | Accepted | 2026-10-06 |
 | [ADR-004](#adr-004-no-lombok-d19) | D19 | No Lombok | Accepted | 2026-10-06 |
 | [ADR-005](#adr-005-course-dates-d20) | D20 | Course dates | Accepted, two dates to confirm | 2026-10-06 |
+| [ADR-006](#adr-006-maven-coordinates-and-base-package-d2) | D2 | Maven coordinates and base package | Accepted | 2026-10-06 |
 
 ---
 
@@ -73,3 +74,17 @@ Date 2026-10-06, status accepted, with two dates still to confirm (specification
 **Alternatives.** Planning for 30 November: rejected, because the stricter reading is safer.
 
 **Consequences.** If 30 November is confirmed, the extra week is spare time, not room for more features. 18 October is a Sunday, so the team confirms whether it is the submission date or the presentation date.
+
+---
+
+### ADR-006: Maven coordinates and base package (D2)
+
+Date 2026-10-06, status accepted.
+
+**Context.** The backend needs a Maven group, an artifact and a base package before it is generated. The specification asks for a neutral technical identifier, not a brand, because the project name is not final (D1).
+
+**Decision.** Group `in.edu.bennett.capstone`, artifact `knowledge-platform`, base package `in.edu.bennett.capstone.knowledge`. Modules are packages under the base package, named as in specification Section 4.2 (`common`, `security`, `user`, `document` and so on).
+
+**Alternatives.** A package named after the product: rejected, because the name is still open and renaming packages later touches every file. `com.example`: rejected, it is a placeholder, not an identifier.
+
+**Consequences.** The final product name (D1) can change without touching any package or Maven coordinate.

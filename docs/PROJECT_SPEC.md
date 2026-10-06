@@ -1276,7 +1276,7 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | ID | Decision | Default | Needed by | Status |
 |---|---|---|---|---|
 | D1 | Project name | The title submitted at Milestone 0, unless the team refines it. Refining is allowed. A substantial change of domain or objective needs coordinator approval. Use `VITE_APP_NAME` and an `app.display-name` property so the name is set in one place | Milestone-1 for the proposal cover. Phase 11 in the product | Open |
-| D2 | Maven group, artifact and base package | None. A neutral technical identifier, not a brand | Phase 0 | Open |
+| D2 | Maven group, artifact and base package | None. A neutral technical identifier, not a brand | Phase 0 | Resolved: `in.edu.bennett.capstone`, `knowledge-platform`, `in.edu.bennett.capstone.knowledge` (ADR-006) |
 | D3 | Build tool | Maven with wrapper | Phase 0 | Accepted (ADR-002) |
 | D4 | Java version | 25, or 21 if the team's machines require it | Phase 0 | Accepted: Java 25 (ADR-003) |
 | D5 | Chat model and provider | None. See Section 3.4 | A provisional choice for the Milestone-1 proposal. Final in Phase 5 | Open |

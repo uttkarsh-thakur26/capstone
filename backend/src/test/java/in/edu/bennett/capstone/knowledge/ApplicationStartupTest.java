@@ -1,6 +1,7 @@
 package in.edu.bennett.capstone.knowledge;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,5 +58,8 @@ class ApplicationStartupTest {
   void apiDocumentationIsOffOutsideTheDevProfile() {
     assertThat(mvc.get().uri("/v3/api-docs")).hasStatus(HttpStatus.UNAUTHORIZED);
     assertThat(mvc.get().uri("/swagger-ui/index.html")).hasStatus(HttpStatus.UNAUTHORIZED);
+    // Off, not only private: springdoc serves the document when its property is missing, and
+    // the anonymous 401 above would not show that.
+    assertThat(mvc.get().uri("/v3/api-docs").with(user("someone"))).hasStatus(HttpStatus.NOT_FOUND);
   }
 }

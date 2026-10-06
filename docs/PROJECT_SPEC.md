@@ -746,7 +746,7 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 ## 18. Configuration
 
 - Every tunable value lives under `app.*` in typed, validated `@ConfigurationProperties` records. No magic numbers in code.
-- Profiles: `dev`, `test`, `prod`.
+- Profiles: `dev` (backend on the host with hot reload, DEP-3), `test` (automated tests) and `prod` (the Docker Compose stack of DEP-1 and DEP-2, and any real deployment; ADR-013). The `live` profile (19.1) and the `demo` loader (DEP-4) are added by the phases that need them.
 - The application fails fast at startup on missing or invalid configuration.
 
 | Group | Settings (defaults) |
@@ -761,7 +761,7 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 | `app.storage` | Root path |
 | `app.analytics` | Store question text (off) |
 
-Environment variables listed in `.env.example` with placeholder values: database URL, user and password. Token signing key. Bootstrap admin email and password. Model provider keys and base URLs. Chat model, embedding model and embedding dimension. Storage path. Allowed origins. Display name (`APP_DISPLAY_NAME`). The SPA calls the API on its own origin under `/api`, so no `VITE_*` variable is needed (ADR-007).
+`.env.example` lists, with placeholder values, the environment variables that the phases built so far actually read. Each phase adds its own (ADR-013). The complete set: database URL, user and password. Token signing key. Bootstrap admin email and password. Model provider keys and base URLs. Chat model, embedding model and embedding dimension. Storage path. Allowed origins. Display name (`APP_DISPLAY_NAME`). The SPA calls the API on its own origin under `/api`, so no `VITE_*` variable is needed (ADR-007).
 
 ---
 

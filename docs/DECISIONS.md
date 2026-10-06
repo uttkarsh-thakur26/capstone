@@ -16,6 +16,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-010](#adr-010-typescript-60-not-70) | | TypeScript 6.0, not 7.0 | Accepted | 2026-10-06 |
 | [ADR-011](#adr-011-frontend-scaffold-with-eslint-and-its-test-and-format-tools) | | Frontend scaffold with ESLint, and its test and format tools | Accepted | 2026-10-06 |
 | [ADR-012](#adr-012-nodejs-24-lts-line) | | Node.js 24 LTS line | Accepted | 2026-10-06 |
+| [ADR-013](#adr-013-the-compose-stack-runs-the-prod-profile) | | The Compose stack runs the `prod` profile | Accepted | 2026-10-06 |
 
 ---
 
@@ -188,3 +189,17 @@ Date 2026-10-06, status accepted. Revisit after Node.js 26 becomes LTS on 2026-1
 **Alternatives.** Node.js 26: not an LTS release until 2026-10-28, so not now. Following "active LTS" literally: rejected, it would mean switching runtimes three weeks before the Milestone-2 feature freeze.
 
 **Consequences.** Every frontend build uses the same Node.js line. Moving to 26 is a deliberate later decision, not a drift.
+
+---
+
+### ADR-013: The Compose stack runs the `prod` profile
+
+Date 2026-10-06, status accepted.
+
+**Context.** Specification 18 names the profiles `dev`, `test` and `prod` but did not say which one the Docker Compose stack uses. That stack is what a clean clone starts (DEP-2), what Milestone-2 demonstrates and what the final demonstration runs on a team machine (D17). DEP-3 already gives `dev` to the host-run backend with hot reload. Specification 18 also listed environment variables whose names depend on the open model decisions (D5, D6), so a complete `.env.example` could not be written in Phase 0.
+
+**Decision.** The backend container in `compose.yaml` runs with `SPRING_PROFILES_ACTIVE=prod`. `dev` is only for the backend started on the host against the Compose `db` service, and `test` only for automated tests. `.env.example` lists the variables read by the phases built so far, and each phase adds its own.
+
+**Alternatives.** Running the stack under `dev`: rejected, because the demonstration would then run with development settings, such as Swagger UI switched on, that production must not have. A separate `compose` profile: rejected for now, because nothing yet differs from `prod`. If a real difference appears, it is recorded as a new decision.
+
+**Consequences.** What the panel sees is what a deployment runs. `prod` will require `Secure` refresh cookies (AUTH-6) while the local stack serves plain HTTP on `localhost`. Phase 1 must check how the browsers used for the demonstration treat `Secure` cookies on `http://localhost` and, if needed, record an explicit exception for that case.

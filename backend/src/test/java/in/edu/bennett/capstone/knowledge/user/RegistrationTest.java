@@ -2,6 +2,7 @@ package in.edu.bennett.capstone.knowledge.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import in.edu.bennett.capstone.knowledge.AuditRows;
 import in.edu.bennett.capstone.knowledge.IntegrationTest;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -41,6 +42,29 @@ class RegistrationTest {
     assertThat(result).hasStatus(HttpStatus.CREATED);
     assertThat(result).bodyJson().extractingPath("$.role").isEqualTo("STUDENT");
     assertThat(column(email, "role")).isEqualTo("STUDENT");
+  }
+
+  @Test
+  void registrationIsAuditedWithoutThePassword() {
+    String email = uniqueEmail();
+
+    MvcTestResult result = register(body(email, "correct horse battery"));
+
+    String id = column(email, "id::text");
+    assertThat(result).bodyJson().extractingPath("$.id").isEqualTo(id);
+    assertThat(AuditRows.forResource(jdbc, id))
+        .singleElement()
+        .satisfies(
+            row -> {
+              assertThat(row)
+                  .containsEntry("action", "USER_REGISTERED")
+                  .containsEntry("outcome", "SUCCESS")
+                  .containsEntry("actor_user_id", id)
+                  .containsEntry("actor_email", email)
+                  .containsEntry("resource_type", "USER")
+                  .containsEntry("ip_address", "127.0.0.1");
+              assertThat((String) row.get("details")).doesNotContain("correct horse battery");
+            });
   }
 
   @Test

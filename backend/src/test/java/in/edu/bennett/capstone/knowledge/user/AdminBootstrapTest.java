@@ -3,6 +3,7 @@ package in.edu.bennett.capstone.knowledge.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
+import in.edu.bennett.capstone.knowledge.AuditRows;
 import in.edu.bennett.capstone.knowledge.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,15 @@ class AdminBootstrapTest {
         new BootstrapAdminProperties("  New.Admin@Test.Invalid ", "a-long-enough-password", "New"));
 
     assertThat(column("new.admin@test.invalid", "role")).isEqualTo("ADMIN");
+    String id = column("new.admin@test.invalid", "id");
+    assertThat(AuditRows.forResource(jdbc, id))
+        .singleElement()
+        .satisfies(
+            row -> {
+              assertThat(row).containsEntry("action", "USER_REGISTERED");
+              assertThat(row.get("actor_user_id")).isNull();
+              assertThat((String) row.get("details")).contains("bootstrap");
+            });
   }
 
   @Test

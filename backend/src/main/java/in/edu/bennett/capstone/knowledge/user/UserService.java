@@ -1,6 +1,11 @@
 package in.edu.bennett.capstone.knowledge.user;
 
+import in.edu.bennett.capstone.knowledge.audit.AuditAction;
+import in.edu.bennett.capstone.knowledge.audit.AuditEvent;
+import in.edu.bennett.capstone.knowledge.audit.AuditOutcome;
+import in.edu.bennett.capstone.knowledge.audit.AuditService;
 import in.edu.bennett.capstone.knowledge.common.ApiException;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -15,15 +20,23 @@ public class UserService {
 
   private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
+  /** The {@code resource_type} of audit entries about accounts. */
+  public static final String RESOURCE_USER = "USER";
+
   private final UserRepository users;
   private final PasswordEncoder passwordEncoder;
   private final RegistrationProperties registration;
+  private final AuditService audit;
 
   UserService(
-      UserRepository users, PasswordEncoder passwordEncoder, RegistrationProperties registration) {
+      UserRepository users,
+      PasswordEncoder passwordEncoder,
+      RegistrationProperties registration,
+      AuditService audit) {
     this.users = users;
     this.passwordEncoder = passwordEncoder;
     this.registration = registration;
+    this.audit = audit;
   }
 
   /** AUTH-1: self-registration always creates an enabled STUDENT. */
@@ -50,6 +63,10 @@ public class UserService {
       // Two registrations with one email at the same moment: the unique key decides.
       throw emailTaken();
     }
+    audit.record(
+        AuditEvent.of(
+                AuditAction.USER_REGISTERED, AuditOutcome.SUCCESS, user.getId(), user.getEmail())
+            .withResource(RESOURCE_USER, user.getId()));
     log.info("Registered user {}", user.getId());
     return UserResponse.of(user);
   }
@@ -85,6 +102,11 @@ public class UserService {
             passwordEncoder.encode(admin.password()),
             Role.ADMIN);
     users.saveAndFlush(user);
+    // Nobody is signed in at startup, so the entry has no actor.
+    audit.record(
+        AuditEvent.of(AuditAction.USER_REGISTERED, AuditOutcome.SUCCESS, null, null)
+            .withResource(RESOURCE_USER, user.getId())
+            .withDetails(Map.of("source", "bootstrap", "role", Role.ADMIN.name())));
     log.info("Created the first admin account {}", user.getId());
   }
 

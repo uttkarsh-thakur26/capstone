@@ -62,3 +62,17 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run format:check
+
+  # The clean start of DEP-2: build both images, start the stack and call the API through nginx.
+  stack:
+    name: Compose stack starts and serves /meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - run: cp .env.example .env && docker compose up --build -d --wait
+      - run: curl -fsS http://localhost:3000/api/v1/meta
+
+      - name: Container logs
+        if: failure()
+        run: docker compose logs

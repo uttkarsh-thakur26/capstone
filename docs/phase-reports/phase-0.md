@@ -60,6 +60,8 @@ Deviations    From the specification as it stood before this phase, each correct
                 must be generated (16.1).
               - google-java-format 1.36.1, not the newest 1.37.0, which Spotless 3.10.3 cannot run.
               - A CI step that fails when the committed API types differ from the backend.
+              - A CI job that builds both images, starts the Compose stack and calls
+                /api/v1/meta through nginx, so DEP-2 is checked on every run.
               - Section 3.3 rewritten with the verified traps.
               Phase reports live in docs/phase-reports/; Section 24.6 names no location.
 

@@ -67,6 +67,8 @@ cd backend && ./mvnw verify
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build && npm run format:check
 ```
 
+CI also builds both images and starts the stack from `.env.example` (`docker compose up --build -d --wait`), then calls `/api/v1/meta` through nginx.
+
 Formatting: `./mvnw spotless:apply` in `backend`, `npm run format` in `frontend`.
 
 When an endpoint changes, run `./mvnw verify` in `backend` (it writes `backend/target/openapi.json`) and then `npm run gen:api` in `frontend` to regenerate the TypeScript types. CI fails if they differ.

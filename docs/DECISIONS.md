@@ -14,6 +14,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-008](#adr-008-github-with-github-actions-d23) | D23 | GitHub with GitHub Actions | Accepted | 2026-10-06 |
 | [ADR-009](#adr-009-google-java-format-through-spotless-d24) | D24 | google-java-format through Spotless | Accepted | 2026-10-06 |
 | [ADR-010](#adr-010-typescript-60-not-70) | | TypeScript 6.0, not 7.0 | Accepted | 2026-10-06 |
+| [ADR-011](#adr-011-frontend-scaffold-with-eslint-and-its-test-and-format-tools) | | Frontend scaffold with ESLint, and its test and format tools | Accepted | 2026-10-06 |
 
 ---
 
@@ -148,3 +149,27 @@ Date 2026-10-06, status accepted. Revisit when TypeScript 7.1 ships its compiler
 **Alternatives.** TypeScript 7.0 now: rejected, because the lint and type-generation tools the specification requires do not run on it. Installing 7.0 next to 6.0 under an npm alias: rejected, it works but adds a dual-compiler setup that buys nothing on a project of this size.
 
 **Consequences.** Lint, type check and API type generation run on a supported compiler. Specification 3.1 was corrected. The move to 7.x is a later decision once typescript-eslint and openapi-typescript support it.
+
+---
+
+### ADR-011: Frontend scaffold with ESLint, and its test and format tools
+
+Date 2026-10-06, status accepted.
+
+**Context.** Specification 3.2 says to scaffold with `npm create vite`, and 24.4 says ESLint with Prettier. create-vite 9.2.1 sets up Oxlint by default and offers ESLint only behind `--eslint`. Its React template has no `typecheck` or `test` script and no test runner, but the Phase 0 exit criterion runs lint, type check, tests and build.
+
+**Decision.** Scaffold with `npm create vite@9.2.1 frontend -- --template react-ts --eslint --no-interactive`, pinned so a later template cannot change the result. Then add these development dependencies, each actively maintained (latest releases between July 2025 and October 2026, repositories not archived):
+
+| Package | Why |
+|---|---|
+| vitest | Test runner that reuses the Vite configuration (named in specification 3.1) |
+| jsdom | Browser-like DOM for component tests |
+| @testing-library/react, @testing-library/dom, @testing-library/jest-dom | Component tests that query the page the way a user sees it (3.1) |
+| prettier | The TypeScript formatter (24.4) |
+| eslint-config-prettier | Turns off ESLint rules that conflict with Prettier. Configuration only; last release 2025-07-20, repository active |
+
+Scripts: `lint` (`eslint .`), `typecheck` (`tsc -b`), `test` (`vitest run`), `format:check` (`prettier --check .`) and `build`.
+
+**Alternatives.** Oxlint, the generator's default: rejected, because 24.4 names ESLint and typescript-eslint covers type-aware rules. Running Prettier inside ESLint through eslint-plugin-prettier: rejected, the eslint-config-prettier documentation recommends running Prettier separately. happy-dom instead of jsdom: not needed, jsdom is the common choice with Testing Library.
+
+**Consequences.** The frontend check is `npm run lint && npm run typecheck && npm test && npm run build`, plus `npm run format:check` in CI. Specification 3.2 rule 1 was corrected.

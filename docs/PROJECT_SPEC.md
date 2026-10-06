@@ -131,7 +131,7 @@ If time runs short, cut from the bottom: all of T3, then comparison, then analyt
 
 ### 3.2 Version rules
 
-1. Scaffold with the official generators (start.spring.io and `npm create vite@latest`) so versions come from maintained templates.
+1. Scaffold with the official generators so versions come from maintained templates: start.spring.io with Java 25 selected explicitly (its default is 17), and `npm create vite@9.2.1 frontend -- --template react-ts --eslint` (ADR-011). Without `--eslint` the generator sets up Oxlint, not the ESLint that 24.4 requires. Its template has no `typecheck` or `test` script and no Vitest, so Phase 0 adds them.
 2. Let the Spring Boot parent and the Spring AI BOM manage versions. Give an explicit version only to libraries they do not manage, and note why.
 3. GA releases only. No milestones, release candidates or snapshots. For example, Spring AI 2.1.0-M1 exists and must not be used.
 4. Before using a framework API, annotation, starter or configuration property, confirm it exists in the version on the classpath, using that version's reference documentation or the library source. Most tutorials and examples online still describe Spring Boot 3 and Spring AI 1.x, and many of those APIs were renamed or removed.

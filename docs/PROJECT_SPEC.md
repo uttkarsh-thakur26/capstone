@@ -124,7 +124,7 @@ If time runs short, cut from the bottom: all of T3, then comparison, then analyt
 | Frontend | React, TypeScript, Vite | React 19, Vite 8, TypeScript 6.0.x | Take what the generator produces (TypeScript ~6.0.2 from create-vite 9.2.1). TypeScript 7.0 is not used yet: it ships no compiler API, so typescript-eslint and openapi-typescript fail on it (ADR-010) |
 | Frontend libraries | React Router, TanStack Query, React Hook Form with Zod, pdf.js through `react-pdf`, `openapi-typescript` | Current | Section 16 |
 | Frontend tests | Vitest, React Testing Library, Playwright | Current | |
-| Frontend toolchain runtime | Node.js | An active LTS line | |
+| Frontend toolchain runtime | Node.js | A supported LTS line, pinned to 24.x (ADR-012) | `.nvmrc`, `engines`, CI and the Docker build stage use the same line |
 | Packaging | Docker and Docker Compose | Current | |
 | File storage | Local filesystem volume behind a `FileStorage` interface | | S3-compatible adapter is T3 (D8) |
 | Models | Chat and embedding models through Spring AI | Provider is a TEAM DECISION (D5, D6) | Section 3.4 |

@@ -15,6 +15,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-009](#adr-009-google-java-format-through-spotless-d24) | D24 | google-java-format through Spotless | Accepted | 2026-10-06 |
 | [ADR-010](#adr-010-typescript-60-not-70) | | TypeScript 6.0, not 7.0 | Accepted | 2026-10-06 |
 | [ADR-011](#adr-011-frontend-scaffold-with-eslint-and-its-test-and-format-tools) | | Frontend scaffold with ESLint, and its test and format tools | Accepted | 2026-10-06 |
+| [ADR-012](#adr-012-nodejs-24-lts-line) | | Node.js 24 LTS line | Accepted | 2026-10-06 |
 
 ---
 
@@ -173,3 +174,17 @@ Scripts: `lint` (`eslint .`), `typecheck` (`tsc -b`), `test` (`vitest run`), `fo
 **Alternatives.** Oxlint, the generator's default: rejected, because 24.4 names ESLint and typescript-eslint covers type-aware rules. Running Prettier inside ESLint through eslint-plugin-prettier: rejected, the eslint-config-prettier documentation recommends running Prettier separately. happy-dom instead of jsdom: not needed, jsdom is the common choice with Testing Library.
 
 **Consequences.** The frontend check is `npm run lint && npm run typecheck && npm test && npm run build`, plus `npm run format:check` in CI. Specification 3.2 rule 1 was corrected.
+
+---
+
+### ADR-012: Node.js 24 LTS line
+
+Date 2026-10-06, status accepted. Revisit after Node.js 26 becomes LTS on 2026-10-28.
+
+**Context.** Specification 3.1 asked for "an active LTS line". Node.js 24 is Active LTS until 2026-10-20 and Maintenance LTS until 2028-04-30. Node.js 26 becomes LTS on 2026-10-28. Read literally, the old wording would force a runtime change in the middle of the build window. The development machine runs 24.19.0; the latest 24.x is 24.21.0.
+
+**Decision.** Pin the Node.js 24 line: `frontend/.nvmrc` holds `24`, `package.json` declares `"engines": {"node": "^24.15.0"}` (the floor that jsdom sets on the 24 line), CI reads `.nvmrc`, and the Docker build stage uses `node:24.21.0-alpine`. Specification 3.1 now says "a supported LTS line".
+
+**Alternatives.** Node.js 26: not an LTS release until 2026-10-28, so not now. Following "active LTS" literally: rejected, it would mean switching runtimes three weeks before the Milestone-2 feature freeze.
+
+**Consequences.** Every frontend build uses the same Node.js line. Moving to 26 is a deliberate later decision, not a drift.

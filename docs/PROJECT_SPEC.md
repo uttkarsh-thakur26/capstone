@@ -1277,8 +1277,8 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 |---|---|---|---|---|
 | D1 | Project name | The title submitted at Milestone 0, unless the team refines it. Refining is allowed. A substantial change of domain or objective needs coordinator approval. Use `VITE_APP_NAME` and an `app.display-name` property so the name is set in one place | Milestone-1 for the proposal cover. Phase 11 in the product | Open |
 | D2 | Maven group, artifact and base package | None. A neutral technical identifier, not a brand | Phase 0 | Open |
-| D3 | Build tool | Maven with wrapper | Phase 0 | Default |
-| D4 | Java version | 25, or 21 if the team's machines require it | Phase 0 | Default |
+| D3 | Build tool | Maven with wrapper | Phase 0 | Accepted (ADR-002) |
+| D4 | Java version | 25, or 21 if the team's machines require it | Phase 0 | Accepted: Java 25 (ADR-003) |
 | D5 | Chat model and provider | None. See Section 3.4 | A provisional choice for the Milestone-1 proposal. Final in Phase 5 | Open |
 | D6 | Embedding model and dimension | None. Fixes the vector column | A provisional choice for the Milestone-1 proposal. Final in Phase 3 | Open |
 | D7 | Token strategy | JWT access token plus rotating refresh cookie. A simpler variant (access token only, 60 minutes, sign in again) is allowed if recorded | Phase 1 | Default |
@@ -1293,8 +1293,8 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | D16 | Student uploads | Not allowed | Phase 2 | Default |
 | D17 | Hosting target for the final demo | A team machine running Docker Compose, because the final evaluation is preferably held in person. A hosted copy is optional | Phase 11 | Default |
 | D18 | UI component approach | Tailwind CSS with one accessible component set | Phase 1 | Default |
-| D19 | Lombok | Not used. Records instead | Phase 0 | Default |
-| D20 | Course dates | Milestone-1 on 18 October 2026. Milestone-2 on 23 November 2026, the earlier of the two dates the framework prints (the other is 30 November). Final panel and guide evaluation at the end of the semester, date not announced | Phase 0 | Set from the framework. Two dates to confirm (Section 27.8) |
+| D19 | Lombok | Not used. Records instead | Phase 0 | Accepted (ADR-004) |
+| D20 | Course dates | Milestone-1 on 18 October 2026. Milestone-2 on 23 November 2026, the earlier of the two dates the framework prints (the other is 30 November). Final panel and guide evaluation at the end of the semester, date not announced | Phase 0 | Accepted (ADR-005). Two dates to confirm (Section 27.8) |
 | D21 | Report template and reference style | The school's template if one is prescribed. Otherwise the format in Section 27.6 with numbered IEEE-style references | Milestone-1 | Open |
 | D22 | How stakeholder evidence is collected | A short survey of students plus short interviews with faculty and administrative staff, with consent and without names | Milestone-1 | Open |
 

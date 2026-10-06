@@ -135,11 +135,13 @@ Date 2026-10-06, status accepted.
 
 **Context.** Specification 24.4 requires one formatter per language, enforced in CI, and names Spotless for Java without a style. The style must be fixed before the first Java file, so that formatting never arrives later as one large commit that blurs each member's history.
 
-**Decision.** The Spotless Maven plugin (3.10.3) with google-java-format (1.37.0), both pinned in `backend/pom.xml` because Spring Boot does not manage them. `spotless:check` is bound to the `verify` phase, so `./mvnw verify` fails on unformatted code locally and in CI. `./mvnw spotless:apply` formats the code.
+**Decision.** The Spotless Maven plugin (3.10.3) with google-java-format 1.36.1, both pinned in `backend/pom.xml` because Spring Boot does not manage them. `spotless:check` is bound to the `verify` phase, so `./mvnw verify` fails on unformatted code locally and in CI. `./mvnw spotless:apply` formats the code. `backend/.mvn/jvm.config` exports the `jdk.compiler` packages that google-java-format uses.
+
+Implementation notes (2026-10-06): google-java-format 1.37.0, released 2026-10-01, fails inside Spotless 3.10.3 with an `InvocationTargetException`. The newest version listed in Spotless 3.10.3's compatibility table is 1.36.1, and it works. Without the exports in `jvm.config`, Spotless opens the compiler packages through `sun.misc.Unsafe`, which JDK 25 reports as a terminally deprecated call; with them, no such call is made.
 
 **Alternatives.** palantir-java-format: a wider 120-column variant of the same formatter, not chosen. The Eclipse formatter: needs a shared settings file and gives no single canonical style.
 
-**Consequences.** Formatting is not discussed in review. google-java-format has no configuration beyond its AOSP variant, so the style cannot drift.
+**Consequences.** Formatting is not discussed in review. google-java-format has no configuration beyond its AOSP variant, so the style cannot drift. google-java-format is upgraded only together with a Spotless release that supports the new version.
 
 ---
 

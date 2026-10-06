@@ -30,6 +30,9 @@
 		<java.version>25</java.version>
 		<!-- Tests run in UTC, like the application (ADR-016). -->
 		<argLine>-Duser.timezone=UTC</argLine>
+		<!-- Not managed by Spring Boot, so pinned here (ADR-009). -->
+		<spotless.version>3.10.3</spotless.version>
+		<google-java-format.version>1.36.1</google-java-format.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -118,6 +121,26 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<!-- `./mvnw verify` fails on unformatted Java. `./mvnw spotless:apply` formats it. -->
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>${spotless.version}</version>
+				<configuration>
+					<java>
+						<googleJavaFormat>
+							<version>${google-java-format.version}</version>
+						</googleJavaFormat>
+					</java>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

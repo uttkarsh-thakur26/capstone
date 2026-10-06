@@ -264,4 +264,4 @@ Date 2026-10-06, status accepted. Revisit when openapi-typescript releases suppo
 
 **Alternatives.** Hand-written types: rejected by 16.1. Downgrading the frontend to TypeScript 5: rejected, it would undo ADR-010 for one development tool. Generating from a running dev server: rejected, because it would need the database up just to produce types.
 
-**Consequences.** The override hides the peer mismatch, so a TypeScript upgrade must re-run `npm run gen:api` and the frontend checks to confirm the generator still works. The generated file can drift from the backend if someone changes an endpoint without regenerating. Phase 1 adds a CI step that regenerates the file and fails on any difference.
+**Consequences.** The override hides the peer mismatch, so a TypeScript upgrade must re-run `npm run gen:api` and the frontend checks to confirm the generator still works. The generated file could drift from the backend if someone changed an endpoint without regenerating, so the CI backend job regenerates it after the tests and fails on any difference.

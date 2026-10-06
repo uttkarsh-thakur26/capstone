@@ -965,7 +965,7 @@ Not a build phase. Due 18 October 2026 (Section 27.3).
 
 ### Phase 0: Foundation
 
-Read: Sections 3, 4, 18, 22. Needs: D2, D3, D4, D19, D20.
+Read: Sections 3, 4, 18, 22. Needs: D1 (only the working name that `/meta` serves until the team decides), D2, D3, D4, D19, D20, D23, D24.
 
 Build: repository layout, Spring Boot application, React application, Compose file, first Flyway migration (pgvector extension), `/meta` endpoint, CI workflow, README quickstart, `docs/PROGRESS.md`, `docs/DECISIONS.md`, `docs/VERSIONS.md`.
 
@@ -1185,7 +1185,7 @@ Guide marks and the final viva are individual (Section 27.7). So each member nee
 - `@Transactional` belongs on service methods, read-only where possible, and never wraps a model call (Section 4.5).
 - Domain exceptions are mapped to Problem Details in one place.
 - No Lombok (D19).
-- One formatter per language, enforced in CI (Spotless for Java, ESLint with Prettier for TypeScript).
+- One formatter per language, enforced in CI (Spotless with google-java-format for Java, D24; ESLint with Prettier for TypeScript).
 - Comments explain why, not what.
 
 ### 24.5 Definition of done
@@ -1300,6 +1300,7 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | D21 | Report template and reference style | The school's template if one is prescribed. Otherwise the format in Section 27.6 with numbered IEEE-style references | Milestone-1 | Open |
 | D22 | How stakeholder evidence is collected | A short survey of students plus short interviews with faculty and administrative staff, with consent and without names | Milestone-1 | Open |
 | D23 | Repository host and CI | None | Phase 0 | Resolved: GitHub with GitHub Actions, private repository under the Phase 0 owner's account (ADR-008) |
+| D24 | Java formatter style | None | Phase 0 | Resolved: google-java-format through Spotless (ADR-009) |
 
 ---
 

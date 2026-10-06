@@ -12,6 +12,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-006](#adr-006-maven-coordinates-and-base-package-d2) | D2 | Maven coordinates and base package | Accepted | 2026-10-06 |
 | [ADR-007](#adr-007-the-display-name-has-one-source-served-by-meta-d1) | D1 | The display name has one source, served by `/meta` | Accepted | 2026-10-06 |
 | [ADR-008](#adr-008-github-with-github-actions-d23) | D23 | GitHub with GitHub Actions | Accepted | 2026-10-06 |
+| [ADR-009](#adr-009-google-java-format-through-spotless-d24) | D24 | google-java-format through Spotless | Accepted | 2026-10-06 |
 
 ---
 
@@ -118,3 +119,17 @@ Date 2026-10-06, status accepted.
 **Alternatives.** GitLab CI: not chosen. GitHub Actions' Linux runners provide Docker without extra setup, which the Testcontainers tests need. A public repository: not chosen by the owner. Specification Section 25 already keeps the submitted course documents, which carry team details, out of any public repository.
 
 **Consequences.** Members contribute under their own GitHub accounts once they are added as collaborators. "A red build blocks merging" needs branch protection; whether the owner's plan offers it on a private repository is checked when the remote is created, and until then the rule is followed by convention.
+
+---
+
+### ADR-009: google-java-format through Spotless (D24)
+
+Date 2026-10-06, status accepted.
+
+**Context.** Specification 24.4 requires one formatter per language, enforced in CI, and names Spotless for Java without a style. The style must be fixed before the first Java file, so that formatting never arrives later as one large commit that blurs each member's history.
+
+**Decision.** The Spotless Maven plugin (3.10.3) with google-java-format (1.37.0), both pinned in `backend/pom.xml` because Spring Boot does not manage them. `spotless:check` is bound to the `verify` phase, so `./mvnw verify` fails on unformatted code locally and in CI. `./mvnw spotless:apply` formats the code.
+
+**Alternatives.** palantir-java-format: a wider 120-column variant of the same formatter, not chosen. The Eclipse formatter: needs a shared settings file and gives no single canonical style.
+
+**Consequences.** Formatting is not discussed in review. google-java-format has no configuration beyond its AOSP variant, so the style cannot drift.

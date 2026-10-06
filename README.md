@@ -16,7 +16,12 @@ cd <repository-folder>
 cp .env.example .env
 ```
 
-Open `.env` and set `POSTGRES_PASSWORD` to a value of your own. Then:
+Open `.env` and set these to values of your own:
+
+- `POSTGRES_PASSWORD`.
+- `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD` (10 to 128 characters): the first admin account, created on the first start because no admin exists yet. There is no built-in account; with the placeholder password the backend refuses to start.
+
+Then:
 
 ```bash
 docker compose up --build
@@ -69,7 +74,7 @@ cd backend && ./mvnw verify
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build && npm run format:check
 ```
 
-CI also builds both images and starts the stack from `.env.example` (`docker compose up --build -d --wait`), then calls `/api/v1/meta` through nginx.
+CI also builds both images and starts the stack from `.env.example`, with a generated admin password (`docker compose up --build -d --wait`), then calls `/api/v1/meta` through nginx.
 
 Formatting: `./mvnw spotless:apply` in `backend`, `npm run format` in `frontend`.
 

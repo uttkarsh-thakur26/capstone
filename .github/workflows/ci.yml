@@ -70,7 +70,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - run: cp .env.example .env && docker compose up --build -d --wait
+      # .env.example's admin password is too short on purpose; CI generates one.
+      - name: Environment from .env.example
+        run: |
+          cp .env.example .env
+          sed -i "s/^APP_BOOTSTRAP_ADMIN_PASSWORD=.*/APP_BOOTSTRAP_ADMIN_PASSWORD=$(openssl rand -hex 16)/" .env
+
+      - run: docker compose up --build -d --wait
       - run: curl -fsS http://localhost:3000/api/v1/meta
 
       - name: Container logs

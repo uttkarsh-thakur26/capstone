@@ -24,3 +24,11 @@ springdoc:
 app:
   # Required. The application refuses to start without it (D1, ADR-007).
   display-name: ${APP_DISPLAY_NAME:}
+  registration:
+    # Comma-separated. Empty means anyone may register, always as a STUDENT (AUTH-1).
+    allowed-email-domains: ${APP_REGISTRATION_ALLOWED_EMAIL_DOMAINS:}
+  bootstrap-admin:
+    # Required while no admin exists; there is no built-in account (AUTH-3).
+    email: ${APP_BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
+    display-name: ${APP_BOOTSTRAP_ADMIN_DISPLAY_NAME:Administrator}

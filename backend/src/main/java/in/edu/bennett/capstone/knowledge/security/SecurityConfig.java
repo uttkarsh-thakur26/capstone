@@ -32,6 +32,7 @@ public class SecurityConfig {
               // failed; denying it would replace their status with 401.
               requests.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll();
               requests.requestMatchers(HttpMethod.GET, "/api/v1/meta").permitAll();
+              requests.requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll();
               requests.requestMatchers("/actuator/health", "/actuator/health/**").permitAll();
               if (apiDocsEnabled) {
                 // API documentation is public in development only (AUTH-8, ADR-014).

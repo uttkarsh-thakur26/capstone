@@ -1,3 +1,7 @@
 # Settings for automated tests (profile "test", specification 18).
 app:
   display-name: Test platform
+  # Test-only account. The .invalid domain is reserved and never delivers mail.
+  bootstrap-admin:
+    email: admin@test.invalid
+    password: test-only-admin-password

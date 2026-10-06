@@ -4,7 +4,7 @@ Owner: Uttkarsh. Branch `feat/infra-foundation`, 25 commits on top of `main`, la
 
 Review: **reviewed by the owner alone on 2026-10-07**, against specification Sections 3, 4, 17 and 22 and the exit criteria below, because no teammate was available (ADR-019, a recorded exception to 24.2). Seven findings were fixed, one commit each. No other reviewer is named, because nobody else has reviewed it.
 
-Status: all six exit criteria are met with evidence below. The last one, "CI is green", was met on 2026-10-06 by the first workflow run on pull request #1 (https://github.com/uttkarsh-thakur26/capstone/pull/1). Phase 0 closes when the branch is merged.
+Status: all six exit criteria are met with evidence below. The last one, "CI is green", was first met on 2026-10-06 on pull request #1 (https://github.com/uttkarsh-thakur26/capstone/pull/1). Its current evidence is run 37514871240 on commit `4212438`, the run on the last code change (criterion 4 below). Phase 0 closes when the branch is merged.
 
 ```
 Implemented   Repository layout (22). Spring Boot 4.1.1 application on Java 25 (ADR-003) with
@@ -158,9 +158,31 @@ exit=0
 
 `npm run gen:api` followed by `git diff --exit-code -- src/api/schema.d.ts` showed no difference.
 
-**4. CI is green.** Met on 2026-10-06.
+**4. CI is green.** Met on 2026-10-06, and again after the review fixes.
 
-The private repository `uttkarsh-thakur26/capstone` was created by the owner, `main` and `feat/infra-foundation` were pushed, and pull request #1 was opened. Its first workflow run checked commit `d845a04`. Summary of `gh run view 37510571843 --json status,conclusion,jobs` (times UTC):
+Current evidence: run 37514871240 on commit `4212438`. It is the run on the last code change: `4212438` includes `d33e735`, the last commit that changed code, and every commit after `d33e735` changes only documentation. A later documentation-only commit therefore leaves this run as the evidence; a code change needs a new green run. Summary of `gh run view 37514871240 --json status,conclusion,jobs` (times UTC):
+
+```
+Run 37514871240 (event pull_request), 18:54:12 to 18:56:16: success
+  Backend build and tests                  success   56 s
+    Verify (./mvnw -B -ntp verify)         success
+    API types match the backend            success
+  Frontend lint, types, tests and build    success   21 s
+    npm ci, lint, typecheck, test, build, format:check: each success
+  Compose stack starts and serves /meta    success   1 min 59 s
+    cp .env.example .env && docker compose up --build -d --wait: success
+    curl -fsS http://localhost:3000/api/v1/meta: success
+```
+
+From the job logs:
+
+- **Backend.** Temurin 25.0.4+1 on the `ubuntu-24.04` runner image, with Docker server 28.0.4. Testcontainers started `pgvector/pgvector@sha256:9d9c9302…e2e0`, and Flyway reported PostgreSQL 18.6. `Tests run: 13, Failures: 0, Errors: 0, Skipped: 0`, then `spotless:3.10.3:check`, then `BUILD SUCCESS` (Maven total 39 s). `git diff --exit-code -- src/api/schema.d.ts` then found no difference.
+- **Frontend.** Node.js 24.21.0 from `.nvmrc`. `npm ci` added 258 packages. `eslint . --max-warnings 0` and the type check passed, `Tests 3 passed (3)`, the build succeeded, and Prettier reported all files formatted.
+- **Compose stack.** Both images were built on the runner from `.env.example`; the Maven build inside the backend image ended in `BUILD SUCCESS`. Health checks passed for `db` at 18:55:50, `backend` at 18:56:01 and `frontend` at 18:56:12. `curl` through nginx returned `{"name":"AI-powered document and organizational knowledge platform","version":"0.0.1-SNAPSHOT"}`.
+
+Run: https://github.com/uttkarsh-thakur26/capstone/actions/runs/37514871240
+
+First green run, before the review fixes. The private repository `uttkarsh-thakur26/capstone` was created by the owner, `main` and `feat/infra-foundation` were pushed, and pull request #1 was opened. Its first workflow run checked commit `d845a04` and had no stack job yet. Summary of `gh run view 37510571843 --json status,conclusion,jobs` (times UTC):
 
 ```
 Run 37510571843 (event pull_request), 18:20:39 to 18:22:13: success

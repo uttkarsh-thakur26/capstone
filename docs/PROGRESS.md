@@ -6,7 +6,7 @@ Updated 2026-10-07. Format: specification Section 24.8.
 
 **Phase 0, foundation.** Owner: Uttkarsh. Work is on branch `feat/infra-foundation`, in pull request [#1](https://github.com/uttkarsh-thakur26/capstone/pull/1), not yet merged.
 
-All six exit criteria are met with evidence. CI went green on 2026-10-06 in [run 37510571843](https://github.com/uttkarsh-thakur26/capstone/actions/runs/37510571843): backend 13 tests and frontend 3 tests, with all checks passing. The owner reviewed the branch alone on 2026-10-07, because no teammate was available (ADR-019, a recorded exception to 24.2); its seven findings were fixed, one commit each. Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
+All six exit criteria are met with evidence. CI is green on the last code change: [run 37514871240](https://github.com/uttkarsh-thakur26/capstone/actions/runs/37514871240) checked commit `4212438`, which includes `d33e735`, the last commit that changed code. Every commit after `d33e735` changes only documentation, so this run stays the evidence until code changes again. All three jobs passed: backend 13 tests, frontend 3 tests, and the Compose stack started and answered `/api/v1/meta`. The first green run was [37510571843](https://github.com/uttkarsh-thakur26/capstone/actions/runs/37510571843) on `d845a04`, before the review fixes. The owner reviewed the branch alone on 2026-10-07, because no teammate was available (ADR-019, a recorded exception to 24.2); its seven findings were fixed, one commit each. Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
 
 To close Phase 0:
 

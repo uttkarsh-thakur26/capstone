@@ -118,7 +118,7 @@ If time runs short, cut from the bottom: all of T3, then comparison, then analyt
 | Schema migrations | Flyway | 12.x, managed by Boot | `spring-boot-starter-flyway` plus `org.flywaydb:flyway-database-postgresql` |
 | Database | PostgreSQL with pgvector | 18.x with pgvector 0.8.x | Image `pgvector/pgvector:pg18`. Pin a full tag such as `0.8.7-pg18` |
 | PDF extraction | Spring AI PDF reader (Apache PDFBox 3) | From the Spring AI BOM | Gives page numbers, which citations need |
-| API documentation | springdoc-openapi | 3.x | The 3.x line targets Spring Boot 4 |
+| API documentation | springdoc-openapi | 3.1.x (3.1.1), pinned explicitly because Boot does not manage it (ADR-014) | 3.1 is built on Boot 4.1. 3.0.x targets Boot 4.0. Avoid 3.1.0 (advisory GHSA-4v2q-56v7-2cpw) |
 | Build | Maven with the Maven Wrapper | | D3 |
 | Backend tests | JUnit 6, Mockito, AssertJ, Spring test starters, Testcontainers 2 | Managed by Boot | |
 | Frontend | React, TypeScript, Vite | React 19, Vite 8, TypeScript 6.0.x | Take what the generator produces (TypeScript ~6.0.2 from create-vite 9.2.1). TypeScript 7.0 is not used yet: it ships no compiler API, so typescript-eslint and openapi-typescript fail on it (ADR-010) |

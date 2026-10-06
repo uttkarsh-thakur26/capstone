@@ -17,6 +17,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-011](#adr-011-frontend-scaffold-with-eslint-and-its-test-and-format-tools) | | Frontend scaffold with ESLint, and its test and format tools | Accepted | 2026-10-06 |
 | [ADR-012](#adr-012-nodejs-24-lts-line) | | Node.js 24 LTS line | Accepted | 2026-10-06 |
 | [ADR-013](#adr-013-the-compose-stack-runs-the-prod-profile) | | The Compose stack runs the `prod` profile | Accepted | 2026-10-06 |
+| [ADR-014](#adr-014-springdoc-openapi-311-pinned) | | springdoc-openapi 3.1.1, pinned | Accepted | 2026-10-06 |
 
 ---
 
@@ -203,3 +204,17 @@ Date 2026-10-06, status accepted.
 **Alternatives.** Running the stack under `dev`: rejected, because the demonstration would then run with development settings, such as Swagger UI switched on, that production must not have. A separate `compose` profile: rejected for now, because nothing yet differs from `prod`. If a real difference appears, it is recorded as a new decision.
 
 **Consequences.** What the panel sees is what a deployment runs. `prod` will require `Secure` refresh cookies (AUTH-6) while the local stack serves plain HTTP on `localhost`. Phase 1 must check how the browsers used for the demonstration treat `Secure` cookies on `http://localhost` and, if needed, record an explicit exception for that case.
+
+---
+
+### ADR-014: springdoc-openapi 3.1.1, pinned
+
+Date 2026-10-06, status accepted.
+
+**Context.** The SPA's API types are generated from the OpenAPI document (specification 16.1), so the backend must publish one from Phase 0, when the frontend first calls `/meta`. springdoc-openapi is named in specification 3.1 as "3.x", but Spring Boot does not manage its version. springdoc 3.0.x is built against Boot 4.0. 3.1.0 is built against Boot 4.1 but exposed MCP, admin and dashboard endpoints by default (advisory GHSA-4v2q-56v7-2cpw). 3.1.1 (2026-09-06) fixes that and makes MCP opt-in.
+
+**Decision.** `org.springdoc:springdoc-openapi-starter-webmvc-ui` 3.1.1, pinned in `backend/pom.xml` with a comment giving the reason. The OpenAPI document and Swagger UI are public only in the `dev` profile (AUTH-8) and switched off in `prod` (ADR-013). springdoc's MCP features stay disabled.
+
+**Alternatives.** Writing the OpenAPI document by hand: rejected, because it would drift from the controllers. Hand-written TypeScript types for each DTO: rejected by specification 16.1.
+
+**Consequences.** springdoc brings Jackson 2 (`com.fasterxml.jackson.databind`) through swagger-core, next to Boot's Jackson 3. Application code imports Jackson 3 (`tools.jackson.*`) only, and reviews reject Jackson 2 imports. Each Boot upgrade checks that a matching springdoc release exists.

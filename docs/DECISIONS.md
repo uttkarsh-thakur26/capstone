@@ -128,6 +128,8 @@ Date 2026-10-06, status accepted.
 
 **Consequences.** Members contribute under their own GitHub accounts once they are added as collaborators. "A red build blocks merging" needs branch protection; whether the owner's plan offers it on a private repository is checked when the remote is created, and until then the rule is followed by convention.
 
+Implementation note (2026-10-06): the repository `uttkarsh-thakur26/capstone` exists and CI ran green on pull request #1. Branch protection and rulesets are not available on it with the owner's plan (the GitHub API answers 403, "Upgrade to GitHub Pro"), so the rule stays a convention: no pull request is merged unless its checks are green.
+
 ---
 
 ### ADR-009: google-java-format through Spotless (D24)

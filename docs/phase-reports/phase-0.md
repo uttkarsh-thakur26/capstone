@@ -1,10 +1,10 @@
 ## Phase 0: Foundation
 
-Owner: Uttkarsh. Branch `feat/infra-foundation`, 25 commits on top of `main`, last commit `2c1d580` before this report. Written 2026-10-06.
+Owner: Uttkarsh. Branch `feat/infra-foundation`, 25 commits on top of `main`, last commit `2c1d580` before this report. Written 2026-10-06; the CI result was added the same day.
 
 Review: **not yet reviewed.** No teammate was available. The owner will run an independent review of the branch before merging it. No other reviewer is named, because nobody else has reviewed it.
 
-Status: five of the six exit criteria are met with evidence below. "CI is green" is **pending** until the GitHub remote exists (ADR-008).
+Status: all six exit criteria are met with evidence below. The last one, "CI is green", was met on 2026-10-06 by the first workflow run on pull request #1 (https://github.com/uttkarsh-thakur26/capstone/pull/1). Phase 0 closes when the owner has reviewed the branch and merged it.
 
 ```
 Implemented   Repository layout (22). Spring Boot 4.1.1 application on Java 25 (ADR-003) with
@@ -63,7 +63,9 @@ Deviations    From the specification as it stood before this phase, each correct
               - Section 3.3 rewritten with the verified traps.
               Phase reports live in docs/phase-reports/; Section 24.6 names no location.
 
-Known issues  - CI has never run: no remote repository yet.
+Known issues  - Branch protection and rulesets are not available on this private repository with
+                the owner's GitHub plan (API answers 403, "Upgrade to GitHub Pro"), so "a red build
+                blocks merging" (19.3) is kept by convention, not enforced by GitHub.
               - JDK 25 warns that Mockito attaches itself as an agent at test time. Harmless now;
                 a future JDK will refuse it. Fix when the first mock is written: pass Mockito as
                 -javaagent in the Surefire argLine.
@@ -147,9 +149,25 @@ exit=0
 
 `npm run gen:api` followed by `git diff --exit-code -- src/api/schema.d.ts` showed no difference.
 
-**4. CI is green.** **Pending.**
+**4. CI is green.** Met on 2026-10-06.
 
-`.github/workflows/ci.yml` exists, and its YAML parses (checked with js-yaml): job `backend` runs checkout, setup-java 25, `./mvnw verify`, setup-node and the API-type drift check; job `frontend` runs `npm ci`, lint, typecheck, test, build and the format check. Every command in it was run locally with the results above. It has never run on GitHub, because the remote does not exist yet. This criterion is met only when the first workflow run on the pull request is green.
+The private repository `uttkarsh-thakur26/capstone` was created by the owner, `main` and `feat/infra-foundation` were pushed, and pull request #1 was opened. Its first workflow run checked commit `d845a04`. Summary of `gh run view 37510571843 --json status,conclusion,jobs` (times UTC):
+
+```
+Run 37510571843 (event pull_request), 18:20:39 to 18:22:13: success
+  Backend build and tests                  success   1 min 29 s
+    Verify (./mvnw -B -ntp verify)         success
+    API types match the backend            success
+  Frontend lint, types, tests and build    success   25 s
+    npm ci, lint, typecheck, test, build, format:check: each success
+```
+
+From the job logs:
+
+- **Backend.** Temurin 25.0.4 on the `ubuntu-24.04` runner image, with Docker server 28.0.4. Testcontainers 2.0.5 started `pgvector/pgvector@sha256:9d9c9302…e2e0`, and Flyway reported PostgreSQL 18.6. `Tests run: 13, Failures: 0, Errors: 0, Skipped: 0`, then `spotless:3.10.3:check`, then `BUILD SUCCESS` (Maven total 1:08 min). After that, `npm run gen:api` regenerated `src/api/schema.d.ts` and `git diff --exit-code` found no difference.
+- **Frontend.** Node.js 24.21.0 from `.nvmrc`. `npm ci` added 258 packages. Lint and type check passed, `Tests 3 passed (3)`, the build succeeded, and Prettier reported all files formatted.
+
+Run: https://github.com/uttkarsh-thakur26/capstone/actions/runs/37510571843
 
 **5. No secret is in the repository. `.env.example` has placeholders only.** Met.
 

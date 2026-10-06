@@ -4,22 +4,22 @@ Updated 2026-10-06. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 0, foundation.** Owner: Uttkarsh. Work is on branch `feat/infra-foundation`, not yet merged.
+**Phase 0, foundation.** Owner: Uttkarsh. Work is on branch `feat/infra-foundation`, in pull request [#1](https://github.com/uttkarsh-thakur26/capstone/pull/1), not yet merged.
 
-Five of the six exit criteria are met with evidence. "CI is green" is pending until the GitHub remote exists (ADR-008). The branch has not been reviewed: the owner will review it independently before merging, because no teammate is available yet. Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
+All six exit criteria are met with evidence. CI went green on 2026-10-06 in [run 37510571843](https://github.com/uttkarsh-thakur26/capstone/actions/runs/37510571843): backend 13 tests and frontend 3 tests, with all checks passing. The branch has not been reviewed: the owner will review it independently before merging, because no teammate is available yet. Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
 
 To close Phase 0:
 
-1. The owner creates the private GitHub repository and pushes the branch.
-2. The first workflow run on the pull request is green.
-3. The owner reviews the branch and merges it.
-4. The phase report and this file are updated with the CI run.
+1. Done: the private GitHub repository exists, and `main` and the branch are pushed.
+2. Done: the first workflow run on the pull request is green.
+3. Done: the phase report and this file record the CI run.
+4. Open: the owner reviews the branch and merges it, then marks Phase 0 done here.
 
 ## Phases
 
 | Phase | Name | Status | Date |
 |---|---|---|---|
-| 0 | Foundation | Exit criteria met except CI (pending remote); not yet reviewed or merged | 2026-10-06 |
+| 0 | Foundation | All exit criteria met, CI green (PR #1); awaiting the owner's review and merge | 2026-10-06 |
 | 1 | Authentication and roles | Not started | |
 | 2 | Document management | Not started | |
 | 3 | Ingestion and indexing | Not started | |
@@ -50,13 +50,12 @@ To close Phase 0:
 
 ## Known issues
 
-- CI has never run, because no remote repository exists yet.
 - Backend tests need Docker running; without it they fail with "Could not find a valid Docker environment".
 - On JDK 25, Mockito attaches itself as an agent during tests, which the JDK warns will be refused in a future release. Pass Mockito as `-javaagent` in the Surefire `argLine` when the first mock is written (Phase 1).
 - Ports 3000 and 5432 on `127.0.0.1` must be free for the Compose stack; a local PostgreSQL on 5432 clashes.
 - google-java-format is held at 1.36.1 until a Spotless release supports a newer version (ADR-009).
 - openapi-typescript runs through an npm override until a release supports TypeScript 6 (ADR-017).
-- Whether branch protection is available on the private repository is checked when the remote is created (ADR-008).
+- Branch protection and rulesets are not available on this private repository with the owner's GitHub plan (the API answers 403, "Upgrade to GitHub Pro"). "A red build blocks merging" (19.3) is therefore kept by convention: do not merge a pull request whose checks are not green.
 
 ## Open specification issues
 

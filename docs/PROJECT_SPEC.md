@@ -121,7 +121,7 @@ If time runs short, cut from the bottom: all of T3, then comparison, then analyt
 | API documentation | springdoc-openapi | 3.x | The 3.x line targets Spring Boot 4 |
 | Build | Maven with the Maven Wrapper | | D3 |
 | Backend tests | JUnit 6, Mockito, AssertJ, Spring test starters, Testcontainers 2 | Managed by Boot | |
-| Frontend | React, TypeScript, Vite | Current majors: React 19, Vite 8, TypeScript 7 | Take what `npm create vite@latest` generates |
+| Frontend | React, TypeScript, Vite | React 19, Vite 8, TypeScript 6.0.x | Take what the generator produces (TypeScript ~6.0.2 from create-vite 9.2.1). TypeScript 7.0 is not used yet: it ships no compiler API, so typescript-eslint and openapi-typescript fail on it (ADR-010) |
 | Frontend libraries | React Router, TanStack Query, React Hook Form with Zod, pdf.js through `react-pdf`, `openapi-typescript` | Current | Section 16 |
 | Frontend tests | Vitest, React Testing Library, Playwright | Current | |
 | Frontend toolchain runtime | Node.js | An active LTS line | |

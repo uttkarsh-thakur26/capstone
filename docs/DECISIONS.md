@@ -13,6 +13,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-007](#adr-007-the-display-name-has-one-source-served-by-meta-d1) | D1 | The display name has one source, served by `/meta` | Accepted | 2026-10-06 |
 | [ADR-008](#adr-008-github-with-github-actions-d23) | D23 | GitHub with GitHub Actions | Accepted | 2026-10-06 |
 | [ADR-009](#adr-009-google-java-format-through-spotless-d24) | D24 | google-java-format through Spotless | Accepted | 2026-10-06 |
+| [ADR-010](#adr-010-typescript-60-not-70) | | TypeScript 6.0, not 7.0 | Accepted | 2026-10-06 |
 
 ---
 
@@ -133,3 +134,17 @@ Date 2026-10-06, status accepted.
 **Alternatives.** palantir-java-format: a wider 120-column variant of the same formatter, not chosen. The Eclipse formatter: needs a shared settings file and gives no single canonical style.
 
 **Consequences.** Formatting is not discussed in review. google-java-format has no configuration beyond its AOSP variant, so the style cannot drift.
+
+---
+
+### ADR-010: TypeScript 6.0, not 7.0
+
+Date 2026-10-06, status accepted. Revisit when TypeScript 7.1 ships its compiler API.
+
+**Context.** Specification 3.1 said "TypeScript 7" and also "take what `npm create vite` generates". On 2026-10-05 TypeScript 7.0.2 was the npm `latest`, but create-vite 9.2.1 generates `typescript ~6.0.2`. TypeScript 7.0 is the native rewrite and ships without a compiler API. typescript-eslint 8.71 declares support only for TypeScript below 6.1, and openapi-typescript 7.13 crashes on 7.0 because it calls the compiler API. A scratch project on TypeScript 6.0.3 passed lint, type check, tests and build.
+
+**Decision.** Use TypeScript 6.0.x, as the generator produces. Avoid options that 6.0 deprecates and 7.0 removes (`baseUrl`, `moduleResolution: node10`, `target: es5`), so the later move stays small.
+
+**Alternatives.** TypeScript 7.0 now: rejected, because the lint and type-generation tools the specification requires do not run on it. Installing 7.0 next to 6.0 under an npm alias: rejected, it works but adds a dual-compiler setup that buys nothing on a project of this size.
+
+**Consequences.** Lint, type check and API type generation run on a supported compiler. Specification 3.1 was corrected. The move to 7.x is a later decision once typescript-eslint and openapi-typescript support it.

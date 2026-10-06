@@ -45,6 +45,8 @@ cd backend
 
 On Windows PowerShell use `.\mvnw.cmd` instead of `./mvnw`. The backend listens on <http://localhost:8080>; in the `dev` profile the API documentation is at <http://localhost:8080/swagger-ui/index.html>.
 
+From an IDE, use `backend` as the working directory. If the IDE builds the project itself rather than through Maven, run `./mvnw generate-resources` in `backend` once after cloning and after every full rebuild: it writes the build information that `/api/v1/meta` reports, and without it the application does not start. Tests started from an IDE need `-Duser.timezone=UTC` in their run configuration; Maven passes it by itself (ADR-016).
+
 Frontend, in another terminal:
 
 ```bash

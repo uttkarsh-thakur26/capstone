@@ -246,11 +246,13 @@ Date 2026-10-06, status accepted.
 
 ### ADR-016: The backend JVM runs in UTC
 
-Date 2026-10-06, status accepted.
+Date 2026-10-06, status accepted. Corrected 2026-10-07: tests started from an IDE are not covered.
 
 **Context.** The first backend build failed: `FATAL: invalid value for parameter "TimeZone": "Asia/Calcutta"`. The PostgreSQL JDBC driver sends the JVM's default zone id when it connects. A Windows JVM set to Indian time reports the legacy id `Asia/Calcutta`. The pinned database image (Debian trixie, tzdata 2026c) keeps only the current id `Asia/Kolkata` and rejects the legacy one. Specification 4.5 already requires every timestamp to be UTC.
 
-**Decision.** The backend JVM always runs in UTC. `KnowledgePlatformApplication.main` sets the default time zone to UTC before Spring starts, which covers the packaged jar, the IDE and `spring-boot:run`. The POM's Surefire `argLine` passes `-Duser.timezone=UTC` to the forked test JVM.
+**Decision.** The backend JVM always runs in UTC. `KnowledgePlatformApplication.main` sets the default time zone to UTC before Spring starts, which covers the packaged jar, `spring-boot:run` and the application started from an IDE. The POM's Surefire `argLine` passes `-Duser.timezone=UTC` to the forked test JVM, so tests run in UTC when Maven runs them.
+
+Tests started from an IDE are not covered. They never call `main`, and an IDE applies the Surefire `argLine` only if it copies it into its own test configuration, which not every IDE does. Such a test runs in the host's zone and, on a machine whose zone id is a legacy one, fails with the error above. IDE test runs therefore need `-Duser.timezone=UTC` in their run configuration (README, development mode).
 
 **Alternatives.** Leaving the host zone and asking each developer to set `TZ`: rejected, because the build would break on any machine with a legacy zone id. A different database image with legacy zone links: rejected, the image is pinned to match production (ADR-015).
 

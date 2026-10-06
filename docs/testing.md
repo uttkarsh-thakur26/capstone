@@ -14,7 +14,7 @@ Started in Phase 0. The strategy is specification Section 19; this file says how
 
 Integration tests start the production database image, `pgvector/pgvector:0.8.7-pg18-trixie` pinned by digest (ADR-015), so **Docker must be running**. Without it they fail with "Could not find a valid Docker environment". H2 is never used.
 
-Tests that need settings use the `test` profile (`backend/src/test/resources/application-test.yaml`). The backend JVM and the test JVM run in UTC (ADR-016).
+Tests that need settings use the `test` profile (`backend/src/test/resources/application-test.yaml`). The backend JVM runs in UTC, and so does the test JVM when Maven runs the tests; tests started from an IDE need `-Duser.timezone=UTC` (ADR-016).
 
 Fake embedding and chat models (19.1) do not exist yet; they arrive with Phases 3 and 5. No automated test calls a model.
 

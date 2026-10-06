@@ -9,18 +9,13 @@ import org.springframework.data.auditing.DateTimeProvider;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 /**
- * Time comes from one injected {@link Clock} in UTC (specification 4.5), and JPA auditing fills
- * {@code created_at} and {@code updated_at} from the same clock (7.1). Kept apart from the web
- * configuration, so that web-slice tests start without JPA.
+ * JPA auditing fills {@code created_at} and {@code updated_at} from the injected {@link Clock}
+ * (specification 7.1). Kept apart from the web configuration, so that web-slice tests start without
+ * JPA.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableJpaAuditing(dateTimeProviderRef = "auditingDateTimeProvider")
 class PersistenceConfig {
-
-  @Bean
-  Clock clock() {
-    return Clock.systemUTC();
-  }
 
   @Bean
   DateTimeProvider auditingDateTimeProvider(Clock clock) {

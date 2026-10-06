@@ -19,6 +19,7 @@ cp .env.example .env
 Open `.env` and set these to values of your own:
 
 - `POSTGRES_PASSWORD`.
+- `APP_SECURITY_JWT_SECRET`: the key that signs sign-in tokens, base64 of 32 random bytes. Generate it with `openssl rand -base64 32` (Git Bash, macOS, Linux), or in Windows PowerShell with `$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`.
 - `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD` (10 to 128 characters): the first admin account, created on the first start because no admin exists yet. There is no built-in account; with the placeholder password the backend refuses to start.
 
 Then:
@@ -74,7 +75,7 @@ cd backend && ./mvnw verify
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build && npm run format:check
 ```
 
-CI also builds both images and starts the stack from `.env.example`, with a generated admin password (`docker compose up --build -d --wait`), then calls `/api/v1/meta` through nginx.
+CI also builds both images and starts the stack from `.env.example`, with a generated signing key and admin password (`docker compose up --build -d --wait`), then calls `/api/v1/meta` through nginx.
 
 Formatting: `./mvnw spotless:apply` in `backend`, `npm run format` in `frontend`.
 

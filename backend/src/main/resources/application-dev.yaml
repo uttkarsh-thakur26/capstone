@@ -15,3 +15,10 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+
+app:
+  security:
+    # The Vite dev server is the interface's origin in development mode (DEP-3).
+    allowed-origins: http://localhost:5173
+    # Plain HTTP on localhost. Only this profile may turn Secure off (AUTH-6).
+    refresh-cookie-secure: false

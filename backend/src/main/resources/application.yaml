@@ -24,6 +24,11 @@ springdoc:
 app:
   # Required. The application refuses to start without it (D1, ADR-007).
   display-name: ${APP_DISPLAY_NAME:}
+  security:
+    # Required: base64 of at least 32 random bytes, for example `openssl rand -base64 32` (AUTH-6).
+    jwt-secret: ${APP_SECURITY_JWT_SECRET:}
+    # Required, comma-separated: the origins that serve the interface (AUTH-9). Never a wildcard.
+    allowed-origins: ${APP_SECURITY_ALLOWED_ORIGINS:}
   registration:
     # Comma-separated. Empty means anyone may register, always as a STUDENT (AUTH-1).
     allowed-email-domains: ${APP_REGISTRATION_ALLOWED_EMAIL_DOMAINS:}

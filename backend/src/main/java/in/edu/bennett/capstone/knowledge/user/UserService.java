@@ -5,7 +5,10 @@ import in.edu.bennett.capstone.knowledge.audit.AuditEvent;
 import in.edu.bennett.capstone.knowledge.audit.AuditOutcome;
 import in.edu.bennett.capstone.knowledge.audit.AuditService;
 import in.edu.bennett.capstone.knowledge.common.ApiException;
+import java.time.Clock;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -27,16 +30,82 @@ public class UserService {
   private final PasswordEncoder passwordEncoder;
   private final RegistrationProperties registration;
   private final AuditService audit;
+  private final Clock clock;
 
   UserService(
       UserRepository users,
       PasswordEncoder passwordEncoder,
       RegistrationProperties registration,
-      AuditService audit) {
+      AuditService audit,
+      Clock clock) {
     this.users = users;
     this.passwordEncoder = passwordEncoder;
     this.registration = registration;
     this.audit = audit;
+    this.clock = clock;
+  }
+
+  /** For the password check at sign-in. Expects a normalized email. */
+  @Transactional(readOnly = true)
+  public Optional<UserCredentials> findCredentials(String email) {
+    return users
+        .findByEmail(email)
+        .map(
+            user ->
+                new UserCredentials(
+                    user.getId(),
+                    user.getEmail(),
+                    user.getPasswordHash(),
+                    user.getRole(),
+                    user.isEnabled()));
+  }
+
+  /**
+   * The account behind a request, read on every request and never cached, so that a changed role or
+   * a disabled account applies at once (AUTH-7, ACL-7). Empty for a disabled or missing user.
+   */
+  @Transactional(readOnly = true)
+  public Optional<UserResponse> findEnabled(UUID id) {
+    return users.findById(id).filter(UserAccount::isEnabled).map(UserResponse::of);
+  }
+
+  /** Any account, enabled or not, for example to name the actor of an audit entry. */
+  @Transactional(readOnly = true)
+  public Optional<UserResponse> find(UUID id) {
+    return users.findById(id).map(UserResponse::of);
+  }
+
+  @Transactional
+  public void recordLogin(UUID id) {
+    users.findById(id).ifPresent(user -> user.recordLogin(clock.instant()));
+  }
+
+  /**
+   * Changes the user's own password after checking the current one (S2, ADR-025). Revoking the
+   * user's sessions is the caller's part, because refresh tokens belong to the security module.
+   */
+  @Transactional
+  public void changePassword(UUID id, String currentPassword, String newPassword) {
+    UserAccount user =
+        users
+            .findById(id)
+            .orElseThrow(() -> new IllegalStateException("Signed-in user " + id + " not found"));
+    if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+      audit.recordSeparately(
+          AuditEvent.of(
+                  AuditAction.PASSWORD_CHANGED, AuditOutcome.DENIED, user.getId(), user.getEmail())
+              .withResource(RESOURCE_USER, user.getId()));
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST,
+          "CURRENT_PASSWORD_INCORRECT",
+          "The current password is not correct.");
+    }
+    user.changePasswordHash(passwordEncoder.encode(newPassword));
+    audit.record(
+        AuditEvent.of(
+                AuditAction.PASSWORD_CHANGED, AuditOutcome.SUCCESS, user.getId(), user.getEmail())
+            .withResource(RESOURCE_USER, user.getId()));
+    log.info("User {} changed their password", user.getId());
   }
 
   /** AUTH-1: self-registration always creates an enabled STUDENT. */

@@ -11,7 +11,12 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.oauth2.jwt.BadJwtException;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
@@ -50,6 +55,21 @@ class MetaControllerTest {
       Properties properties = new Properties();
       properties.setProperty("version", "1.2.3-test");
       return new BuildProperties(properties);
+    }
+
+    /** The slice has no accounts, so no token is ever valid here. */
+    @Bean
+    JwtDecoder jwtDecoder() {
+      return token -> {
+        throw new BadJwtException("no tokens in this test");
+      };
+    }
+
+    @Bean
+    Converter<Jwt, AbstractAuthenticationToken> currentUserConverter() {
+      return jwt -> {
+        throw new IllegalStateException("no tokens in this test");
+      };
     }
   }
 }

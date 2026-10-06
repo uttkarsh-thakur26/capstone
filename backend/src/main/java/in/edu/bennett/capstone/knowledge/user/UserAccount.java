@@ -90,4 +90,12 @@ class UserAccount {
   Instant getCreatedAt() {
     return createdAt;
   }
+
+  void recordLogin(Instant when) {
+    this.lastLoginAt = when;
+  }
+
+  void changePasswordHash(String newHash) {
+    this.passwordHash = newHash;
+  }
 }

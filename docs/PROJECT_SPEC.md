@@ -3,8 +3,9 @@
 | | |
 |---|---|
 | Working description | AI-powered document and organizational knowledge platform |
-| Context | Final-year BTech Capstone (CSET400C), three-member team |
+| Context | Final-year BTech Capstone (CSET400C, Bennett University, Semester VII, session 2026-27), three-member team |
 | Project name | Not finalized. See D1 in Section 26 |
+| Course milestones | Milestone-1 on 18 October 2026. Milestone-2 on 23 November 2026 (D20). Final evaluation at the end of the semester. See Section 27 |
 | Technology baseline checked on | 2026-10-05 |
 
 ---
@@ -15,10 +16,12 @@
 - If code and specification disagree, fix the code or change the specification through a recorded decision. Do not let them drift apart silently.
 - Read Section 23 first. It lists which sections belong to the current phase. Read those, not the whole file.
 - Requirement IDs such as `ACL-1` or `RAG-3` are stable. Tests, commits and reports should cite them.
-- Tiers: `[T1]` minimum demonstrable product, `[T2]` required for final submission, `[T3]` stretch. A requirement with no tag is T1.
+- Tiers: `[T1]` due at Milestone-2, `[T2]` due at the final evaluation, `[T3]` stretch. A requirement with no tag is T1.
 - "must" is binding for its tier. "should" may be skipped only with a recorded reason. "may" is optional.
-- Anything marked **TEAM DECISION** is decided by the team, never assumed. A default applies only where Section 26 gives one.
-- Do not invent a project name, team details, evaluation numbers, screenshots or sample data presented as real.
+- Anything marked **TEAM DECISION** is decided by the whole team and recorded, never assumed by whoever is implementing. A default applies only where Section 26 gives one.
+- Do not invent a project name, team details, references, survey or interview answers, evaluation numbers, screenshots or sample data presented as real.
+- Section 27 maps the project to the CSET400C assessment: dates, marks, what each milestone must contain, and the report format. The course framework is the authority on those. If this file disagrees with it, the framework wins and this file is corrected.
+- The title and problem may be refined. A substantial change in problem domain or objective needs the course coordinator's approval first (Section 27.2).
 
 ---
 
@@ -42,6 +45,8 @@ Both chosen academic domains must be visibly present in the result:
 |---|---|
 | Artificial Intelligence / Machine Learning | Embeddings and semantic similarity, vector retrieval, keyword versus semantic versus hybrid comparison, retrieval-augmented generation, prompt design, grounded generation with abstention, a reproducible evaluation with ablations |
 | Software Engineering | Modular architecture, relational and vector data design, REST API design, authentication and fine-grained authorization, background processing, automated tests at several levels, CI, containerized deployment, documentation and decision records |
+
+Milestone-2 expects specific evidence for each project type. For AI/ML: dataset preparation, a baseline or initial model, an experimental pipeline and preliminary results. For a web application: working frontend and backend core modules with database and API integration. Phase 7 and Section 20.6 exist to meet the first of these (Section 27.4).
 
 ### 1.3 Glossary
 
@@ -68,7 +73,7 @@ A user can:
 1. Register, sign in and act within a role.
 2. Upload documents and control who can read each one (faculty and admins).
 3. Watch a document move through processing to "indexed" or to a clear failure reason.
-4. Search document content by meaning, and by keyword or both `[T2]`.
+4. Search document content by meaning or by keyword, and by both combined `[T2]`.
 5. Ask questions and receive grounded answers with page-level citations.
 6. Open a citation at the cited page.
 7. Receive an explicit insufficient-evidence outcome instead of a guess.
@@ -78,7 +83,7 @@ A user can:
 
 The team can:
 
-11. Measure the system with a reproducible evaluation `[T2]`.
+11. Measure the system with a reproducible evaluation: a first run for Milestone-2, and the full study `[T2]`.
 12. Start the whole system from a clean clone with Docker Compose.
 
 ### 2.2 Non-goals
@@ -91,11 +96,11 @@ Adding any of these needs a decision record that names the concrete requirement 
 
 | Tier | Meaning | Contents |
 |---|---|---|
-| T1 | Minimum demonstrable product. Complete at the end of Phase 6 | Accounts and roles, including role management by an admin. Document upload, listing, download, deletion and grants. PDF ingestion with visible status. Semantic search. Permission-aware question answering with validated citations and the insufficient-evidence outcome. Conversations. Citation viewer. React interface for all of it. Docker Compose. Automated tests including the access matrix |
-| T2 | Required for final submission | Keyword and hybrid search. Summarization. Comparison. Remaining administration screens. Audit log API and screen. Analytics. Evaluation dataset, harness and report. Rate limiting and hardening. Deployment and project documentation |
+| T1 | Minimum demonstrable product with first measurements. Complete at the end of Phase 7. This is the Milestone-2 scope | Accounts and roles, including role management by an admin. Document upload, listing, download, deletion and grants. PDF ingestion with visible status. Semantic search. Permission-aware question answering with validated citations and the insufficient-evidence outcome. Conversations. Citation viewer. React interface for all of it. Docker Compose. Automated tests including the access matrix. Keyword search as the baseline. Evaluation corpus, the development part of the question set, the harness and a first results report (Section 20.6). The design, test and evaluation documents that Section 25 marks for Milestone-2 |
+| T2 | Required for the final evaluation | Hybrid search. Summarization. Comparison. Remaining administration screens. Audit log API and screen. Analytics. Full evaluation with all comparisons and ablations. Rate limiting and hardening. Demo data loader, deployment notes and the remaining documentation. Final report and presentation |
 | T3 | Stretch, only when T1 and T2 are stable | Re-ranking. Streaming answers. More file formats (DOCX, PPTX, TXT). OCR. S3-compatible storage. Version chains. Topic or keyword extraction. SSO |
 
-If time runs short, cut from the bottom: all of T3, then comparison, then analytics charts, then summarization. Never cut the access-control tests, citations, the insufficient-evidence outcome or the evaluation.
+If time runs short, cut from the bottom: all of T3, then comparison, then analytics charts, then summarization. Never cut the access-control tests, citations, the insufficient-evidence outcome or the evaluation. Section 23 has the dated plan and the cut order inside T1 for Milestone-2.
 
 ---
 
@@ -374,7 +379,7 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`.
 
 **document_grant**: `document_id` (cascade), `grantee_type` (ROLE, USER), `grantee_role` (nullable), `grantee_user_id` (nullable, cascade), `created_by`. A check constraint ensures exactly one grantee column matches the type. One grant per document and grantee.
 
-**document_chunk**: `document_id` (cascade), `chunk_index`, `page_start`, `page_end`, `section` (nullable), `content`, `token_count`, `embedding vector(N)` (not null), `content_tsv` (generated `tsvector` of `content` `[T2]`). Unique on `(document_id, chunk_index)`.
+**document_chunk**: `document_id` (cascade), `chunk_index`, `page_start`, `page_end`, `section` (nullable), `content`, `token_count`, `embedding vector(N)` (not null), `content_tsv` (generated `tsvector` of `content`, added by a migration in Phase 7). Unique on `(document_id, chunk_index)`.
 
 **conversation**: `user_id` (cascade), `title`.
 
@@ -397,7 +402,7 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`.
 
 ### 7.4 Indexes
 
-Unique: `app_user(email)`, `refresh_token(token_hash)`, `document_chunk(document_id, chunk_index)`. Lookup: `document(owner_id)`, `document(status)`, `document(sha256)`, `document_grant(document_id)`, `document_grant(grantee_user_id)`, `document_chunk(document_id)`, `conversation(user_id, updated_at)`, `message(conversation_id, created_at)`, `audit_log(occurred_at)`, `query_log(created_at)`. Full-text `[T2]`: GIN on `document_chunk(content_tsv)`. Vector: none at first, HNSW later if measured need exists (RET-3).
+Unique: `app_user(email)`, `refresh_token(token_hash)`, `document_chunk(document_id, chunk_index)`. Lookup: `document(owner_id)`, `document(status)`, `document(sha256)`, `document_grant(document_id)`, `document_grant(grantee_user_id)`, `document_chunk(document_id)`, `conversation(user_id, updated_at)`, `message(conversation_id, created_at)`, `audit_log(occurred_at)`, `query_log(created_at)`. Full-text (Phase 7): GIN on `document_chunk(content_tsv)`. Vector: none at first, HNSW later if measured need exists (RET-3).
 
 ---
 
@@ -475,7 +480,7 @@ One `ChunkSearch` component offers keyword, semantic and hybrid search. Every me
 - **RET-2 Semantic search.** The query is embedded with the same model as the index. Rank by cosine distance (`<=>`). Report similarity as `1 - distance`.
 - **RET-3 Exact first (D11).** T1 uses exact search with no vector index. It has perfect recall, cannot be starved by the permission filter, and is fast enough for a capstone-sized corpus. Add an HNSW index (`vector_cosine_ops`) only when measurements show a need, together with `SET LOCAL hnsw.iterative_scan = strict_order` inside the read transaction. Then report recall and latency of approximate versus exact search in the evaluation.
 - **RET-4 Complete results.** When at least `k` retrievable chunks exist, search returns `k` results, however selective the permission filter is.
-- **RET-5 Keyword search** `[T2]`. PostgreSQL full-text search on `content_tsv` with `websearch_to_tsquery`, ranked with `ts_rank_cd`. This is the baseline for the evaluation. Text search configuration follows the corpus language (D13).
+- **RET-5 Keyword search** (Phase 7). PostgreSQL full-text search on `content_tsv` with `websearch_to_tsquery`, ranked with `ts_rank_cd`. This is the baseline for the evaluation, so it belongs to T1. Text search configuration follows the corpus language (D13).
 - **RET-6 Hybrid search** `[T2]`. Reciprocal Rank Fusion of the keyword and semantic rankings (constant 60), each already permission-filtered.
 - **RET-7 Result shape.** Chunk snippet, document id and title, page range and score. Nothing from a document the user cannot retrieve.
 - **RET-8 Scope filter.** When the caller passes document ids, every id is checked against ACL-1 first. An unreadable id produces `404`. It is never silently dropped. A readable id that is archived or not indexed is accepted and contributes no chunks.
@@ -497,7 +502,7 @@ One `ChunkSearch` component offers keyword, semantic and hybrid search. Every me
 6. Assemble the prompt: versioned system prompt, numbered sources within a token budget, filtered history, question.
 7. Generate, requesting structured output: `answerable` (boolean), `answer` (text with `[n]` markers), `citations` (list of source numbers).
 8. Validate: keep only citation numbers that exist in the supplied sources. If `answerable` is false, or a factual answer has no valid citation left, the outcome is `INSUFFICIENT_EVIDENCE`.
-9. Persist the user message, the assistant message and the citation snapshots, plus a query log entry once that table exists (Phase 8). Return the response.
+9. Persist the user message, the assistant message and the citation snapshots, plus a query log entry once that table exists (Phase 9). Return the response.
 
 ### 11.2 Source format
 
@@ -538,7 +543,7 @@ The system prompt contains no secrets and no internal details, so revealing it w
 - **RAG-5 Budget.** Sources plus history plus expected answer fit the model's context window with margin. With Ollama, `num-ctx` is set to match.
 - **RAG-6 Generation settings.** Temperature is set explicitly and low (default 0.1). Maximum output tokens and a request timeout (default 60 seconds) are configured. One retry on a transient failure. A provider failure returns `503` and records an `ERROR` outcome.
 - **RAG-7 No tools.** No tool or function calling is given to the chat model in T1 or T2. This limits what injected text in a document can cause.
-- **RAG-8 Threshold calibration.** The similarity floor starts as a provisional value and is calibrated on the evaluation's development split (Section 20.5). The chosen value and the embedding model it belongs to are recorded as a decision. Thresholds do not transfer between embedding models.
+- **RAG-8 Threshold calibration.** The similarity floor starts as a provisional value and is calibrated on the evaluation's development split (Section 20.5), first in Phase 7 and again whenever the embedding model or the chunking changes. The chosen value and the embedding model it belongs to are recorded as a decision. Thresholds do not transfer between embedding models.
 - **RAG-9 Structured output fallback.** If the chosen chat model cannot return reliable structured output, a recorded decision may switch to plain text with `[n]` markers parsed by the server and a fixed sentinel for "not answerable". All validation rules still apply.
 - **RAG-10 Streaming** `[T3]`. Structured output is not available while streaming, so a streaming mode sends answer text first and validated citations as a final event.
 
@@ -596,7 +601,7 @@ Recorded actions: `LOGIN_SUCCESS`, `LOGIN_FAILURE`, `LOGOUT`, `USER_REGISTERED`,
 - **AUD-1** Each entry holds actor, action, resource type and id, outcome, time, address and structured details.
 - **AUD-2** Never recorded: passwords, tokens, keys, document content, model prompts or answers. Question text only when D14 allows it.
 - **AUD-3** Entries are append-only. The API offers reading with filters (actor, action, date range) and pagination, for admins only.
-- **AUD-4** The audit table and `AuditService.record(...)` are created in Phase 1, and each action calls it from the phase in which the action is built, so nothing needs retrofitting. Only the audit read API and screen wait for Phase 8.
+- **AUD-4** The audit table and `AuditService.record(...)` are created in Phase 1, and each action calls it from the phase in which the action is built, so nothing needs retrofitting. Only the audit read API and screen wait for Phase 9.
 
 ### 14.3 Analytics
 
@@ -658,7 +663,7 @@ Users by role. Documents by status. Uploads over time. Ingestion failures by cod
 | `GET /admin/audit` `[T2]` | ADMIN | Audit entries |
 | `GET /admin/analytics` `[T2]` | ADMIN | Aggregated metrics |
 
-Asking a question always happens inside a conversation. There is no second, separate "ask" endpoint. In T1 the search `mode` accepts only `SEMANTIC`. `KEYWORD` and `HYBRID` arrive in Phase 7. `/actuator/health` is public. Other actuator endpoints follow SEC-12.
+Asking a question always happens inside a conversation. There is no second, separate "ask" endpoint. The search `mode` accepts `SEMANTIC` from Phase 4, `KEYWORD` from Phase 7 and `HYBRID` from Phase 8 `[T2]`. `/actuator/health` is public. Other actuator endpoints follow SEC-12.
 
 ### 15.3 Answer response
 
@@ -704,7 +709,7 @@ The display name comes from `VITE_APP_NAME`, because the project name is not fin
 - **UI-2 Roles.** Navigation adapts to the role for convenience only. The server enforces every rule.
 - **UI-3 States.** Every data view has loading, empty and error states.
 - **UI-4 Upload.** Client-side type and size check (the server checks again), progress indicator, then status polling until `INDEXED` or `FAILED`, showing the failure reason.
-- **UI-5 Assistant.** Message list, input, pending indicator. The insufficient-evidence outcome looks clearly different from an answer. Citations appear as numbered chips. Selecting one opens the viewer at the cited page and shows the snippet.
+- **UI-5 Assistant.** Message list, input, pending indicator. The insufficient-evidence outcome looks clearly different from an answer. Citations appear as numbered chips. Selecting one opens the viewer at the cited page and shows the snippet. A short notice says that answers are generated from the cited documents and should be checked against the cited page.
 - **UI-6 Safe rendering.** Model output is rendered as plain text or as Markdown without raw HTML. `dangerouslySetInnerHTML` is never used for model output or document text.
 - **UI-7 Search.** Mode selector, results with title, page, snippet and score, each linking to the viewer page.
 - **UI-8 Accessibility.** Keyboard operable, labelled controls, managed focus in dialogs, sufficient contrast (WCAG 2.1 AA target), and an `aria-live` region for new assistant messages.
@@ -719,7 +724,7 @@ Component tests for the route guard, the upload form, and citation rendering inc
 
 ## 17. Security requirements
 
-Cross-cutting checklist. Each item is tested or reviewed in Phase 9 at the latest.
+Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the latest.
 
 - **SEC-1 Authorization.** All rules in Section 5 hold on every access path.
 - **SEC-2 Identity.** Taken from the token only (ACL-E4). Registration cannot set a role (AUTH-1).
@@ -775,7 +780,7 @@ Environment variables listed in `.env.example` with placeholder values: database
 
 ### 19.2 Required tests
 
-**Access matrix (highest priority).** Build the fixture from Section 5.4. For every user and document, assert the expected result on every path that exists so far: detail, list, download, semantic search and question-answering retrieval in T1, then keyword search, hybrid search, summary and comparison in T2. "Read, not retrievable" means detail, list and download succeed while search and question answering exclude the document. Summary and comparison need readable and `INDEXED`, so D6 is allowed and D5 is not. Grant management follows ACL-2: owner and admins only.
+**Access matrix (highest priority).** Build the fixture from Section 5.4. For every user and document, assert the expected result on every path that exists so far: detail, list, download, semantic search, question-answering retrieval and keyword search in T1, then hybrid search, summary and comparison in T2. "Read, not retrievable" means detail, list and download succeed while search and question answering exclude the document. Summary and comparison need readable and `INDEXED`, so D6 is allowed and D5 is not. Grant management follows ACL-2: owner and admins only.
 
 **Authentication and accounts.** Registration ignores a role in the request. Wrong password and unknown email give the same response. Missing, expired, tampered and wrongly signed tokens give `401`. A disabled user is rejected. A non-admin gets `403` on admin endpoints. Refresh rotates the token and a reused old token is rejected. The last admin cannot be demoted or disabled. A role change applies on the user's next request.
 
@@ -783,7 +788,7 @@ Environment variables listed in `.env.example` with placeholder values: database
 
 **Ingestion.** Page numbers of chunks match the fixture. Deleting an indexed document removes its chunks. Encrypted file gives `ENCRYPTED`. Image-only file gives `NO_TEXT_LAYER`. An embedding failure gives `FAILED` and reprocess then succeeds. A document being reprocessed is not retrievable, and it is never `INDEXED` with a partial set of chunks. A stuck `PROCESSING` document is recovered. Two workers never claim the same document. A dimension mismatch stops startup. A chunk size above the embedding limit stops startup.
 
-**Retrieval.** A known query returns the expected chunk in the top `k`. A chunk from an unreadable document is never returned, even when it is the best match. Failed and archived documents are excluded. Removing a grant removes results on the next request. With a very selective permission filter, `k` results still come back (RET-4). An unreadable id in the scope filter gives `404`.
+**Retrieval.** A known query returns the expected chunk in the top `k`. A chunk from an unreadable document is never returned, even when it is the best match. Failed and archived documents are excluded. Removing a grant removes results on the next request. With a very selective permission filter, `k` results still come back (RET-4). An unreadable id in the scope filter gives `404`. The same exclusions hold in keyword mode from Phase 7 and in hybrid mode from Phase 8.
 
 **Question answering.** Prompt capture: the text sent to the fake chat model contains no chunk from an unreadable document. Below the similarity floor, the outcome is insufficient evidence and the chat model is invoked zero times. `answerable=false` gives insufficient evidence. Invalid citation numbers are dropped. A factual answer with no valid citation becomes insufficient evidence. Citation title and pages match the database. Malformed model output is handled. A provider timeout returns `503` and stores an `ERROR` outcome.
 
@@ -795,17 +800,23 @@ Environment variables listed in `.env.example` with placeholder values: database
 
 On every pull request and on `main`: backend build and all tests with Testcontainers, frontend lint, type check, tests and build. A red build blocks merging.
 
+### 19.4 Test evidence
+
+Milestone-2 and the final panel both give marks for testing and validation (Section 27). `docs/testing.md` therefore holds a test-case table: case id, requirement ID, what is checked, the test class or the manual steps, expected result, actual result, and the date and commit of the run. Automated cases are listed from a real test run. Manual cases come from the demo script in Appendix B. A result is recorded only after the case was actually run.
+
 ---
 
-## 20. AI evaluation `[T2]`
+## 20. AI evaluation
+
+The evaluation is done in two passes. A first run (20.6) is T1 and is shown at Milestone-2. The full study, with every comparison and ablation below, is T2 and feeds the final report.
 
 ### 20.1 Corpus
 
-Ten to twenty public or synthetic documents typical of the domain: regulations, policies, notices, course material. Include at least one pair of versions of the same policy, and documents at different access levels. Record each source and its license in `eval/corpus.md`.
+Ten to twenty public or synthetic documents typical of the domain: regulations, policies, notices, course material. Include at least one pair of versions of the same policy, and documents at different access levels. Record each source and its license in `eval/corpus.md`. Commit a document file only when its license allows redistribution. Otherwise commit its link and checksum, and keep the file out of the repository. The institution's own documents are used only if they are public or permission was given.
 
 ### 20.2 Question set
 
-At least 50 questions written and verified by team members, stored in `eval/questions.jsonl`. Each record: id, question, type, expected answer, gold sources (document and pages), and the persona asking (user and role).
+At least 52 questions written and verified by team members, stored in `eval/questions.jsonl`. The table gives the minimum for each type. Each record: id, question, type, expected answer, gold sources (document and pages), the persona asking (user and role), and the split (development or test). About half of each type goes to each part. A question's split is fixed when it is written and is never changed afterwards. Questions are written from the documents alone, before their author tries them on the system.
 
 | Type | Minimum | Purpose |
 |---|---|---|
@@ -832,14 +843,34 @@ At least 50 questions written and verified by team members, stored in `eval/ques
 
 - Retrieval: keyword versus semantic versus hybrid.
 - Answers: question answering on top of each retrieval mode.
-- Ablations: chunk size and overlap (for example 200, 400, 800 tokens), `k` (3, 6, 10), with and without follow-up condensation, approximate versus exact search if an index is added.
+- Ablations: chunk size and overlap (for example 200, 400, 800 tokens), `k` (3, 6, 10), and approximate versus exact search if an index is added.
+- Optional: follow-up condensation on and off. This needs a few follow-up questions recorded together with their earlier turn, which the question types in 20.2 do not include.
 
 ### 20.5 Method
 
-- Split the questions into a development part and a held-out test part. Tune thresholds, `k` and chunking on development only. Report on the test part.
+- Split the questions into a development part and a held-out test part (20.2). Tune thresholds, `k` and chunking on development only. Report final results on the test part.
 - Human scoring is the reference. Model-based judges (Spring AI's `RelevancyEvaluator` and `FactCheckingEvaluator`) may speed up scoring only after agreement with human labels has been measured on a sample and reported. Judge calls run in the harness, never in CI.
 - One command runs the harness against a running stack and writes raw results and a Markdown summary to `docs/evaluation/<date>/`, together with the configuration used: models, chunking, `k`, prompt version and commit hash.
 - Every number in the project report comes from harness output. Nothing is edited by hand.
+
+### 20.6 First run (T1, Phase 7)
+
+For an AI/ML project, Milestone-2 expects a prepared dataset, a baseline or initial model, an experimental pipeline and preliminary results (Section 27.4). The first run supplies exactly these.
+
+| Expected evidence | What this project shows |
+|---|---|
+| Dataset preparation | The corpus (20.1) and the development part of the question set: at least 26 verified questions, about half of each type's minimum in 20.2 |
+| Baseline or initial model | Keyword search (RET-5) as the baseline, semantic search (RET-2) as the first model |
+| Experimental pipeline | The one-command harness (20.5), with the configuration of each run saved |
+| Preliminary results | Recall@k and mean reciprocal rank for keyword and for semantic search. Abstention precision and recall. Leak count. Human-scored answer correctness on at least 15 questions. Search and answer latency, and ingestion time for a sample document |
+
+Rules for the first run:
+
+- It uses the development part only. The test part can be written later, and it stays unused until Phase 10.
+- Thresholds are tuned on this same part, so its figures are optimistic. The report says so.
+- Results are labelled preliminary, and every figure states how many questions it is based on.
+- Until `query_log` exists, the harness measures request times itself.
+- A result that looks bad is reported as it is, with the team's explanation of it.
 
 ---
 
@@ -847,7 +878,7 @@ At least 50 questions written and verified by team members, stored in `eval/ques
 
 - Structured logs with a request id on every line. JSON format in production.
 - Metrics through Micrometer and Actuator. Spring AI records model-call observations including token usage. Add timers for extraction, chunking, embedding, retrieval and generation.
-- `query_log` feeds analytics and the evaluation's latency figures.
+- `query_log` (Phase 9) feeds analytics and the per-stage latency figures of the full evaluation. Until it exists, the evaluation harness measures request times itself (Section 20.6).
 - Measure before optimizing. Establish correctness, then find real bottlenecks with data.
 
 Initial targets to measure against, to be revised in a decision record after the first measurements: search p95 under 1 second excluding the embedding call, a 50-page PDF indexed within 2 minutes, an answer p95 within 10 seconds with a hosted model. Local models may be slower. Report what is observed.
@@ -857,12 +888,12 @@ Initial targets to measure against, to be revised in a decision record after the
 ## 22. Deployment and CI
 
 - **DEP-1** `compose.yaml` defines `db` (pgvector image, health check, named volume at `/var/lib/postgresql`), `backend` (multi-stage image, non-root user, health check) and `frontend` (static build behind a web server that also proxies `/api` to the backend, so both share one origin). An optional profile adds a local model server.
-- **DEP-2** From a clean clone: copy `.env.example` to `.env`, fill in values, run `docker compose up`. The README gives the exact steps and they are verified on a fresh checkout before each milestone is closed.
+- **DEP-2** From a clean clone: copy `.env.example` to `.env`, fill in values, run `docker compose up`. The README gives the exact steps and they are verified on a fresh checkout before each phase is closed and before each course milestone.
 - **DEP-3** Development mode: run only `db` in Compose and start backend and frontend on the host with hot reload. The Vite dev server proxies API calls.
-- **DEP-4** A `demo` profile or script loads sample users and documents for the demo script in Appendix B. Passwords come from the environment.
-- **DEP-5** Production notes in `docs/deployment.md`: HTTPS termination, secret handling, Swagger UI off, strict origins, backup of the database and the file volume.
+- **DEP-4** `[T2]` A `demo` profile or script loads sample users and documents for the demo script in Appendix B. Passwords come from the environment.
+- **DEP-5** `[T2]` Production notes in `docs/deployment.md`: HTTPS termination, secret handling, Swagger UI off, strict origins, backup of the database and the file volume.
 - **DEP-6** CI as in Section 19.3.
-- **DEP-7** Hosting target is a TEAM DECISION (D17).
+- **DEP-7** `[T2]` Hosting target is a TEAM DECISION (D17). The final evaluation is preferably held in person, so the default is a team machine.
 
 Repository layout:
 
@@ -870,7 +901,7 @@ Repository layout:
 /
 ├── backend/        Spring Boot application with Maven Wrapper
 ├── frontend/       React, TypeScript, Vite
-├── docs/           specification, progress, decisions, versions, architecture, evaluation
+├── docs/           specification, progress, decisions, versions, architecture, evaluation, course documents
 ├── eval/           corpus manifest, question set, harness
 ├── compose.yaml
 ├── .env.example
@@ -884,9 +915,51 @@ Repository layout:
 
 One phase at a time. A phase ends only when every exit criterion is met and shown with evidence. Tests are part of every phase, not a later one.
 
-Every phase also reads Section 19 for its tests and Section 24 for the working agreement. A phase that adds endpoints reads Section 15, and a phase that adds screens reads Section 16.
+Every phase also reads Section 19 for its tests and Section 24 for the working agreement. A phase that adds endpoints reads Section 15, and a phase that adds screens reads Section 16. Every phase also writes or updates the documents that Section 25 starts in that phase or that its changes touch. The two checkpoints below verify the set before each milestone.
 
-The evaluation corpus and question set (Section 20) are human work. Start collecting them during Phase 2 so they are ready by Phase 9.
+The evaluation corpus and question set (Section 20) are written by hand and take calendar time. Start now. The corpus and the development part of the question set (at least 26 questions, Section 20.6) are needed in Phase 7, and the full set in Phase 10.
+
+### Course milestones and the phases
+
+| Date | Course milestone | What must exist | Details |
+|---|---|---|---|
+| 18 October 2026 | Milestone-1, 30 marks | The proposal document and a group presentation. The framework lists no implementation deliverable | 27.3 |
+| 23 November 2026 | Milestone-2, 30 marks | T1: Phases 0 to 7 working and demonstrable, plus the Milestone-2 pack | 27.4 |
+| End of semester | Final panel, 30 marks, and guide evaluation, 10 marks | T2: Phases 8 to 11, the final report, presentation, demo and viva | 27.5 to 27.7 |
+
+The course framework prints the Milestone-2 date as 23 November in one place and 30 November in another. Plan for 23 November until the coordinator confirms (D20). If 30 November is confirmed, the extra week is the spare week, not room for more features.
+
+Proposed internal targets. The team may move them in `docs/PROGRESS.md`, for example around exams and holidays. The course dates do not move.
+
+| By | Target |
+|---|---|
+| 11 October | Complete first draft of the Milestone-1 document |
+| 16 October | Milestone-1 document and slides final and rehearsed |
+| 18 October | Phase 0, done by one member in parallel, only if it does not delay the Milestone-1 pack |
+| 25 October | Phases 1 and 2 |
+| 1 November | Phase 3 |
+| 8 November | Phases 4 and 5 |
+| 15 November | Phases 6 and 7. Feature freeze |
+| 16 to 22 November | Milestone-2 pack, feedback session, fixes only, rehearsal |
+
+This pace has no spare week. Phase 7 depends only on Phases 4 and 5, so it can run alongside Phase 6. If the freeze date is at risk, cut inside T1 in this order, and list whatever was cut as remaining work in the Milestone-2 statement:
+
+1. The conversation list page and rename (Phase 6). The assistant screen, citations and the viewer stay.
+2. Follow-up condensation (Phase 6, demo step 8).
+3. Human scoring of answers in the first evaluation run drops below the 15 questions asked for in Section 20.6, and the report says how many were scored. Retrieval metrics, abstention and the leak count stay.
+
+Never cut for Milestone-2: the access matrix tests, validated citations, the insufficient-evidence outcome, the keyword versus semantic results, and a clean start with Docker Compose.
+
+### Checkpoint: Milestone-1 pack
+
+Not a build phase. Due 18 October 2026 (Section 27.3).
+
+- [ ] Every row of the deliverable table in Section 27.3 is written.
+- [ ] Every cited source was read by a member, and the references are in one style (D21).
+- [ ] Stakeholder evidence is recorded with its method, number of respondents and questions (D22).
+- [ ] Provisional model choices (D5, D6) are named, with their costs and hardware needs.
+- [ ] The document follows the format in Section 27.6.
+- [ ] The slides cover the six rubric criteria, and each member has rehearsed a part.
 
 ### Phase 0: Foundation
 
@@ -978,21 +1051,50 @@ Exit criteria:
 - [ ] The Playwright end-to-end test passes.
 - [ ] Steps 1 to 9 of the demo script in Appendix B work end to end.
 
-**T1 is complete here.**
+**The MVP is complete here.** Phase 7 adds the baseline and the first measurements that Milestone-2 also expects.
 
-### Phase 7: Keyword and hybrid search, summarization, comparison
+### Phase 7: Keyword baseline and first evaluation run
 
-Read: Sections 10 (RET-5, RET-6), 13.
+Read: Sections 10 (RET-5), 19.4, 20, 21. Needs: Phases 4 and 5, plus the corpus and the development part of the question set (Section 20.6).
 
-Build: keyword and hybrid search modes, summarization with background status, comparison, and their screens.
+Build: the `content_tsv` migration and index, keyword search mode with the same retrievable predicate, the mode selector on the search screen, the evaluation harness, a first calibration of the similarity floor (RAG-8), the first results report, and the test-case table.
 
 Exit criteria:
 
-- [ ] The access matrix passes for keyword search, hybrid search, summary and comparison.
+- [ ] The access matrix and the "Retrieval" exclusions in Section 19.2 pass for keyword search.
+- [ ] The harness runs with one command against a running stack and writes raw results, a summary and the configuration used.
+- [ ] The first run in Section 20.6 is complete and stored under `docs/evaluation/<date>/`, with keyword and semantic retrieval compared.
+- [ ] The leak count is 0.
+- [ ] `docs/testing.md` holds the test-case table with results from a real run (Section 19.4).
+- [ ] Step 10 of the demo script in Appendix B works.
+
+**T1 is complete here. This is the state shown at Milestone-2.**
+
+### Checkpoint: Milestone-2 pack
+
+Not a build phase. It fills the week between the feature freeze and Milestone-2 (Section 27.4).
+
+- [ ] Every file that Section 25 marks as first needed at Milestone-2 exists and matches the code.
+- [ ] Every row of the deliverable table in Section 27.4 has its evidence.
+- [ ] The feedback session has been held and recorded in `docs/course/feedback.md`.
+- [ ] `docs/course/risks.md`, `docs/course/contributions.md` and the log diary are up to date.
+- [ ] A second machine starts the system from a clean clone, using the README alone.
+- [ ] A screenshot of each demo step and a screen recording of one complete run exist.
+- [ ] All three members have rehearsed the demonstration.
+
+### Phase 8: Hybrid search, summarization, comparison
+
+Read: Sections 10 (RET-6), 13.
+
+Build: hybrid search mode, summarization with background status, comparison, and their screens.
+
+Exit criteria:
+
+- [ ] The access matrix passes for hybrid search, summary and comparison.
 - [ ] A long document is summarized with the map-reduce path, and a stored summary is not served to a user without access.
 - [ ] Comparing the two versions in the sample corpus reports real differences with page references on both sides, and nothing unsupported.
 
-### Phase 8: Administration, audit, analytics
+### Phase 9: Administration, audit, analytics
 
 Read: Section 14. Needs: D14.
 
@@ -1004,31 +1106,33 @@ Exit criteria:
 - [ ] Every action listed in Section 14.2 produces an audit entry with no secret or document content in it.
 - [ ] Analytics figures match direct database queries.
 
-### Phase 9: Evaluation and hardening
+### Phase 10: Full evaluation and hardening
 
 Read: Sections 17, 20, 21.
 
-Build: evaluation harness, result reports, threshold calibration, rate limits, security review, performance measurements.
+Build: the complete question set, every comparison and ablation, final threshold calibration, result reports, rate limits, security review, performance measurements.
 
 Exit criteria:
 
-- [ ] The harness runs with one command and writes its report.
+- [ ] The question set meets the minimum counts in Section 20.2, and the harness reports on the held-out test part.
 - [ ] Results for all comparisons and ablations in Section 20.4 are stored with their configuration.
 - [ ] The leak count is 0.
 - [ ] Every item in Section 17 is checked off with a test or a written review note.
 - [ ] Rate limits are active.
 
-### Phase 10: Deployment and documentation
+### Phase 11: Deployment, documentation and the final evaluation pack
 
-Read: Sections 22, 25. Needs: D1, D17.
+Read: Sections 22, 25, 27.5 to 27.7. Needs: D1, D17.
 
-Build: demo data loader, deployment notes, the documentation set, final name applied in one place.
+Build: demo data loader, deployment notes, the documentation set, final name applied in one place, the working sources for the final report.
 
 Exit criteria:
 
 - [ ] A teammate who did not write the deployment follows the README on a clean machine and gets a working system.
 - [ ] Every deliverable in Section 25 exists and matches the code.
 - [ ] The full demo script in Appendix B runs without manual fixes.
+- [ ] Every number and figure in the final report traces to harness output, a test run or a diagram source in the repository.
+- [ ] The final evaluation pack in Section 27.5 is complete.
 
 ---
 
@@ -1044,6 +1148,8 @@ Exit criteria:
 
 Everyone takes part in integration, testing, documentation, architecture decisions and the final demonstration. Each member must be able to explain the whole system, not only their own area.
 
+Guide marks and the final viva are individual (Section 27.7). So each member needs visible work of their own: commits and pull requests under their own account, sections of each report, and a part of each presentation and of the demo.
+
 ### 24.2 Git workflow
 
 - `main` is always green and runnable. No direct commits to `main`.
@@ -1051,6 +1157,9 @@ Everyone takes part in integration, testing, documentation, architecture decisio
 - Pull requests are small, pass CI, and are reviewed by a teammate before merging.
 - Commit messages follow Conventional Commits and explain what changed and why.
 - Never commit secrets, `.env`, build output, dependencies folders or local tool configuration.
+- Never commit personal data: enrollment numbers, phone numbers, consent emails, or survey answers that identify a person.
+- Each member commits their own work under their own git identity. The history, the reviews and the log diary are the evidence of individual contribution.
+- Reviewers rotate, so that every member has read code in every area.
 
 ### 24.3 Implementation rules
 
@@ -1064,7 +1173,7 @@ Everyone takes part in integration, testing, documentation, architecture decisio
 8. No simulated behavior presented as real. Unfinished parts are explicit, return a clear "not implemented" response, and are listed in `docs/PROGRESS.md`.
 9. Update documentation in the same change as the code.
 10. Explain non-obvious choices in two or three lines and name the alternative that was rejected. The team has to defend them.
-11. Ask when a TEAM DECISION is needed. Do not guess.
+11. Raise a TEAM DECISION with the team when one is needed. Do not guess.
 
 ### 24.4 Code conventions that are not obvious
 
@@ -1081,9 +1190,9 @@ Everyone takes part in integration, testing, documentation, architecture decisio
 
 Code, tests, migrations and documentation are complete for the change. All checks pass. `docs/PROGRESS.md` is current. Nothing unfinished is hidden.
 
-### 24.6 Milestone report
+### 24.6 Phase report
 
-At the end of each phase:
+Written at the end of each phase. It is separate from the course milestone packs in Section 27.
 
 ```
 ## Phase <n>: <name>
@@ -1097,7 +1206,7 @@ Decisions     new entries in docs/DECISIONS.md
 Deviations    anything that differs from the specification, and why
 Known issues  incomplete or fragile parts
 How to run    exact commands
-Next          the next phase and what it needs from the team
+Next          the next phase and the decisions it needs
 ```
 
 ### 24.7 Decision record
@@ -1113,30 +1222,48 @@ Consequences   what becomes easier and what becomes harder
 
 ### 24.8 Progress file
 
-`docs/PROGRESS.md` holds: the current phase, a table of phases with status and date, open questions for the team, and known issues. It is updated at the end of every working session, because each session starts without memory of the previous one.
+`docs/PROGRESS.md` holds: the current phase, a table of phases with status and date, the course milestone dates with the state of each pack, open questions for the team, and known issues. It is updated at the end of every working session, so that any member can pick up where the last one stopped.
 
 ---
 
 ## 25. Documentation deliverables
 
-Diagrams are written as Mermaid in Markdown so they render on the repository host and can be reviewed as text.
+Documentation is written with the code, not at the end (Section 24.3, rule 9). "Started in" names the phase that creates each file. Later phases keep it current. "First needed" names the course milestone that needs it first (Section 27). The checkpoints in Section 23 verify the set before each milestone.
 
-| File | Content |
-|---|---|
-| `README.md` | What the project is, quickstart, commands, links to the rest |
-| `docs/architecture.md` | Context, container and module diagrams, module rules |
-| `docs/data-model.md` | ER diagram, table notes, integrity rules |
-| `docs/security.md` | Authentication flow, authorization model, access matrix, threat table |
-| `docs/rag-pipeline.md` | Sequence diagrams for ingestion and for answering, prompt contract, abstention logic |
-| `docs/api.md` | Conventions and a link to the generated OpenAPI document |
-| `docs/testing.md` | Strategy, how to run each level, what the fakes do |
-| `docs/evaluation/` | Dataset description, harness output, analysis |
-| `docs/deployment.md` | Local, demo and production notes |
-| `docs/limitations.md` | Known limitations and future work |
-| `docs/DECISIONS.md` | Decision records |
-| `docs/PROGRESS.md` | Status |
-| `docs/VERSIONS.md` | Resolved versions |
-| `docs/demo-script.md` | The demo in Appendix B with exact steps and data |
+Diagrams are kept as text sources next to the documents. Mermaid in Markdown renders on the repository host and covers flowcharts and sequence, class, state and entity-relationship diagrams. It has a use-case diagram type from version 12, still marked beta, so check which Mermaid version the repository host runs before relying on it. It has no data-flow diagram type. Where Mermaid does not fit, use PlantUML or draw.io and commit the source file with the exported image. Reports need exported images in any case.
+
+| File | Content | Started in | First needed |
+|---|---|---|---|
+| `README.md` | What the project is, quickstart, commands, links to the rest | Phase 0 | Phase 0 |
+| `docs/architecture.md` | Context, container and module diagrams, module rules, and a table of modules with responsibility, public API and dependencies | Phase 0 | Milestone-2 |
+| `docs/design-diagrams.md` | Use-case diagram for the three roles, class diagram of the core domain, data-flow diagrams (level 0 and level 1), activity diagram of ingestion, state diagram of the document status, deployment diagram | Milestone-1 pack (use-case diagram and level 0 data flow) | Milestone-2 |
+| `docs/data-model.md` | ER diagram, table notes, integrity rules | Phase 1 | Milestone-2 |
+| `docs/security.md` | Authentication flow, authorization model, access matrix, threat table | Phase 1 | Milestone-2 |
+| `docs/api.md` | Conventions and a link to the generated OpenAPI document | Phase 1 | Milestone-2 |
+| `docs/rag-pipeline.md` | Sequence diagrams for ingestion and for answering, prompt contract, abstention logic | Phase 3 | Milestone-2 |
+| `docs/limitations.md` | Known limitations and future work | Phase 3 | Milestone-2 |
+| `docs/testing.md` | Strategy, how to run each level, what the fakes do, the test-case table (Section 19.4) | Phase 0 | Milestone-2 |
+| `docs/demo-script.md` | The demo in Appendix B with exact steps and data | Phase 6 | Milestone-2 (steps 1 to 10), final (all) |
+| `docs/evaluation/` | Dataset description, harness output, analysis | Phase 7 | Milestone-2 (first run), final (full study) |
+| `docs/deployment.md` | Local, demo and production notes | Phase 0 (local part) | Final |
+| `docs/DECISIONS.md` | Decision records | Phase 0 | Phase 0 |
+| `docs/PROGRESS.md` | Status | Phase 0 | Phase 0 |
+| `docs/VERSIONS.md` | Resolved versions | Phase 0 | Phase 0 |
+
+Course documents. They are the working sources for the formatted reports described in Section 27.6.
+
+| File | Content | First needed |
+|---|---|---|
+| `docs/course/proposal.md` | Problem statement and motivation, SDG mapping and rationale, background, literature and existing-solution review, gap analysis, scope and limitations, proposed solution and methodology, expected outcomes | Milestone-1 |
+| `docs/course/requirements.md` | Stakeholders and how their needs were collected, user requirements, functional and non-functional requirements with the IDs from this file. From Milestone-2, a trace from each requirement to its tests | Milestone-1, finalized for Milestone-2 |
+| `docs/course/feasibility.md` | Technical, economic, operational, legal and ethical feasibility | Milestone-1 |
+| `docs/course/risks.md` | Risk register: risk, likelihood, impact, mitigation, owner, status | Milestone-1, updated for Milestone-2 and the final report |
+| `docs/course/log-diary.md` | Dated record of the work done by each member, meetings with the guide, problems and decisions (Section 27.7) | Starts now, shown at Milestone-2 |
+| `docs/course/feedback.md` | Feedback from the guide, evaluators and test users, and what changed because of it | Milestone-2 |
+| `docs/course/milestone-2.md` | Evidence index for Milestone-2, with completed and remaining work | Milestone-2 |
+| `docs/course/contributions.md` | Who built and wrote what, with links to pull requests | Milestone-2, final |
+
+Files under `docs/course/` carry no enrollment numbers, no phone numbers and no names of survey respondents. The formatted documents that are actually submitted, which do carry team details, are kept in the team's shared storage and not in a public repository.
 
 Limitations to state plainly in the report: PDF text layer only, no OCR. Tables and figures are captured poorly. Tokenization and full-text search assume one main language. One institution per deployment. Answer quality is bounded by retrieval quality. A hosted provider receives document text. Earlier answers remain visible to their author after access is revoked.
 
@@ -1144,16 +1271,16 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 
 ## 26. Decision register
 
-"Open" items need an answer from the team before the phase shown. Defaults are used only where given. Every resolved item becomes a record in `docs/DECISIONS.md`.
+"Open" items are answered by the team before the phase or milestone shown. Defaults are used only where given. Every resolved item becomes a record in `docs/DECISIONS.md`.
 
 | ID | Decision | Default | Needed by | Status |
 |---|---|---|---|---|
-| D1 | Project name | None. Use `VITE_APP_NAME` and an `app.display-name` property so the name is set in one place | Before submission | Open |
+| D1 | Project name | The title submitted at Milestone 0, unless the team refines it. Refining is allowed. A substantial change of domain or objective needs coordinator approval. Use `VITE_APP_NAME` and an `app.display-name` property so the name is set in one place | Milestone-1 for the proposal cover. Phase 11 in the product | Open |
 | D2 | Maven group, artifact and base package | None. A neutral technical identifier, not a brand | Phase 0 | Open |
 | D3 | Build tool | Maven with wrapper | Phase 0 | Default |
 | D4 | Java version | 25, or 21 if the team's machines require it | Phase 0 | Default |
-| D5 | Chat model and provider | None. See Section 3.4 | Phase 5 | Open |
-| D6 | Embedding model and dimension | None. Fixes the vector column | Phase 3 | Open |
+| D5 | Chat model and provider | None. See Section 3.4 | A provisional choice for the Milestone-1 proposal. Final in Phase 5 | Open |
+| D6 | Embedding model and dimension | None. Fixes the vector column | A provisional choice for the Milestone-1 proposal. Final in Phase 3 | Open |
 | D7 | Token strategy | JWT access token plus rotating refresh cookie. A simpler variant (access token only, 60 minutes, sign in again) is allowed if recorded | Phase 1 | Default |
 | D8 | File storage | Local volume | Phase 2 | Default |
 | D9 | File formats | PDF only | Phase 2 | Default |
@@ -1161,13 +1288,221 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | D11 | Vector index | Exact search first | Phase 4 | Default |
 | D12 | Chunk storage design | Application-owned table (ADR-001) | Phase 3 | Default |
 | D13 | Corpus and answer language | English | Phase 5 | Default |
-| D14 | Store question text for analytics | Off | Phase 8 | Default |
+| D14 | Store question text for analytics | Off | Phase 9 | Default |
 | D15 | Admin reach | Admins read all documents, but not other users' conversations | Phase 2 | Default |
 | D16 | Student uploads | Not allowed | Phase 2 | Default |
-| D17 | Hosting target for the final demo | None | Phase 10 | Open |
+| D17 | Hosting target for the final demo | A team machine running Docker Compose, because the final evaluation is preferably held in person. A hosted copy is optional | Phase 11 | Default |
 | D18 | UI component approach | Tailwind CSS with one accessible component set | Phase 1 | Default |
 | D19 | Lombok | Not used. Records instead | Phase 0 | Default |
-| D20 | Submission and review dates | None | Phase 0 | Open |
+| D20 | Course dates | Milestone-1 on 18 October 2026. Milestone-2 on 23 November 2026, the earlier of the two dates the framework prints (the other is 30 November). Final panel and guide evaluation at the end of the semester, date not announced | Phase 0 | Set from the framework. Two dates to confirm (Section 27.8) |
+| D21 | Report template and reference style | The school's template if one is prescribed. Otherwise the format in Section 27.6 with numbered IEEE-style references | Milestone-1 | Open |
+| D22 | How stakeholder evidence is collected | A short survey of students plus short interviews with faculty and administrative staff, with consent and without names | Milestone-1 | Open |
+
+---
+
+## 27. Course assessment (CSET400C)
+
+Source: "CSET400C Capstone Project, Official Capstone Project Evaluation Framework, Academic Session 2026-27", School of Computer Science Engineering and Technology, Bennett University. That framework is the authority on marks, dates and formats. This section maps the project onto it, and is corrected whenever the two disagree.
+
+### 27.1 Calendar and marks
+
+| Component | Marks | Assessed as | Date | What it judges |
+|---|---|---|---|---|
+| Milestone 0: problem identification and group formation | 0, qualifying | Group | 24 or 25 August 2026, already past | Approval is mandatory to continue to Milestone-1 |
+| Milestone-1: proposal, requirements and feasibility | 30 | Group | 18 October 2026 | A clear, justified and feasible proposal, rather than completed implementation |
+| Milestone-2: design, MVP or prototype, initial validation | 30 | Group | 23 November 2026 (D20) | A credible design and a demonstrable MVP with tests and first results |
+| Final panel: report, presentation, demo and viva | 30 | Group, with an individual viva | End of semester | Judged by an independent panel of three to five faculty members. The guide is not the main scorer |
+| Guide evaluation | 10 | Individual | End of semester | Each member's understanding, contribution and responsibility |
+
+The two milestones decide 60 of the 100 marks before the final evaluation starts.
+
+Course outcomes: CO1, finalize the problem. CO2, evaluate the proposal with stakeholders, including potential customers and market analysis. CO3, assess feasibility, scope, timeline and delivery.
+
+### 27.2 Course rules that bind this project
+
+- **SDG mapping.** The project must map to at least one UN Sustainable Development Goal, and two are encouraged where the link is real. This project claims SDG 4 and SDG 9 (Appendix A). The rationale is argued in the proposal and again in Chapter 7 of the final report.
+- **Achievable scope.** The project must fit the milestone timeline, with defined scope, deliverables and limitations. Sections 2 and 23 are this project's answer.
+- **Meaningful technical component.** Section 1.2 states the evidence for both domains.
+- **Changes.** The title and problem may be refined after Milestone 0. A substantial change in problem domain or objective needs the coordinator's approval. Moving features between tiers or phases is recorded in `docs/DECISIONS.md`. Anything that would change the problem statement in Appendix A goes to the coordinator first.
+- **Deadlines.** A milestone submitted late without an approved extension is marked late. With no demonstrable MVP at Milestone-2, marks are limited under the prototype criterion. For a member absent from the final presentation or viva, the individual evaluation is affected, and a make-up needs an approved justification.
+- **Integrity.** The framework says: "All submitted work must comply with university rules on plagiarism, academic integrity, responsible AI use, copyright, data privacy and ethical use of datasets/tools." The table says what each part means for this project.
+
+| Rule | What it means here |
+|---|---|
+| Plagiarism and academic integrity | Report text is the team's own. Every borrowed idea, figure and sentence is cited. Every source in the literature review was read by a team member. No invented references, survey answers, results or screenshots |
+| Responsible AI use | The product is an AI system, so the reports say how it is kept responsible: answers come only from documents the user may read, carry citations, and abstain when evidence is missing (Sections 5 and 11). Users are told that answers are generated and should be checked against the cited page (UI-5). Limitations are stated plainly (Section 25). The team also follows whatever the university's rule requires of its own work (27.8) |
+| Copyright | Corpus and demo documents are public or synthetic, with source and license recorded, and are committed only when the license allows redistribution (Section 20.1). Third-party code is used within its license. Figures taken from other work are credited |
+| Data privacy | No real personal data in demo or evaluation data (SEC-13). Survey and feedback answers are collected with consent and reported without names. Team members' personal details are not committed (Section 24.2). With a hosted model, document text leaves the deployment, so only public documents are sent (SEC-13). Question text is not stored by default (D14) |
+| Ethical use of datasets and tools | Datasets and models are used within their licenses and terms. Evaluation figures come only from harness output (Section 20.5), and unfavourable results are reported |
+
+### 27.3 Milestone-1 pack (18 October 2026, 30 marks)
+
+A proposal document, and a group presentation, which the framework names only in the rubric. The framework lists twelve deliverables, none of them an implementation. It says the emphasis is on problem understanding, stakeholders, existing solutions, requirements, feasibility, scope and planning, "rather than on completed implementation". Page count, template and presentation length are not stated (27.8). The format in 27.6 applies.
+
+Rubric, 5 marks each: (A) Problem Definition & SDG Alignment. (B) Literature/Existing Solutions & Gap. (C) Stakeholder & Requirements Analysis. (D) Feasibility, Risk & Opportunity. (E) Solution, Scope & Methodology. (F) Expected Outcome and Group Presentation.
+
+| Required deliverable | Rubric | Already in this file | The team still writes |
+|---|---|---|---|
+| Final problem statement and motivation | A | Appendix A, Section 1 | One specific statement with a measurable objective |
+| SDG mapping and rationale | A | Appendix A names SDG 4 and SDG 9 | The specific targets claimed, the mechanism that links the project to each, and how the effect will be shown. Keep the claim modest |
+| Background and context | A, B | Sections 1 and 1.3 | A short primer on document search, embeddings and RAG in the team's own words |
+| Literature and existing-solution review | B | Nothing | See the notes below |
+| Gap analysis | B | Sections 1.2 and 4.6 say what this design does differently | A comparison table of existing solutions against the properties that matter here |
+| Customer and user requirements, functional and non-functional requirements | C | Goals in Section 2.1. Functional requirements by ID in Sections 5, 6 and 8 to 14. Non-functional in Sections 16.3, 17, 19, 21 and 22 | Stakeholders, evidence of their needs, and a trace from each need to requirement IDs |
+| Technology and tool selection with justification | E | Sections 3.1, 3.4, 4.1, 4.6 and 26 | A table of each choice with the alternatives considered |
+| Technical, economic and operational feasibility, legal and ethical where relevant | D | Sections 2.3, 3.4, 23 and 27.2 | See the notes below |
+| Scope and limitations | E | Sections 2.1 to 2.3, and the limitations at the end of Section 25 | Nothing new. State them plainly |
+| Risk analysis and mitigation strategy | D | Starting list below | Likelihood, impact, owner and status for each risk |
+| Proposed solution and methodology | E | Sections 4, 9, 10, 11, 19, 20 and 23 | The architecture figure, the pipeline in prose, the evaluation plan and a timeline chart |
+| Expected outcomes | F | Sections 2.1 and 20.3, Appendix B | Measurable targets and the list of deliverables |
+| Group presentation. Not one of the twelve listed deliverables, but named in rubric criterion F | F | Nothing | Slides that follow the six criteria in order. Every member presents a part |
+
+**Literature and existing-solution review.** Cover research and products.
+
+- Research areas: keyword retrieval as the baseline (BM25 and full-text search), sentence embeddings and dense retrieval, retrieval-augmented generation, hybrid retrieval and rank fusion, evaluation of retrieval and of grounded answers (recall, reciprocal rank, faithfulness, citation quality, abstention), and the security of retrieval-based assistants (access control, prompt injection).
+- Products: enterprise search and document assistants, tools for chatting with a single PDF, open-source RAG platforms, and whatever the institution uses today.
+- A source is cited only after a team member has read it. Claims about a product come from its own documentation, with the link and the date it was read. One reference style throughout (D21).
+
+**Gap analysis.** One table. Rows are the reviewed solutions. Columns are the properties this project is built around: access control enforced at retrieval time for each document, page-level citations checked by the server, an explicit insufficient-evidence outcome, the option to keep documents on the institution's own machines, and a published, reproducible evaluation. The proposal claims only the gap this table supports.
+
+**Stakeholders and requirements.** The rubric rates assumption-based analysis as poor, and CO2 asks for potential customers and market analysis. Name the stakeholders: students, faculty, administrative staff who publish policies and notices, the IT team that would host the system, and outside organizations with internal knowledge bases as potential customers. Collect evidence from real people (D22). Record the method, the number of respondents, the questions and the answers as given. Map each need to requirement IDs in `docs/course/requirements.md`.
+
+**Feasibility.**
+
+| Kind | What to show |
+|---|---|
+| Technical | Mature GA components (Section 3). The team's skills and gaps. The hardware available, set against the model options in Section 3.4. A working Phase 0 skeleton, if it exists by then, is direct evidence |
+| Economic | The cost of building and of running the system: model usage for indexing and for the evaluation, and hosting for the demo. Prices come from the provider's current price list, with the date. Set this against the time users lose searching today |
+| Operational | Who uploads and maintains documents, who manages roles, what happens when a policy changes, backups, and what users need to learn |
+| Legal and ethical | Copyright of the documents, privacy of users' questions, sending text to a model provider, the harm of a wrong answer about a rule and how citations and abstention reduce it, accessibility |
+| Opportunity | Where else the system fits and who would adopt it. This is the market analysis that CO2 asks for |
+
+**Risks to start the register with.** The team rates each one and assigns an owner.
+
+| Risk | Mitigation already in this plan |
+|---|---|
+| The build window between the milestones is short | Tiers and cut order (Sections 2.3 and 23) |
+| Model provider cost, rate limits or an outage, including on demonstration day | One abstraction over providers (Section 3.4), a local option, recorded demo evidence (Appendix B) |
+| Local models too slow on the team's hardware | A hosted option (Section 3.4). Measure in Phases 3 and 5 before committing |
+| New framework versions with few correct examples | Version rules and verified traps (Sections 3.2 and 3.3) |
+| Poor retrieval on tables and scanned PDFs | Failure codes (Section 8.3), stated limitations (Section 25), evaluation (Section 20) |
+| A permission leak | Predicate inside the search SQL (Section 5.3), access matrix (Section 19.2), leak count (Section 20.3) |
+| Unsupported or wrong answers | Evidence gate, citation validation and abstention (Section 11) |
+| A question set that is too small or biased | Minimum counts per type and human verification (Section 20.2) |
+| A member unavailable during exams or illness | Shared understanding (Section 24.1), small pull requests (Section 24.2), the progress file (Section 24.8) |
+| Document text sent to a third party | SEC-13, and public documents only |
+| Scope growth | Non-goals (Section 2.2) and decision records (Section 24.7) |
+
+**Expected outcomes.** State them so they can be checked later: the T1 and T2 feature lists, a leak count of 0, semantic retrieval compared with the keyword baseline on paraphrased questions, and every answer either cited or abstaining. Targets are hypotheses. The reports give the measured result even when a target is missed.
+
+### 27.4 Milestone-2 pack (23 November 2026, 30 marks)
+
+The framework asks for a technically credible design and a demonstrable MVP, and says the core functionality must be demonstrable. For this project that is T1, Phases 0 to 7.
+
+Minimum evidence by project type, from the framework:
+
+| Type | Framework wording | Where it comes from here |
+|---|---|---|
+| AI/ML | Dataset preparation, baseline or initial model, experimental pipeline and preliminary results | Section 20.6 |
+| Web application | Working frontend and backend core modules and required database and API integration | Phases 1 to 6 |
+
+Rubric: System/Technical Design 5. Prototype/MVP Implementation 10. Testing & Validation 5. Performance/Results 5. Documentation & Project Management 5, where the top band asks for complete documentation, strong progress evidence and an updated log diary.
+
+| Required deliverable | Source |
+|---|---|
+| Finalized system requirements | `docs/course/requirements.md`, with every change since Milestone-1 listed |
+| System architecture and design | `docs/architecture.md`, `docs/security.md`, `docs/DECISIONS.md` |
+| Use-case diagram and appropriate UML, DFD or flow diagrams | `docs/design-diagrams.md`, `docs/rag-pipeline.md` |
+| Database and data design | `docs/data-model.md` |
+| Module and component design | The module table in `docs/architecture.md` |
+| Technology implementation | The code, `docs/VERSIONS.md`, the README and `docs/api.md` |
+| Working MVP or prototype | T1 started from a clean clone with Docker Compose. Demo script steps 1 to 10 |
+| Test cases and initial validation | `docs/testing.md` with the test-case table (Section 19.4), and the CI status |
+| User and stakeholder feedback where feasible | `docs/course/feedback.md`: a session in which three to five people carry out demo-script tasks, plus the guide's feedback |
+| Updated risk analysis | `docs/course/risks.md`, showing what changed since Milestone-1 |
+| Performance and accuracy results | The first evaluation run (Section 20.6) under `docs/evaluation/<date>/` |
+| Screenshots and demo evidence | A screenshot of each demo step and a screen recording of one complete run |
+| Statement of completed and remaining work | `docs/course/milestone-2.md`, taken from `docs/PROGRESS.md`, with target dates for the T2 phases |
+
+### 27.5 Final evaluation pack (end of semester, 30 marks from the panel)
+
+Handed in and done on the day: the report (27.6), a group presentation of 10 to 15 minutes, a live demonstration, and a panel viva of 5 to 10 minutes. All members are present and explain their own contributions.
+
+The framework says the final evaluation is preferably conducted offline, that is, in person. So the demonstration runs from a team machine and should not depend on the venue's network (D17).
+
+| Criterion, 5 marks each | Evidence |
+|---|---|
+| Presentation & Communication | A rehearsed presentation in which every member speaks |
+| Demonstration / Implementation | Appendix B run live on seeded data (DEP-4), with the recorded run as fallback |
+| Results, Testing & Validation | The full evaluation (Section 20), the test-case table, the access matrix and the leak count |
+| Problem Solving & Technical Reasoning | Decision records, and the problems met during the build with how each was solved. Note them in the log diary as they happen |
+| Technical Viva-Voce | Each member's own understanding of the whole system (27.7) |
+| Innovation / Research Achievement | A one-page statement of what is new compared with the reviewed solutions, backed by the gap analysis and the evaluation. It claims only what that evidence supports |
+
+### 27.6 Report structure and format
+
+Final report, in this order: Cover Page. Certificate or Declaration as prescribed by the school. Abstract. Table of Contents. List of Figures and Tables. Chapters 1 to 8. References. Appendices if required.
+
+| Chapter | Working sources | First draft |
+|---|---|---|
+| 1. Introduction and Problem Statement | `docs/course/proposal.md`, Appendix A | Milestone-1 |
+| 2. Background, Literature and Existing Solutions | `docs/course/proposal.md` | Milestone-1 |
+| 3. Requirements and Stakeholder Analysis | `docs/course/requirements.md`, `feasibility.md` and `risks.md` | Milestone-1 |
+| 4. Proposed Methodology and System Design | `docs/architecture.md`, `design-diagrams.md`, `data-model.md`, `security.md`, `rag-pipeline.md`, `DECISIONS.md` | Outline at Milestone-1, complete at Milestone-2 |
+| 5. Implementation | Module notes, `docs/api.md`, `VERSIONS.md`, `deployment.md`, screenshots | Milestone-2 |
+| 6. Testing, Results and Validation | `docs/testing.md`, `docs/evaluation/`, `docs/course/feedback.md` | First results at Milestone-2, complete at the final |
+| 7. SDG Impact, Discussion, Limitations and Future Scope | The SDG rationale, `docs/limitations.md`, the T3 list in Section 2.3, the innovation statement | Final |
+| 8. Conclusion | The measured outcomes set against the expected ones | Final |
+
+Writing the Milestone-1 and Milestone-2 documents in this chapter order means the final report grows out of them.
+
+Recommended length: 20 to 40 pages without references and appendices. Another line of the framework says 20 to 30 pages. Until the coordinator confirms (27.8), keep the main text within 30 pages and move detail to appendices.
+
+The framework sets this minimum standard for all reports, so it applies to the milestone documents too:
+
+| Element | Standard |
+|---|---|
+| Font | Times New Roman |
+| Normal text | 12 pt |
+| Chapter heading | 16 pt, bold, uppercase, centred |
+| Main heading | 14 pt, bold |
+| Subheading | 12 pt, bold |
+| Sub-subheading | 12 pt, bold italic |
+| Table or figure caption | 11 pt |
+| Table text | 10 to 11 pt |
+| Line spacing | 1.5 |
+| Text alignment | Justified |
+| Paper | A4 |
+
+Markdown under `docs/` is the working source. The formatted report is produced from it in the school's template (D21). Figures are exported from the diagram sources. Numbers are copied from harness output and test runs, never from memory.
+
+### 27.7 Individual assessment
+
+The guide's 10 marks are given to each member separately: Project Understanding & Objectives 4, Technical Contribution 3, Project Completion & Responsibility 3. The framework tells guides to judge each student's actual contribution, project discipline and response to feedback, and not to give identical marks automatically. The panel viva also tests individual understanding.
+
+Each member therefore:
+
+- has commits and pull requests of their own in their primary area (Sections 24.1 and 24.2);
+- reviews pull requests from the other two areas, so that no part of the system is unknown to them;
+- writes sections of each report and presents part of each presentation;
+- can start the system from a clean clone and trace an upload, a search and a question through the code;
+- has their work recorded in `docs/course/log-diary.md` and `docs/course/contributions.md`.
+
+Meet the guide regularly. Record each meeting, the feedback and what was done about it in the log diary. If the school prescribes a log diary format, use it. Otherwise each entry has: date, members present, work completed by each member, problems and how they were resolved, guide feedback, and the plan until the next entry. Entries describe work that happened, on dates that match the repository history.
+
+### 27.8 To confirm with the guide or coordinator
+
+The framework leaves these open or states them in two ways. Until they are answered, this plan takes the stricter reading.
+
+1. Milestone-2 date. The assessment table says 30 November 2026. The Milestone-2 section says 23 November 2026. Plan: 23 November.
+2. Final evaluation date. Only "end-semester" is given.
+3. Report length. 20 to 40 pages in two places, one of which excludes references and appendices. 20 to 30 pages in a third. Plan: main text within 30 pages.
+4. Final marks. One paragraph splits the last 40 marks as 20 from the guide and 20 from the panel. Every table says 30 from the panel and 10 from the guide. Plan: follow the tables.
+5. Milestone-1 and Milestone-2 submissions: template, length, where to submit, who evaluates, and how long the presentation is.
+6. Templates the school prescribes: certificate or declaration, log diary, reference style (D21).
+7. The university's exact rules on plagiarism, similarity checking and responsible AI use, and any declaration they require.
+8. That the Milestone 0 approval and the Group ID are on record.
+9. Whether demonstration time is inside the 10 to 15 minute presentation slot.
 
 ---
 
@@ -1179,7 +1514,9 @@ This appendix records what was written for the university form. It is context, n
 
 **SDGs:** SDG 4 (Quality Education) and SDG 9 (Industry, Innovation and Infrastructure).
 
-**Team details still to be supplied by the team:** team leader student ID, full name, official mail ID, contact number and batch number. For member 2 and member 3: student ID, name, official email and consent evidence.
+**Team details.** Enrollment numbers, official email addresses, contact numbers, batch and consent evidence are personal data. They belong in the university forms and on report covers, not in this repository. The Group ID and the project guide's name are added by the team to a document when it needs them.
+
+**Other Milestone 0 fields.** If the form also recorded a proposed project title, a brief proposed solution or an expected outcome, the team adds them here exactly as submitted.
 
 **Problem identification**
 
@@ -1209,7 +1546,9 @@ This appendix records what was written for the university form. It is context, n
 
 ## Appendix B: Demo script
 
-This script is also the end-to-end acceptance test for the project. Steps 1 to 9 need T1. Steps 10 to 12 need T2.
+This script is also the end-to-end acceptance test for the project. Steps 1 to 10 need T1 and are the Milestone-2 demonstration. Steps 11 and 12 need T2.
+
+Rehearse two versions: the full script, and a short path (steps 4, 5, 6 and 9) for when time is cut. Before a demonstration, create the accounts and index the larger documents in advance, then upload one small document live. Keep screenshots and a screen recording of one complete run as a fallback.
 
 1. The admin signs in, opens the user list and promotes a registered user to FACULTY.
 2. That faculty member uploads "Examination Policy 2026" with a grant to students, and "Faculty Evaluation Guidelines" with a grant to faculty only.

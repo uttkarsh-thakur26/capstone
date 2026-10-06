@@ -2,8 +2,9 @@
 # Start the database with `docker compose up -d db` from the repository root.
 spring:
   config:
-    # Reads the repository's .env, so the backend uses the same values as Compose.
-    import: optional:file:../.env[.properties]
+    # Reads the repository's .env, so the backend uses the same values as Compose. The path is
+    # relative to the working directory: ../.env from backend/, .env from the repository root.
+    import: optional:file:../.env[.properties],optional:file:.env[.properties]
   datasource:
     url: jdbc:postgresql://localhost:5432/${POSTGRES_DB}
     username: ${POSTGRES_USER}

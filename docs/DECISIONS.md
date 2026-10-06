@@ -20,6 +20,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-014](#adr-014-springdoc-openapi-311-pinned) | | springdoc-openapi 3.1.1, pinned | Accepted | 2026-10-06 |
 | [ADR-015](#adr-015-the-pgvector-image-is-pinned-by-tag-and-digest) | | The pgvector image is pinned by tag and digest | Accepted | 2026-10-06 |
 | [ADR-016](#adr-016-the-backend-jvm-runs-in-utc) | | The backend JVM runs in UTC | Accepted | 2026-10-06 |
+| [ADR-017](#adr-017-api-types-from-openapi-typescript-with-an-npm-override) | | API types from openapi-typescript, with an npm override | Accepted | 2026-10-06 |
 
 ---
 
@@ -250,3 +251,17 @@ Date 2026-10-06, status accepted.
 **Alternatives.** Leaving the host zone and asking each developer to set `TZ`: rejected, because the build would break on any machine with a legacy zone id. A different database image with legacy zone links: rejected, the image is pinned to match production (ADR-015).
 
 **Consequences.** Logs, database sessions and `timestamptz` values agree on UTC on every machine. The frontend converts to local time for display.
+
+---
+
+### ADR-017: API types from openapi-typescript, with an npm override
+
+Date 2026-10-06, status accepted. Revisit when openapi-typescript releases support for TypeScript 6 or later.
+
+**Context.** Specification 16.1 requires the SPA's API types to be generated from the OpenAPI document with `openapi-typescript`, never written by hand. Its latest release, 7.13.0 (2026-02-11), declares `typescript ^5.x` as a peer dependency, so `npm install` refuses it next to TypeScript 6.0 (ADR-010). Support for TypeScript 6 and 7 is open upstream (issue #2723 and several pull requests); the repository is active and not archived, but there has been no release since February.
+
+**Decision.** Use openapi-typescript 7.13.0 as a development dependency, with `"overrides": {"openapi-typescript": {"typescript": "$typescript"}}` in `frontend/package.json` so it runs on the project's TypeScript. The backend test `ApiDocsTest` saves the OpenAPI document to `backend/target/openapi.json`, and `npm run gen:api` turns it into `frontend/src/api/schema.d.ts`, which is committed. The generator only reads the document and writes type declarations; it runs at development time and never ships in the bundle.
+
+**Alternatives.** Hand-written types: rejected by 16.1. Downgrading the frontend to TypeScript 5: rejected, it would undo ADR-010 for one development tool. Generating from a running dev server: rejected, because it would need the database up just to produce types.
+
+**Consequences.** The override hides the peer mismatch, so a TypeScript upgrade must re-run `npm run gen:api` and the frontend checks to confirm the generator still works. The generated file can drift from the backend if someone changes an endpoint without regenerating. Phase 1 adds a CI step that regenerates the file and fails on any difference.

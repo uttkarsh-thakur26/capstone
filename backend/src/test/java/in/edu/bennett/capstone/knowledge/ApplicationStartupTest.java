@@ -52,4 +52,10 @@ class ApplicationStartupTest {
     assertThat(mvc.get().uri("/api/v1/documents")).hasStatus(HttpStatus.UNAUTHORIZED);
     assertThat(mvc.get().uri("/actuator/env")).hasStatus(HttpStatus.UNAUTHORIZED);
   }
+
+  @Test
+  void apiDocumentationIsOffOutsideTheDevProfile() {
+    assertThat(mvc.get().uri("/v3/api-docs")).hasStatus(HttpStatus.UNAUTHORIZED);
+    assertThat(mvc.get().uri("/swagger-ui/index.html")).hasStatus(HttpStatus.UNAUTHORIZED);
+  }
 }

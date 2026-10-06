@@ -14,6 +14,13 @@ management:
       exposure:
         include: health
 
+# The OpenAPI document and Swagger UI exist only in the dev profile (AUTH-8, ADR-014).
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 app:
   # Required. The application refuses to start without it (D1, ADR-007).
   display-name: ${APP_DISPLAY_NAME:}

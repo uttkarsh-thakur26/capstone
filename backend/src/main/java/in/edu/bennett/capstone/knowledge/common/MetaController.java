@@ -1,6 +1,7 @@
 package in.edu.bennett.capstone.knowledge.common;
 
 import org.springframework.boot.info.BuildProperties;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -14,7 +15,7 @@ class MetaController {
     this.meta = new MetaResponse(properties.displayName(), build.getVersion());
   }
 
-  @GetMapping("/api/v1/meta")
+  @GetMapping(path = "/api/v1/meta", produces = MediaType.APPLICATION_JSON_VALUE)
   MetaResponse meta() {
     return meta;
   }

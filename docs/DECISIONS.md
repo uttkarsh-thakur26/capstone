@@ -18,6 +18,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-012](#adr-012-nodejs-24-lts-line) | | Node.js 24 LTS line | Accepted | 2026-10-06 |
 | [ADR-013](#adr-013-the-compose-stack-runs-the-prod-profile) | | The Compose stack runs the `prod` profile | Accepted | 2026-10-06 |
 | [ADR-014](#adr-014-springdoc-openapi-311-pinned) | | springdoc-openapi 3.1.1, pinned | Accepted | 2026-10-06 |
+| [ADR-015](#adr-015-the-pgvector-image-is-pinned-by-tag-and-digest) | | The pgvector image is pinned by tag and digest | Accepted | 2026-10-06 |
 
 ---
 
@@ -218,3 +219,17 @@ Date 2026-10-06, status accepted.
 **Alternatives.** Writing the OpenAPI document by hand: rejected, because it would drift from the controllers. Hand-written TypeScript types for each DTO: rejected by specification 16.1.
 
 **Consequences.** springdoc brings Jackson 2 (`com.fasterxml.jackson.databind`) through swagger-core, next to Boot's Jackson 3. Application code imports Jackson 3 (`tools.jackson.*`) only, and reviews reject Jackson 2 imports. Each Boot upgrade checks that a matching springdoc release exists.
+
+---
+
+### ADR-015: The pgvector image is pinned by tag and digest
+
+Date 2026-10-06, status accepted.
+
+**Context.** Specification 19.1 requires the integration tests to use the production database image. The pgvector project publishes `0.8.7-pg18` and `pg18` as the Debian bookworm build, and the README's main instruction uses the Debian trixie build (`pg18-trixie`), which matches the official `postgres:18` base. Tags are rebuilt in place when PostgreSQL releases a minor version, so a tag alone can change under the project, for example in the week before a milestone. The next PostgreSQL minor release is scheduled for 2026-11-12.
+
+**Decision.** Use `pgvector/pgvector:0.8.7-pg18-trixie@sha256:9d9c930220cb9bf2f956d10a8f909cf9973d9672ca0278aef2c1e6facccad2e0` in `compose.yaml` and in the Testcontainers configuration. On 2026-10-06 this image contains PostgreSQL 18.6 and pgvector 0.8.7, with `PGDATA=/var/lib/postgresql/18/docker`. The digest is recorded in `docs/VERSIONS.md`. Updating it is a deliberate change: pull, run the full test suite, then update both places and VERSIONS.md in one commit.
+
+**Alternatives.** The tag alone: rejected, because it can move silently. `postgres:18` with pgvector installed by our own Dockerfile: rejected, because it adds an image to maintain for no gain.
+
+**Consequences.** Tests and the Compose stack run the same database bits until someone changes them on purpose. Security fixes in PostgreSQL minors are not picked up automatically, so the digest is reviewed after each PostgreSQL minor release.

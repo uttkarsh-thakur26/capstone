@@ -28,6 +28,24 @@ export interface components {
             name: string;
             version: string;
         };
+        /** @description One invalid field of the request */
+        FieldErrorResponse: {
+            field: string;
+            message: string;
+        };
+        /** @description RFC 9457 Problem Details with a stable code */
+        ProblemResponse: {
+            /** @example about:blank */
+            type: string;
+            title: string;
+            /** Format: int32 */
+            status: number;
+            detail: string;
+            instance?: string;
+            /** @example VALIDATION_FAILED */
+            code: string;
+            errors?: components["schemas"]["FieldErrorResponse"][];
+        };
     };
     responses: never;
     parameters: never;
@@ -53,6 +71,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetaResponse"];
+                };
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
                 };
             };
         };

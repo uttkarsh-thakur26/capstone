@@ -17,8 +17,9 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
  * With API documentation switched on, as in the dev profile, the OpenAPI document is public and
- * describes {@code /api/v1/meta}. The document is also saved to {@code target/openapi.json}, which
- * the frontend turns into TypeScript types ({@code npm run gen:api}, specification 16.1).
+ * describes {@code /api/v1/meta} and the error format. The document is also saved to {@code
+ * target/openapi.json}, which the frontend turns into TypeScript types ({@code npm run gen:api},
+ * specification 16.1).
  */
 @SpringBootTest(properties = {"springdoc.api-docs.enabled=true"})
 @AutoConfigureMockMvc
@@ -49,6 +50,19 @@ class ApiDocsTest {
         .extractingPath("$.paths['/api/v1/meta'].get.responses['200'].content")
         .asMap()
         .containsOnlyKeys("application/json");
+    // Errors are documented once, as ProblemResponse, on every operation (ADR-023).
+    assertThat(result)
+        .bodyJson()
+        .extractingPath("$.paths['/api/v1/meta'].get.responses['default'].content")
+        .asMap()
+        .containsOnlyKeys("application/problem+json");
+    assertThat(result)
+        .bodyJson()
+        .extractingPath("$.components.schemas.ProblemResponse.required")
+        .asArray()
+        .containsExactlyInAnyOrder("type", "title", "status", "detail", "code");
+    // The servlet container's error path is not part of the API.
+    assertThat(result).bodyJson().extractingPath("$.paths").asMap().doesNotContainKey("/error");
 
     Files.writeString(
         Path.of("target", "openapi.json"),

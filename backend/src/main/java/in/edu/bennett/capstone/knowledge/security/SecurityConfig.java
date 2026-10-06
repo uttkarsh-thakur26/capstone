@@ -1,29 +1,36 @@
 package in.edu.bennett.capstone.knowledge.security;
 
+import jakarta.servlet.DispatcherType;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
- * Default deny (AUTH-8): only the endpoints on the public list answer without authentication. No
- * way to authenticate exists until Phase 1, so every other request gets 401.
+ * Default deny (AUTH-8): only the endpoints on the public list answer without authentication.
+ * Failures are Problem Details (ADR-023).
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
 
   @Bean
   SecurityFilterChain apiSecurity(
-      HttpSecurity http, @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsEnabled)
+      HttpSecurity http,
+      @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsEnabled,
+      @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver)
       throws Exception {
+    ProblemDetailsSecurityHandler problems = new ProblemDetailsSecurityHandler(resolver);
     http.authorizeHttpRequests(
             requests -> {
+              // The container's error path renders Problem Details for requests that already
+              // failed; denying it would replace their status with 401.
+              requests.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll();
               requests.requestMatchers(HttpMethod.GET, "/api/v1/meta").permitAll();
               requests.requestMatchers("/actuator/health", "/actuator/health/**").permitAll();
               if (apiDocsEnabled) {
@@ -32,6 +39,8 @@ public class SecurityConfig {
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                     .permitAll();
               }
+              // Admin endpoints also carry method security (AUTH-8).
+              requests.requestMatchers("/api/v1/admin/**").hasRole("ADMIN");
               requests.anyRequest().authenticated();
             })
         // A stateless API with bearer tokens needs no CSRF protection (AUTH-9).
@@ -41,11 +50,9 @@ public class SecurityConfig {
         .httpBasic(AbstractHttpConfigurer::disable)
         .formLogin(AbstractHttpConfigurer::disable)
         .logout(AbstractHttpConfigurer::disable)
-        // Unauthenticated means 401, not the 403 Spring Security sends when no login exists.
         .exceptionHandling(
             exceptions ->
-                exceptions.authenticationEntryPoint(
-                    new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
+                exceptions.authenticationEntryPoint(problems).accessDeniedHandler(problems));
     return http.build();
   }
 }

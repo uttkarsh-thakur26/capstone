@@ -13,3 +13,7 @@ management:
     web:
       exposure:
         include: health
+
+app:
+  # Required. The application refuses to start without it (D1, ADR-007).
+  display-name: ${APP_DISPLAY_NAME:}

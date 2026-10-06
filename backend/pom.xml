@@ -121,6 +121,14 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<!-- Writes META-INF/build-info.properties; /api/v1/meta reports its version. -->
+						<goals>
+							<goal>build-info</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<!-- `./mvnw verify` fails on unformatted Java. `./mvnw spotless:apply` formats it. -->

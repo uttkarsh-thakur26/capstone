@@ -21,6 +21,8 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-015](#adr-015-the-pgvector-image-is-pinned-by-tag-and-digest) | | The pgvector image is pinned by tag and digest | Accepted | 2026-10-06 |
 | [ADR-016](#adr-016-the-backend-jvm-runs-in-utc) | | The backend JVM runs in UTC | Accepted | 2026-10-06 |
 | [ADR-017](#adr-017-api-types-from-openapi-typescript-with-an-npm-override) | | API types from openapi-typescript, with an npm override | Accepted | 2026-10-06 |
+| [ADR-018](#adr-018-requirement-tiers-follow-the-course-milestones) | | Requirement tiers follow the course milestones | Accepted | 2026-10-07 |
+| [ADR-019](#adr-019-phase-0-was-reviewed-by-its-owner-alone) | | Phase 0 was reviewed by its owner alone | Accepted, exception to 24.2 | 2026-10-07 |
 
 ---
 
@@ -271,3 +273,37 @@ Date 2026-10-06, status accepted. Revisit when openapi-typescript releases suppo
 **Alternatives.** Hand-written types: rejected by 16.1. Downgrading the frontend to TypeScript 5: rejected, it would undo ADR-010 for one development tool. Generating from a running dev server: rejected, because it would need the database up just to produce types.
 
 **Consequences.** The override hides the peer mismatch, so a TypeScript upgrade must re-run `npm run gen:api` and the frontend checks to confirm the generator still works. The generated file could drift from the backend if someone changed an endpoint without regenerating, so the CI backend job regenerates it after the tests and fails on any difference.
+
+---
+
+### ADR-018: Requirement tiers follow the course milestones
+
+Date 2026-10-07, status accepted. The specification was changed on 2026-10-06 in commit `d7e636a`; this record was added after the Phase 0 review found that change unrecorded.
+
+**Context.** The specification first defined T1 as the minimum demonstrable product and T2 as what the final submission requires. Under that definition, DEP-4 (demo data loader), DEP-5 (production notes) and DEP-7 (hosting target) carried no tag and were therefore T1, keyword search (RET-5) was T2, and the keyword and hybrid search modes both arrived in Phase 7. The CSET400C framework (specification 27.4) expects a Milestone-2 AI/ML project to show dataset preparation, a baseline or initial model, an experimental pipeline and preliminary results.
+
+**Decision.** T1 is redefined as the Milestone-2 scope, complete at the end of Phase 7, and T2 as what the final evaluation requires (specification 0, 2.3). Three changes follow:
+
+- RET-5 keyword search moves into T1 as Phase 7, "Keyword baseline and first evaluation run". It is the baseline that the first evaluation run (20.6) compares semantic retrieval with.
+- `HYBRID` search (RET-6) stays T2 and moves to Phase 8.
+- DEP-4, DEP-5 and DEP-7 move to T2. They serve the final evaluation and are built in Phase 11.
+
+Specification sections changed: 0, 2.3, 7.2 and 7.4 (the full-text column and its index arrive in Phase 7), 10, 15.2, 20 (a first evaluation run in T1, the full study in T2), 22 and 23.
+
+**Alternatives.** Keeping keyword search in T2: rejected, because Milestone-2 would then have no baseline for its preliminary results. Keeping DEP-4, DEP-5 and DEP-7 in T1: rejected, because T1 is now the Milestone-2 scope and they belong to the final evaluation.
+
+**Consequences.** T1 grows by keyword search, the evaluation harness and a first results report, on a plan with no spare week. Section 23 gives the cut order inside T1 if the feature freeze is at risk. The demo data loader, the production part of `docs/deployment.md` and the hosting decision (D17) wait for Phase 11.
+
+---
+
+### ADR-019: Phase 0 was reviewed by its owner alone
+
+Date 2026-10-07, status accepted as a recorded exception to specification 24.2, for pull request #1 only.
+
+**Context.** Specification 24.2 requires a teammate to review each pull request before it is merged, with reviewers rotating so that every member reads code in every area, and 27.7 counts those reviews as evidence of individual work. No teammate was available to review pull request #1, which holds Phase 0.
+
+**Decision.** The owner, Uttkarsh, reviewed the branch alone on 2026-10-07 against specification Sections 3, 4, 17 and 22 and the Phase 0 exit criteria. The review found seven gaps, none blocking. Each was fixed in its own commit on the branch before merging.
+
+**Alternatives.** Waiting for a teammate's review: not chosen, because no teammate was available.
+
+**Consequences.** The review record for Phase 0 names only the owner, so it is no evidence that another member has read the Phase 0 code. The exception covers pull request #1 only; 24.2 applies unchanged to later pull requests.

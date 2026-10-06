@@ -2,9 +2,9 @@
 
 Owner: Uttkarsh. Branch `feat/infra-foundation`, 25 commits on top of `main`, last commit `2c1d580` before this report. Written 2026-10-06; the CI result was added the same day.
 
-Review: **not yet reviewed.** No teammate was available. The owner will run an independent review of the branch before merging it. No other reviewer is named, because nobody else has reviewed it.
+Review: **reviewed by the owner alone on 2026-10-07**, against specification Sections 3, 4, 17 and 22 and the exit criteria below, because no teammate was available (ADR-019, a recorded exception to 24.2). Seven findings were fixed, one commit each. No other reviewer is named, because nobody else has reviewed it.
 
-Status: all six exit criteria are met with evidence below. The last one, "CI is green", was met on 2026-10-06 by the first workflow run on pull request #1 (https://github.com/uttkarsh-thakur26/capstone/pull/1). Phase 0 closes when the owner has reviewed the branch and merged it.
+Status: all six exit criteria are met with evidence below. The last one, "CI is green", was met on 2026-10-06 by the first workflow run on pull request #1 (https://github.com/uttkarsh-thakur26/capstone/pull/1). Phase 0 closes when the branch is merged.
 
 ```
 Implemented   Repository layout (22). Spring Boot 4.1.1 application on Java 25 (ADR-003) with
@@ -45,16 +45,23 @@ Tests         Backend: 13 tests in 5 classes, 13 passed, 0 failed, 0 skipped (2 
 
 Evidence      See below, one entry per exit criterion.
 
-Decisions     ADR-002 to ADR-017 in docs/DECISIONS.md: D3, D4, D19, D20 accepted; D2 coordinates;
+Decisions     ADR-002 to ADR-019 in docs/DECISIONS.md: D3, D4, D19, D20 accepted; D2 coordinates;
               D1 single source for the name; D23 GitHub with Actions; D24 google-java-format;
               TypeScript 6.0; frontend scaffold with ESLint; Node.js 24; Compose runs prod;
-              springdoc 3.1.1; pgvector image by digest; JVM in UTC; openapi-typescript override.
+              springdoc 3.1.1; pgvector image by digest; JVM in UTC; openapi-typescript override;
+              tiers follow the course milestones (ADR-018); owner-only review (ADR-019).
 
 Deviations    From the specification as it stood before this phase, each corrected in the
               specification in the same commit as its decision:
               - TypeScript 6.0, not 7 (3.1, ADR-010).
               - No VITE_APP_NAME or VITE_API_BASE_URL (16.1, 18, D1, ADR-007).
               - "A supported LTS line" for Node.js (3.1, ADR-012).
+              Recorded after the owner's review:
+              - Requirement tiers follow the course milestones (ADR-018): DEP-4, DEP-5 and
+                DEP-7 moved to T2, RET-5 keyword search into T1 as Phase 7, and HYBRID to
+                Phase 8. The specification was changed in d7e636a.
+              - Phase 0 was reviewed by the owner alone because no teammate was available,
+                a recorded exception to 24.2 (ADR-019).
               Not in the specification, added because Phase 0 needed them:
               - springdoc in Phase 0, not with docs/api.md in Phase 1: the frontend's /meta types
                 must be generated (16.1).

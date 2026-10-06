@@ -1,25 +1,26 @@
 # Progress
 
-Updated 2026-10-06. Format: specification Section 24.8.
+Updated 2026-10-07. Format: specification Section 24.8.
 
 ## Current phase
 
 **Phase 0, foundation.** Owner: Uttkarsh. Work is on branch `feat/infra-foundation`, in pull request [#1](https://github.com/uttkarsh-thakur26/capstone/pull/1), not yet merged.
 
-All six exit criteria are met with evidence. CI went green on 2026-10-06 in [run 37510571843](https://github.com/uttkarsh-thakur26/capstone/actions/runs/37510571843): backend 13 tests and frontend 3 tests, with all checks passing. The branch has not been reviewed: the owner will review it independently before merging, because no teammate is available yet. Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
+All six exit criteria are met with evidence. CI went green on 2026-10-06 in [run 37510571843](https://github.com/uttkarsh-thakur26/capstone/actions/runs/37510571843): backend 13 tests and frontend 3 tests, with all checks passing. The owner reviewed the branch alone on 2026-10-07, because no teammate was available (ADR-019, a recorded exception to 24.2); its seven findings were fixed, one commit each. Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
 
 To close Phase 0:
 
 1. Done: the private GitHub repository exists, and `main` and the branch are pushed.
 2. Done: the first workflow run on the pull request is green.
 3. Done: the phase report and this file record the CI run.
-4. Open: the owner reviews the branch and merges it, then marks Phase 0 done here.
+4. Done: the owner reviewed the branch (ADR-019) and its seven findings were fixed.
+5. Open: merge the pull request once its checks are green, then mark Phase 0 done here.
 
 ## Phases
 
 | Phase | Name | Status | Date |
 |---|---|---|---|
-| 0 | Foundation | All exit criteria met, CI green (PR #1); awaiting the owner's review and merge | 2026-10-06 |
+| 0 | Foundation | All exit criteria met, CI green (PR #1), reviewed by the owner (ADR-019); awaiting merge | 2026-10-07 |
 | 1 | Authentication and roles | Not started | |
 | 2 | Document management | Not started | |
 | 3 | Ingestion and indexing | Not started | |

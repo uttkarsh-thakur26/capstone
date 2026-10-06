@@ -1,0 +1,12 @@
+# Store and check out text with LF, whatever core.autocrlf says, so that
+# shell scripts such as backend/mvnw run in Linux containers and CI.
+* text=auto eol=lf
+
+# Windows command scripts need CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+*.jar binary
+*.png binary
+*.jpg binary
+*.pdf binary

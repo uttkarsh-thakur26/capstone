@@ -141,42 +141,64 @@ If time runs short, cut from the bottom: all of T3, then comparison, then analyt
 
 ### 3.3 Verified traps for this stack
 
-These were checked against official sources on the check date. Each one is a place where older examples produce code that does not compile, does not start, or silently misbehaves.
+These were checked against official sources on 2026-10-05 and extended on 2026-10-06 against the release notes, the reference documentation, the source code at the released tags (Spring Boot 4.1.1, Spring AI 2.0.1, pgvector 0.8.7, Flyway 12.4.0, Testcontainers 2.0.5) and the Phase 0 build. Each one is a place where older examples, or the defaults, produce code that does not compile, does not start, or silently misbehaves.
+
+**Java, generators and build tools**
+
+- start.spring.io lists Java 27 and defaults to Java 17. Spring Boot 4.1.1 supports Java 17 up to 26, and Spring is fully tested only on the LTS releases. Select 25 explicitly (ADR-003).
+- A generated project with Testcontainers uses `postgres:latest` in `TestcontainersConfiguration`. Replace it with the pinned pgvector image (ADR-015). Whenever a Spring AI dependency is chosen, the generator also adds `spring-ai-spring-boot-testcontainers`, which has nothing for PostgreSQL. Leave it out.
+- The generator's "Docker Compose Support" adds `spring-boot-docker-compose`. It runs `docker compose up` on the compose file in the working directory and recognises PostgreSQL only for images named `postgres`. It is not used: DEP-3 starts `db` by hand.
+- create-vite 9.2.1 sets up Oxlint unless `--eslint` is given, generates TypeScript 6.0 and has no `typecheck` or `test` script (ADR-010, ADR-011).
+- google-java-format 1.37.0 fails inside Spotless 3.10.3; 1.36.1 is the newest version that Spotless release supports. On JDK 25 google-java-format needs the `jdk.compiler` exports in `backend/.mvn/jvm.config`; without them Spotless falls back to a terminally deprecated `sun.misc.Unsafe` call (ADR-009).
+- The PostgreSQL JDBC driver sends the JVM's zone id when it connects. A Windows JVM on Indian time reports the legacy `Asia/Calcutta`, which the Debian trixie database image rejects. The backend JVM runs in UTC (ADR-016).
 
 **Spring Boot 4**
 
-- Starters are modular. `spring-boot-starter-web` is deprecated in favor of `spring-boot-starter-webmvc`. Flyway needs `spring-boot-starter-flyway`. The JWT resource server starter is `spring-boot-starter-security-oauth2-resource-server`. Most starters have a `-test` companion, and Spring Security test support needs `spring-boot-starter-security-test`.
-- Jackson 3 is the default. Packages are `tools.jackson.*` and the auto-configured bean is `JsonMapper`. Annotations stay in `com.fasterxml.jackson.annotation`.
+- Starters are modular. `spring-boot-starter-web` is deprecated in favor of `spring-boot-starter-webmvc`. Flyway needs `spring-boot-starter-flyway`. The JWT resource server starter is `spring-boot-starter-security-oauth2-resource-server`. Most starters have a `-test` companion, and Spring Security test support needs `spring-boot-starter-security-test`. The `-test` starters bring `spring-boot-starter-test` with them; do not declare it.
+- Test-slice annotations moved to technology packages, for example `org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest` and `AutoConfigureMockMvc`, `org.springframework.boot.jdbc.test.autoconfigure.JdbcTest` and `AutoConfigureTestDatabase`, and `org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest`. Auto-configuration classes moved too, for example `org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration`.
+- Jackson 3 is the default. Packages are `tools.jackson.*` and the auto-configured bean is `JsonMapper`. Annotations stay in `com.fasterxml.jackson.annotation`. Customize with `JsonMapperBuilderCustomizer`; an `ObjectMapper` bean does not replace the `JsonMapper`. springdoc brings Jackson 2 (`com.fasterxml.jackson.databind`) onto the classpath, so check imports.
 - `@MockBean` and `@SpyBean` are removed. Use `@MockitoBean` and `@MockitoSpyBean`.
 - `@SpringBootTest` no longer configures MockMvc by itself. Add `@AutoConfigureMockMvc`. `TestRestTemplate` needs `@AutoConfigureTestRestTemplate`, or use `RestTestClient`.
-- Testcontainers 2 moved container classes into module packages, for example `org.testcontainers.postgresql.PostgreSQLContainer`.
+- Testcontainers 2 moved container classes into module packages, for example `org.testcontainers.postgresql.PostgreSQLContainer`. That class is not generic and accepts `pgvector/pgvector` images directly. Testcontainers cannot parse an image reference with both a tag and a digest, so tests use the digest alone.
 - `spring.jpa.open-in-view` is on by default. This project turns it off (Section 4.5).
+- Boot 4.1 removed the `layertools` jar mode. Container builds use `java -Djarmode=tools -jar app.jar extract --layers`.
+- RFC 9457 Problem Details are off by default (`spring.mvc.problemdetails.enabled=false`), and responses written by the Spring Security filter chain are not Problem Details at all. Section 15.1 needs both handled (Phase 1).
+- With virtual threads on, the auto-configured task executor ignores `spring.task.execution.pool.*` and has no concurrency limit unless one is set. A bounded executor (Section 4.5, ING-12) is a dedicated bean.
+- With Spring Security on the classpath and no other security configuration, Boot creates an in-memory user and logs its generated password. This project excludes `UserDetailsServiceAutoConfiguration` until Phase 1 provides real accounts.
+- springdoc lists a response under the content type `*/*` unless the mapping declares `produces`, and Java fields are optional in the schema unless marked required. Both weaken the generated TypeScript types.
 
 **Spring AI 2.0**
 
-- Artifact names: `spring-ai-starter-model-<provider>`, `spring-ai-rag`, `spring-ai-vector-store-advisor` (renamed from `spring-ai-advisors-vector-store`), `spring-ai-pdf-document-reader`, `spring-ai-tika-document-reader`, `spring-ai-starter-vector-store-pgvector`.
+- Artifact names: `spring-ai-starter-model-<provider>`, `spring-ai-rag`, `spring-ai-vector-store-advisor` (renamed from `spring-ai-advisors-vector-store`), `spring-ai-pdf-document-reader`, `spring-ai-tika-document-reader`. `spring-ai-starter-vector-store-pgvector` exists but is not used (ADR-001).
 - Options objects are immutable and created with builders. `ChatClient` `options(...)` takes a builder. Configuration properties no longer contain `.options`, for example `spring.ai.openai.embedding.model`.
-- Spring AI no longer sets a default temperature. Set it explicitly.
-- `.entity(...)` structured output works with `.call()` only, not with streaming. `validateSchema()` adds a retry loop of up to three attempts.
+- Spring AI no longer sets a default temperature for most providers; the Google GenAI and Mistral options still default to 0.7. Set it explicitly. OpenAI's default chat model in 2.0.1 is `gpt-5-mini`, and GPT-5 models reject `temperature` and `max-tokens`, which matters for D5 and RAG-6.
+- `.entity(...)` structured output works with `.call()` only, not with streaming. `validateSchema()` re-calls the model up to three more times, so up to four calls in total. To change that, register a `StructuredOutputValidationAdvisor` with `maxRepeatAttempts(n)`.
 - Memory advisors need an explicit conversation id. `PromptChatMemoryAdvisor` was removed.
+- `ChatClient` auto-registers a `ToolCallingAdvisor` on every call. RAG-7 sets `spring.ai.chat.client.tool-calling.enabled=false` and keeps `spring.ai.tools.resolution.fallback.enabled` at its default of false.
+- `RetrievalAugmentationAdvisor` runs retrieval on its own thread pool, where the caller's security context and transaction are not available, and calls the model even when nothing was retrieved. It cannot implement the evidence gate (11.1 step 5); call the RAG components directly.
+- Retries: models built on Spring AI's `RetryTemplate` (for example Ollama chat) default to `spring.ai.retry.max-attempts=10` with backoff up to 3 minutes. The OpenAI module uses its SDK's own retries (`spring.ai.openai.max-retries`, default 3) and timeout. Ollama and in-process embeddings do not retry. Set retries in one layer only (RAG-6, ING-8).
 - `TokenTextSplitter` is the only built-in splitter and has no overlap setting. Its default chunk size is 800 tokens.
-- `PagePdfDocumentReader` sets `page_number`, `end_page_number` and `file_name` metadata. `TikaDocumentReader` sets only `source`, so it cannot provide page numbers.
+- `PagePdfDocumentReader` always sets `page_number`. It sets `end_page_number` only for multi-page groups, so never with the default of one page per document, and `file_name` only when the resource has a file name. Pages without text produce no document. It has no encryption API: a password-protected file surfaces as PDFBox's `InvalidPasswordException` wrapped in a `RuntimeException`, and the page count must come from PDFBox. `TikaDocumentReader` sets only `source`, so it cannot provide page numbers.
 - The OpenAI embedding model property defaults to the legacy `text-embedding-ada-002`. Name the model explicitly.
-- Ollama defaults: the chat context window (`num-ctx`) is 2048 tokens, which silently truncates a RAG prompt. Embedding input is truncated silently (`truncate=true`). Models are not pulled automatically (`pull-model-strategy=never`).
+- Ollama: Spring AI sends `num-ctx` and `truncate` only when they are configured. The server's own default context window depends on the GPU memory (2048 tokens in older versions), which silently truncates a RAG prompt, and the server truncates embedding input by default. Set `num-ctx` explicitly and set embedding `truncate=false`. Models are not pulled automatically (`pull-model-strategy=never`).
+- In-process ONNX embeddings (`all-MiniLM-L6-v2`): Spring AI's bundled tokenizer truncates input at 128 word pieces. The model file (about 90 MB) is downloaded from GitHub at startup, into a new temporary directory on every start, unless `model-uri`, `tokenizer.uri` and the cache directory point to local files.
 
 **PostgreSQL and pgvector**
 
-- With an HNSW or IVFFlat index, `WHERE` filters are applied after the index scan. With the default `hnsw.ef_search` of 40, a selective filter such as a permission check can return fewer rows than requested, or none. Use exact search, or iterative scans (`SET LOCAL hnsw.iterative_scan = strict_order`, pgvector 0.8.0 or later).
+- With an HNSW or IVFFlat index, `WHERE` filters are applied after the index scan. With the default `hnsw.ef_search` of 40, a selective filter such as a permission check can return fewer rows than requested, or none. Use exact search, or iterative scans (`SET LOCAL hnsw.iterative_scan = strict_order`, pgvector 0.8.0 or later). Iterative scans stop at `hnsw.max_scan_tuples` (default 20,000) and `hnsw.scan_mem_multiplier`, so they can still return fewer than `k` rows.
+- `SET LOCAL` outside a transaction has no effect beyond a warning.
 - A vector index is used only for `ORDER BY <column> <distance-operator> <query> LIMIT k` in ascending order. Wrapping the distance in an expression disables the index.
 - HNSW indexes support at most 2,000 dimensions for `vector` and 4,000 for `halfvec`.
-- A `vector(N)` column has one fixed dimension. Changing the embedding model means a migration and a full re-index.
-- PostgreSQL 18 images store data under `/var/lib/postgresql`. Mount the volume there, not at `/var/lib/postgresql/data` as older examples show.
+- A `vector(N)` column has one fixed dimension. Changing the embedding model means a migration and a full re-index. Flyway computes a versioned migration's checksum from the file before placeholders are replaced, so changing the dimension placeholder on an existing database is not detected until the first insert fails.
+- The `vector` extension is not marked trusted, so `CREATE EXTENSION` needs a superuser. The database owner created by the container image is one.
+- PostgreSQL 18 images store data under `/var/lib/postgresql` (`PGDATA=/var/lib/postgresql/18/docker`). Mount the volume there, not at `/var/lib/postgresql/data` as older examples show.
 - PostgreSQL 18 has a built-in `uuidv7()` function.
+- Testcontainers needs version 2.0.3 or later with Docker Engine 29, which requires API version 1.44. Boot 4.1.1 manages 2.0.5.
 
 **Other**
 
 - The MinIO community edition repository was archived on 2026-04-25. It is distributed as source only, with no official images. Do not add it.
-- Anything in a Vite variable named `VITE_*` is compiled into the public bundle. Never put a key there.
+- Anything in a Vite variable named `VITE_*` is compiled into the public bundle when it is built. Never put a key there. Changing such a value needs a rebuild, and Vite reads `.env` files from the frontend directory, not the repository root.
 
 ### 3.4 Model provider
 
@@ -186,7 +208,7 @@ All model access goes through Spring AI (`ChatClient` or `ChatModel`, and `Embed
 |---|---|---|
 | Local models through Ollama | No fees. Document text stays on the machine | Needs capable hardware. Slower. Context size and model pulling must be configured |
 | Hosted API (any provider with a Spring AI starter) | Best answer quality and speed. No local hardware needs | Fees and an API key. Document text leaves the deployment (SEC-13) |
-| In-process ONNX embeddings (`spring-ai-starter-model-transformers`, default model `all-MiniLM-L6-v2`, 384 dimensions) | Free, offline, deterministic. Useful for development and tests | Small input window (about 256 word pieces), so chunks must be small. English-focused. Lower retrieval quality than larger models |
+| In-process ONNX embeddings (`spring-ai-starter-model-transformers`, default model `all-MiniLM-L6-v2`, 384 dimensions) | Free, deterministic, offline once the model files are stored locally. Useful for development and tests | Small input window: Spring AI's tokenizer truncates at 128 word pieces, so chunks must be small. Downloads about 90 MB at startup unless configured otherwise (3.3). English-focused. Lower retrieval quality than larger models |
 
 Constraints that follow from the choice:
 

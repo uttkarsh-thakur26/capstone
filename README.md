@@ -1,0 +1,95 @@
+# AI-powered document and organizational knowledge platform
+
+Working description. The product name is not decided yet (D1 in `docs/PROJECT_SPEC.md`); the running application shows whatever `APP_DISPLAY_NAME` says.
+
+Users upload PDFs, the system indexes them, and people search and ask questions in natural language. Answers are built only from documents the asking user is allowed to read, they cite the pages they come from, and the system says so when the documents do not contain the answer. Final-year capstone project (CSET400C).
+
+**Status:** Phase 0 (foundation). The stack starts and the interface shows the backend's name and version. Nothing else is built yet. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
+
+## Quickstart
+
+Needs Docker Desktop (or Docker Engine) with Docker Compose v2 or later. Nothing else.
+
+```bash
+git clone <repository-url>
+cd <repository-folder>
+cp .env.example .env
+```
+
+Open `.env` and set `POSTGRES_PASSWORD` to a value of your own. Then:
+
+```bash
+docker compose up --build
+```
+
+Open <http://localhost:3000>. The page shows the product name and the backend version. Stop with `Ctrl+C`; `docker compose down` removes the containers, and `docker compose down -v` also deletes the database volume.
+
+The stack runs three containers: `db` (PostgreSQL 18 with pgvector), `backend` (Spring Boot, `prod` profile) and `frontend` (the built interface behind nginx, which also forwards `/api` to the backend). Only ports 3000 and 5432 are published, and only on `127.0.0.1`.
+
+## Development mode
+
+The database runs in Docker; the backend and frontend run on your machine with hot reload.
+
+Needs, in addition: JDK 25 (Eclipse Temurin 25, with `JAVA_HOME` set) and Node.js 24 (see `frontend/.nvmrc`). No Maven installation is needed; the Maven Wrapper downloads it.
+
+```bash
+docker compose up -d db
+```
+
+Backend, in one terminal. The `dev` profile reads the repository's `.env`, so it uses the same database credentials:
+
+```bash
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+On Windows PowerShell use `.\mvnw.cmd` instead of `./mvnw`. The backend listens on <http://localhost:8080>; in the `dev` profile the API documentation is at <http://localhost:8080/swagger-ui/index.html>.
+
+From an IDE, use `backend` as the working directory. If the IDE builds the project itself rather than through Maven, run `./mvnw generate-resources` in `backend` once after cloning and after every full rebuild: it writes the build information that `/api/v1/meta` reports, and without it the application does not start. Tests started from an IDE need `-Duser.timezone=UTC` in their run configuration; Maven passes it by itself (ADR-016).
+
+Frontend, in another terminal:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open <http://localhost:5173>. The dev server forwards `/api` to the backend on port 8080.
+
+## Checks
+
+These are the commands CI runs. Integration tests start PostgreSQL in a container, so Docker must be running.
+
+```bash
+cd backend && ./mvnw verify
+```
+
+```bash
+cd frontend && npm run lint && npm run typecheck && npm test && npm run build && npm run format:check
+```
+
+CI also builds both images and starts the stack from `.env.example` (`docker compose up --build -d --wait`), then calls `/api/v1/meta` through nginx.
+
+Formatting: `./mvnw spotless:apply` in `backend`, `npm run format` in `frontend`.
+
+When an endpoint changes, run `./mvnw verify` in `backend` (it writes `backend/target/openapi.json`) and then `npm run gen:api` in `frontend` to regenerate the TypeScript types. CI fails if they differ.
+
+## Repository layout
+
+```
+.github/workflows/  CI
+backend/            Spring Boot application (Java 25, Maven Wrapper)
+frontend/           React, TypeScript, Vite
+docs/               specification, progress, decisions, versions, architecture, testing, deployment
+compose.yaml        the whole system
+.env.example        environment variables, with placeholders
+```
+
+## Documentation
+
+- [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md): what the system does and how it is built
+- [`docs/PROGRESS.md`](docs/PROGRESS.md): where the work stands
+- [`docs/DECISIONS.md`](docs/DECISIONS.md): decision records
+- [`docs/VERSIONS.md`](docs/VERSIONS.md): resolved versions
+- [`docs/architecture.md`](docs/architecture.md), [`docs/testing.md`](docs/testing.md), [`docs/deployment.md`](docs/deployment.md)

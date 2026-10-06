@@ -1,0 +1,5 @@
+dist
+coverage
+package-lock.json
+# Generated from the backend's OpenAPI document by `npm run gen:api`.
+src/api/schema.d.ts

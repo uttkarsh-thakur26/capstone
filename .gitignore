@@ -1,0 +1,25 @@
+# Environment files hold secrets. Only .env.example is committed.
+.env
+.env.*
+!.env.example
+
+# Backend build output
+backend/target/
+
+# Frontend dependencies and build output
+node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/.vitest/
+*.local
+
+# Editors and operating systems
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,78 @@
+# Every pull request and every push to main (specification 19.3, ADR-008).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend build and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # Compiles, runs every test (PostgreSQL in Testcontainers) and checks formatting.
+      - name: Verify
+        working-directory: backend
+        run: ./mvnw -B -ntp verify
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # The tests saved the OpenAPI document; the committed TypeScript types must match it.
+      - name: API types match the backend
+        working-directory: frontend
+        run: |
+          npm ci --no-fund --no-audit
+          npm run gen:api
+          git diff --exit-code -- src/api/schema.d.ts
+
+  frontend:
+    name: Frontend lint, types, tests and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci --no-fund --no-audit
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run format:check
+
+  # The clean start of DEP-2: build both images, start the stack and call the API through nginx.
+  stack:
+    name: Compose stack starts and serves /meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - run: cp .env.example .env && docker compose up --build -d --wait
+      - run: curl -fsS http://localhost:3000/api/v1/meta
+
+      - name: Container logs
+        if: failure()
+        run: docker compose logs

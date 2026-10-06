@@ -19,6 +19,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-013](#adr-013-the-compose-stack-runs-the-prod-profile) | | The Compose stack runs the `prod` profile | Accepted | 2026-10-06 |
 | [ADR-014](#adr-014-springdoc-openapi-311-pinned) | | springdoc-openapi 3.1.1, pinned | Accepted | 2026-10-06 |
 | [ADR-015](#adr-015-the-pgvector-image-is-pinned-by-tag-and-digest) | | The pgvector image is pinned by tag and digest | Accepted | 2026-10-06 |
+| [ADR-016](#adr-016-the-backend-jvm-runs-in-utc) | | The backend JVM runs in UTC | Accepted | 2026-10-06 |
 
 ---
 
@@ -233,3 +234,17 @@ Date 2026-10-06, status accepted.
 **Alternatives.** The tag alone: rejected, because it can move silently. `postgres:18` with pgvector installed by our own Dockerfile: rejected, because it adds an image to maintain for no gain.
 
 **Consequences.** Tests and the Compose stack run the same database bits until someone changes them on purpose. Security fixes in PostgreSQL minors are not picked up automatically, so the digest is reviewed after each PostgreSQL minor release.
+
+---
+
+### ADR-016: The backend JVM runs in UTC
+
+Date 2026-10-06, status accepted.
+
+**Context.** The first backend build failed: `FATAL: invalid value for parameter "TimeZone": "Asia/Calcutta"`. The PostgreSQL JDBC driver sends the JVM's default zone id when it connects. A Windows JVM set to Indian time reports the legacy id `Asia/Calcutta`. The pinned database image (Debian trixie, tzdata 2026c) keeps only the current id `Asia/Kolkata` and rejects the legacy one. Specification 4.5 already requires every timestamp to be UTC.
+
+**Decision.** The backend JVM always runs in UTC. `KnowledgePlatformApplication.main` sets the default time zone to UTC before Spring starts, which covers the packaged jar, the IDE and `spring-boot:run`. The POM's Surefire `argLine` passes `-Duser.timezone=UTC` to the forked test JVM.
+
+**Alternatives.** Leaving the host zone and asking each developer to set `TZ`: rejected, because the build would break on any machine with a legacy zone id. A different database image with legacy zone links: rejected, the image is pinned to match production (ADR-015).
+
+**Consequences.** Logs, database sessions and `timestamptz` values agree on UTC on every machine. The frontend converts to local time for display.

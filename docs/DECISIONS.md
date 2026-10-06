@@ -11,6 +11,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-005](#adr-005-course-dates-d20) | D20 | Course dates | Accepted, two dates to confirm | 2026-10-06 |
 | [ADR-006](#adr-006-maven-coordinates-and-base-package-d2) | D2 | Maven coordinates and base package | Accepted | 2026-10-06 |
 | [ADR-007](#adr-007-the-display-name-has-one-source-served-by-meta-d1) | D1 | The display name has one source, served by `/meta` | Accepted | 2026-10-06 |
+| [ADR-008](#adr-008-github-with-github-actions-d23) | D23 | GitHub with GitHub Actions | Accepted | 2026-10-06 |
 
 ---
 
@@ -103,3 +104,17 @@ Date 2026-10-06, status accepted. The final project name (D1) stays open.
 **Alternatives.** `VITE_APP_NAME` alone, or both variables fed from one `.env` value: rejected, because a `VITE_*` value is fixed when the image is built, so a renamed product needs a rebuild and the two copies can drift.
 
 **Consequences.** Renaming the product is one environment change and a restart. The SPA shows the name only after `/meta` answers, so it has a loading state. Specification sections 16.1, 18 and D1 were corrected to match.
+
+---
+
+### ADR-008: GitHub with GitHub Actions (D23)
+
+Date 2026-10-06, status accepted.
+
+**Context.** The Phase 0 exit criterion "CI is green" needs a remote repository and a CI service, and the specification named neither. Integration tests start PostgreSQL in Testcontainers, so the CI runner must provide Docker.
+
+**Decision.** A private GitHub repository under the Phase 0 owner's account, with GitHub Actions on `ubuntu-latest` runners. The workflow is `.github/workflows/ci.yml`. It runs on every pull request and on pushes to `main`. The owner creates the remote. Until it exists, "CI is green" is reported as pending.
+
+**Alternatives.** GitLab CI: not chosen. GitHub Actions' Linux runners provide Docker without extra setup, which the Testcontainers tests need. A public repository: not chosen by the owner. Specification Section 25 already keeps the submitted course documents, which carry team details, out of any public repository.
+
+**Consequences.** Members contribute under their own GitHub accounts once they are added as collaborators. "A red build blocks merging" needs branch protection; whether the owner's plan offers it on a private repository is checked when the remote is created, and until then the rule is followed by convention.

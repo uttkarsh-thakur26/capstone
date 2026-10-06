@@ -799,7 +799,7 @@ Environment variables listed in `.env.example` with placeholder values: database
 
 ### 19.3 Continuous integration
 
-On every pull request and on `main`: backend build and all tests with Testcontainers, frontend lint, type check, tests and build. A red build blocks merging.
+On every pull request and on `main`: backend build and all tests with Testcontainers, frontend lint, type check, tests and build. A red build blocks merging. CI runs on GitHub Actions on `ubuntu-latest` runners, which provide Docker for Testcontainers (D23, ADR-008). The workflow lives in `.github/workflows/`.
 
 ### 19.4 Test evidence
 
@@ -900,6 +900,7 @@ Repository layout:
 
 ```
 /
+├── .github/workflows/  CI workflow (D23)
 ├── backend/        Spring Boot application with Maven Wrapper
 ├── frontend/       React, TypeScript, Vite
 ├── docs/           specification, progress, decisions, versions, architecture, evaluation, course documents
@@ -1298,6 +1299,7 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | D20 | Course dates | Milestone-1 on 18 October 2026. Milestone-2 on 23 November 2026, the earlier of the two dates the framework prints (the other is 30 November). Final panel and guide evaluation at the end of the semester, date not announced | Phase 0 | Accepted (ADR-005). Two dates to confirm (Section 27.8) |
 | D21 | Report template and reference style | The school's template if one is prescribed. Otherwise the format in Section 27.6 with numbered IEEE-style references | Milestone-1 | Open |
 | D22 | How stakeholder evidence is collected | A short survey of students plus short interviews with faculty and administrative staff, with consent and without names | Milestone-1 | Open |
+| D23 | Repository host and CI | None | Phase 0 | Resolved: GitHub with GitHub Actions, private repository under the Phase 0 owner's account (ADR-008) |
 
 ---
 

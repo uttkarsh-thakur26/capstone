@@ -10,6 +10,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-004](#adr-004-no-lombok-d19) | D19 | No Lombok | Accepted | 2026-10-06 |
 | [ADR-005](#adr-005-course-dates-d20) | D20 | Course dates | Accepted, two dates to confirm | 2026-10-06 |
 | [ADR-006](#adr-006-maven-coordinates-and-base-package-d2) | D2 | Maven coordinates and base package | Accepted | 2026-10-06 |
+| [ADR-007](#adr-007-the-display-name-has-one-source-served-by-meta-d1) | D1 | The display name has one source, served by `/meta` | Accepted | 2026-10-06 |
 
 ---
 
@@ -88,3 +89,17 @@ Date 2026-10-06, status accepted.
 **Alternatives.** A package named after the product: rejected, because the name is still open and renaming packages later touches every file. `com.example`: rejected, it is a placeholder, not an identifier.
 
 **Consequences.** The final product name (D1) can change without touching any package or Maven coordinate.
+
+---
+
+### ADR-007: The display name has one source, served by `/meta` (D1)
+
+Date 2026-10-06, status accepted. The final project name (D1) stays open.
+
+**Context.** The specification named two sources for the product name: `VITE_APP_NAME`, compiled into the frontend bundle at build time, and the backend property `app.display-name`. Two values can disagree, and the Phase 0 exit criterion asks the frontend to show the backend's name. The final name is not decided, and no name may be invented.
+
+**Decision.** The backend property `app.display-name`, set through the environment variable `APP_DISPLAY_NAME`, is the only source. `GET /api/v1/meta` returns it with the build version, and the SPA shows what it receives. Until the team decides D1, the value is the working description in the specification's header table: "AI-powered document and organizational knowledge platform". The property has no default in code, so the application refuses to start without it. The SPA calls the API with relative `/api` paths, so `VITE_API_BASE_URL` is dropped too, and the frontend needs no `VITE_*` variable at all.
+
+**Alternatives.** `VITE_APP_NAME` alone, or both variables fed from one `.env` value: rejected, because a `VITE_*` value is fixed when the image is built, so a renamed product needs a rebuild and the two copies can drift.
+
+**Consequences.** Renaming the product is one environment change and a restart. The SPA shows the name only after `/meta` answers, so it has a loading state. Specification sections 16.1, 18 and D1 were corrected to match.

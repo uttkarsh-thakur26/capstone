@@ -697,7 +697,7 @@ React, TypeScript and Vite. React Router for routes. TanStack Query for server s
 
 API types are generated from the OpenAPI document with `openapi-typescript` and regenerated whenever the API changes. No hand-written duplicates of backend DTOs.
 
-The display name comes from `VITE_APP_NAME`, because the project name is not final (D1).
+The display name is not compiled into the bundle. The SPA shows the name and version returned by `GET /api/v1/meta`, and the backend reads the name from the `app.display-name` property (environment variable `APP_DISPLAY_NAME`). The project name is not final (D1), so it is set in this one place (ADR-007).
 
 ### 16.2 Routes
 
@@ -751,6 +751,7 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 
 | Group | Settings (defaults) |
 |---|---|
+| `app` | Display name (`app.display-name`, required, no default in code; D1, ADR-007) |
 | `app.security` | Access token lifetime (15 min), refresh lifetime (7 days), allowed email domains (none), rate limits |
 | `app.upload` | Maximum file size (25 MB), allowed types (PDF) |
 | `app.ingestion` | Chunk size (400 tokens), overlap (60), embedding batch size, parallel documents (2), stuck timeout (15 min), maximum attempts (3), maximum pages (500), minimum characters per page |
@@ -760,7 +761,7 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 | `app.storage` | Root path |
 | `app.analytics` | Store question text (off) |
 
-Environment variables listed in `.env.example` with placeholder values: database URL, user and password. Token signing key. Bootstrap admin email and password. Model provider keys and base URLs. Chat model, embedding model and embedding dimension. Storage path. Allowed origins. `VITE_APP_NAME` and `VITE_API_BASE_URL` (both public).
+Environment variables listed in `.env.example` with placeholder values: database URL, user and password. Token signing key. Bootstrap admin email and password. Model provider keys and base URLs. Chat model, embedding model and embedding dimension. Storage path. Allowed origins. Display name (`APP_DISPLAY_NAME`). The SPA calls the API on its own origin under `/api`, so no `VITE_*` variable is needed (ADR-007).
 
 ---
 
@@ -1275,7 +1276,7 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 
 | ID | Decision | Default | Needed by | Status |
 |---|---|---|---|---|
-| D1 | Project name | The title submitted at Milestone 0, unless the team refines it. Refining is allowed. A substantial change of domain or objective needs coordinator approval. Use `VITE_APP_NAME` and an `app.display-name` property so the name is set in one place | Milestone-1 for the proposal cover. Phase 11 in the product | Open |
+| D1 | Project name | The title submitted at Milestone 0, unless the team refines it. Refining is allowed. A substantial change of domain or objective needs coordinator approval. The name is set in one place, the backend property `app.display-name`, and the SPA shows what `GET /api/v1/meta` returns (ADR-007) | Milestone-1 for the proposal cover. Phase 11 in the product | Open. Until it is decided, the product uses the working description from the header table (ADR-007) |
 | D2 | Maven group, artifact and base package | None. A neutral technical identifier, not a brand | Phase 0 | Resolved: `in.edu.bennett.capstone`, `knowledge-platform`, `in.edu.bennett.capstone.knowledge` (ADR-006) |
 | D3 | Build tool | Maven with wrapper | Phase 0 | Accepted (ADR-002) |
 | D4 | Java version | 25, or 21 if the team's machines require it | Phase 0 | Accepted: Java 25 (ADR-003) |

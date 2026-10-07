@@ -1,9 +1,10 @@
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     // Development mode (DEP-3): the backend runs on the host and the SPA calls it on its
     // own origin, as it does behind the web server in Compose.

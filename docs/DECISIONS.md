@@ -30,6 +30,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-024](#adr-024-the-audit-log-is-append-only-and-written-through-jdbc) | | The audit log is append-only and written through JDBC | Accepted | 2026-10-07 |
 | [ADR-025](#adr-025-specification-corrections-for-phase-1) | | Specification corrections for Phase 1 | Accepted | 2026-10-07 |
 | [ADR-026](#adr-026-phase-1-is-built-by-one-member) | | Phase 1 is built by one member | Accepted, exception to 24.1 | 2026-10-07 |
+| [ADR-027](#adr-027-frontend-libraries-for-routing-server-state-forms-and-components) | | Frontend libraries for routing, server state, forms and components | Accepted | 2026-10-07 |
 
 ---
 
@@ -439,3 +440,32 @@ Date 2026-10-07, status accepted as a recorded exception to specification 24.1, 
 **Alternatives.** Leaving the screens for the frontend member: not chosen, because that member is not available yet and Phase 1 cannot meet its exit criteria without the screens.
 
 **Consequences.** Every Phase 1 commit is evidence of Uttkarsh's work only. Nobody else is credited for Phase 1. The exception covers Phase 1 only; 24.1 applies unchanged to later phases.
+
+---
+
+### ADR-027: Frontend libraries for routing, server state, forms and components
+
+Date 2026-10-07, status accepted.
+
+**Context.** Phase 1 builds the first screens: sign-in, registration, a role-aware shell, the admin user list, and the not-found and not-allowed pages. Specification 3.1 and 16.1 name React Router, TanStack Query, React Hook Form with Zod, and the component approach of D18 (ADR-021), but no package was installed yet, and 24.3 rule 7 requires a record of need, alternatives and maintenance status for each dependency. All packages below were checked on 2026-10-07: release date of the installed version, and the repository on GitHub (not archived, date of the last push).
+
+**Decision.**
+
+| Package | Version | Released | Repository, last push | Licence | Need |
+|---|---|---|---|---|---|
+| `react-router` | 8.4.0 | 2026-09-15 | remix-run/react-router, 2026-10-06 | MIT | Routes, protected routes and redirects (16.2) |
+| `@tanstack/react-query` | 5.104.1 | 2026-10-02 | TanStack/query, 2026-10-06 | MIT | Server state, cache cleared on sign-out (UI-1) |
+| `react-hook-form` | 7.89.0 | 2026-09-26 | react-hook-form/react-hook-form, 2026-10-06 | MIT | Form state and errors |
+| `zod` | 4.6.5 | 2026-09-13 | colinhacks/zod, 2026-10-02 | MIT | Form validation rules in one schema per form |
+| `@hookform/resolvers` | 5.9.1 | 2026-08-17 | react-hook-form/resolvers, 2026-09-17 | MIT | Connects React Hook Form to Zod. Not named in 3.1, but it is how the two are used together |
+| `react-aria-components` | 1.21.1 | 2026-09-04 | adobe/react-spectrum, 2026-10-07 | Apache-2.0 | Accessible components (ADR-021, UI-8) |
+| `tailwindcss`, `@tailwindcss/vite` (development) | 4.3.3 | 2026-07-16 | tailwindlabs/tailwindcss, 2026-09-25 | MIT | Styling at build time (ADR-021) |
+| `@testing-library/user-event` (development) | 14.6.7 | 2026-09-02 | testing-library/user-event, 2026-09-02 | MIT | Component tests that type and click like a user: it sends the full sequence of pointer and keyboard events a browser sends, which React Aria's components listen to, where `fireEvent` sends one synthetic event |
+
+React Router 8 is used in data mode (`createBrowserRouter`). Version 8 removed the `react-router-dom` package: `RouterProvider` comes from `react-router/dom` and everything else from `react-router`. Its minimum versions are Node.js 22.22 and React 19.2.7; the project uses Node.js 24 (ADR-012) and React 19.3.
+
+The access token is kept in a module variable, not in React state that a library persists and not in browser storage (AUTH-6). The API is called with `fetch` through one small client written for this project, typed by the generated `schema.d.ts`, so no HTTP client library is added.
+
+**Alternatives.** An HTTP client such as axios, or a typed client generated from the OpenAPI document (openapi-fetch): rejected, because one function around `fetch` covers the bearer header, the single silent refresh and Problem Details errors, and the types already come from `openapi-typescript` (ADR-017). Formik instead of React Hook Form: not chosen, the specification names React Hook Form. Testing with `fireEvent` only: rejected, single synthetic events test less of what a user does, such as opening a select and choosing an option with the keyboard.
+
+**Consequences.** Eight packages to keep current. React Router 8 follows a fast release cadence, so an upgrade re-runs the frontend checks. The versions resolved by the lockfile are in `docs/VERSIONS.md`.

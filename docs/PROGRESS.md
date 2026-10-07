@@ -4,26 +4,20 @@ Updated 2026-10-07. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 1, authentication and roles.** Started 2026-10-07 on branch `feat/auth-roles`. Built entirely by Uttkarsh, because the other members are not available yet (ADR-026, a recorded exception to 24.1). Nothing is pushed yet.
+**Phase 1, authentication and roles: every exit criterion is met; the phase is not closed yet.** Built on branch `feat/auth-roles` entirely by Uttkarsh, because the other members are not available yet (ADR-026, a recorded exception to 24.1). Report: [phase-reports/phase-1.md](phase-reports/phase-1.md).
 
-Decisions taken for this phase: D7 (ADR-020), D18 (ADR-021), password hashing (ADR-022), error model (ADR-023), audit log (ADR-024), specification corrections (ADR-025).
+Evidence (2026-10-07, last code commit `1ce5d59`): `./mvnw verify` passes with 107 tests, the frontend checks with 39 tests, a clean clone passes all of them and starts with the README quickstart, and the browser checks of exit criteria 3 and 4 passed in Chromium 152 (`docs/testing.md`, TC-1-01 to TC-1-25 and TC-1-M01 to TC-1-M07). The refresh cookie was checked by hand in Firefox 153, the demonstration browser (TC-1-M02).
 
-Built and committed on the branch (backend, Compose and CI):
+To close Phase 1:
 
-- Error model: every error is Problem Details with a `code`, including the security filter chain and the container's error path (ADR-023).
-- Accounts: registration as STUDENT (AUTH-1), Argon2id passwords of 10 to 128 characters (AUTH-4, ADR-022), normalized unique emails (AUTH-10), the bootstrap admin (AUTH-3).
-- Audit log: append-only table guarded by a trigger, `AuditService` (AUD-4, ADR-024); every Phase 1 action is recorded.
-- Sign-in, refresh, logout, `GET /auth/me`, `PUT /auth/me/password`: JWT access tokens, rotating refresh cookie with family revocation, Origin check (AUTH-5 to AUTH-9, ADR-020).
-- Admin user list and role and enabled changes, with the last-admin rule under a row lock (AUTH-2, 14.1).
-- nginx passes the real client address; the CI stack job signs in through nginx.
+1. Open: push the branch and open a pull request; nothing is pushed yet, so CI has not run on Phase 1.
+2. Open: CI green on the pull request, including the new sign-in step of the stack job.
+3. Open: review by a teammate (24.2); ADR-019's exception covered pull request #1 only.
+4. Open: merge, then mark Phase 1 done here.
 
-Evidence so far: `./mvnw verify` passes with 107 tests (2026-10-07, commit `88e541d`); the frontend checks pass. Manual checks TC-1-M01 to M04 in `docs/testing.md`.
+Suggested before the demonstration: run Appendix B step 1 by hand in Firefox (sign in as the bootstrap admin, promote a registered user to FACULTY). The screens were checked in Chromium only.
 
-Not built yet: the screens (sign-in, registration, role-aware shell with sign-out, admin users, not found and not allowed), the decision record for the frontend libraries, `docs/data-model.md`, `docs/security.md`, `docs/api.md`, the Phase 1 rows of the automated test-case table, and the phase report.
-
-Exit criteria: 1 (the 19.2 authentication tests) and 2 (Problem Details) have passing backend tests; 4 (promotion by the bootstrap admin) has a passing backend test, and the admin screen with its own test comes with the frontend; 3 (in the browser) needs the screens.
-
-The `Secure` refresh cookie on plain-HTTP localhost works in the demonstration browser, Firefox 153 on Windows, and in Chromium 152, so no exception to AUTH-6 is needed (TC-1-M01, TC-1-M02, ADR-013).
+Decisions taken for this phase: D7 (ADR-020), D18 (ADR-021), password hashing (ADR-022), error model (ADR-023), audit log (ADR-024), specification corrections (ADR-025), one member builds the phase (ADR-026), frontend libraries (ADR-027).
 
 Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone/pull/1) was merged into `main` on 2026-10-07 (merge commit `4b51372`). Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
 
@@ -32,7 +26,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 | Phase | Name | Status | Date |
 |---|---|---|---|
 | 0 | Foundation | Done. All exit criteria met, CI green, reviewed by the owner (ADR-019), merged in `4b51372` | 2026-10-07 |
-| 1 | Authentication and roles | In progress on `feat/auth-roles` | Started 2026-10-07 |
+| 1 | Authentication and roles | All exit criteria met with evidence; awaiting push, CI, review and merge | 2026-10-07 |
 | 2 | Document management | Not started | |
 | 3 | Ingestion and indexing | Not started | |
 | 4 | Retrieval and semantic search | Not started | |
@@ -63,13 +57,15 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 ## Known issues
 
 - Backend tests need Docker running; without it they fail with "Could not find a valid Docker environment".
-- On JDK 25, Mockito attaches itself as an agent during tests, which the JDK warns will be refused in a future release. Pass Mockito as `-javaagent` in the Surefire `argLine` when the first mock is written (Phase 1).
+- On JDK 25, Mockito attaches itself as an agent during tests, which the JDK warns will be refused in a future release. It happens in every backend run, although no test creates a mock, because Spring Boot's test support loads Mockito. Fix: pass Mockito as `-javaagent` in the Surefire `argLine`.
 - Ports 3000 and 5432 on `127.0.0.1` must be free for the Compose stack; a local PostgreSQL on 5432 clashes.
 - google-java-format is held at 1.36.1 until a Spotless release supports a newer version (ADR-009).
 - openapi-typescript runs through an npm override until a release supports TypeScript 6 (ADR-017).
 - From Phase 1 the backend does not start without `APP_SECURITY_JWT_SECRET`, `APP_SECURITY_ALLOWED_ORIGINS` and, while no admin exists, `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD`. A `.env` created before Phase 1 must add them (README quickstart), or `docker compose up` and development mode stop at startup.
 - Expired and revoked refresh tokens stay in `refresh_token`; nothing deletes them yet. One row per sign-in and refresh, so the table grows slowly.
 - Throttling of repeated failed sign-ins (AUTH-5) is `[T2]` and not built.
+- The JavaScript bundle is 523 kB (162 kB gzipped), above Vite's 500 kB advisory limit. Splitting routes into separate chunks is left for later.
+- One browser profile holds one refresh cookie, so two accounts cannot be signed in at the same time in one browser.
 - Branch protection and rulesets are not available on this private repository with the owner's GitHub plan (the API answers 403, "Upgrade to GitHub Pro"). "A red build blocks merging" (19.3) is therefore kept by convention: do not merge a pull request whose checks are not green.
 
 ## Open specification issues
@@ -106,3 +102,4 @@ Found while checking the specification before Phase 0. Each must be settled, and
 ## Phase reports
 
 - [Phase 0](phase-reports/phase-0.md)
+- [Phase 1](phase-reports/phase-1.md)

@@ -17,13 +17,13 @@ Built and committed on the branch (backend, Compose and CI):
 - Admin user list and role and enabled changes, with the last-admin rule under a row lock (AUTH-2, 14.1).
 - nginx passes the real client address; the CI stack job signs in through nginx.
 
-Evidence so far: `./mvnw verify` passes with 107 tests (2026-10-07, commit `88e541d`); the frontend checks pass. Manual checks TC-1-M01, M03 and M04 in `docs/testing.md`.
+Evidence so far: `./mvnw verify` passes with 107 tests (2026-10-07, commit `88e541d`); the frontend checks pass. Manual checks TC-1-M01 to M04 in `docs/testing.md`.
 
 Not built yet: the screens (sign-in, registration, role-aware shell with sign-out, admin users, not found and not allowed), the decision record for the frontend libraries, `docs/data-model.md`, `docs/security.md`, `docs/api.md`, the Phase 1 rows of the automated test-case table, and the phase report.
 
 Exit criteria: 1 (the 19.2 authentication tests) and 2 (Problem Details) have passing backend tests; 4 (promotion by the bootstrap admin) has a passing backend test, and the admin screen with its own test comes with the frontend; 3 (in the browser) needs the screens.
 
-Open in this phase: TC-1-M02, the refresh cookie in Firefox on Windows, to be run by hand.
+The `Secure` refresh cookie on plain-HTTP localhost works in the demonstration browser, Firefox 153 on Windows, and in Chromium 152, so no exception to AUTH-6 is needed (TC-1-M01, TC-1-M02, ADR-013).
 
 Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone/pull/1) was merged into `main` on 2026-10-07 (merge commit `4b51372`). Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
 
@@ -56,7 +56,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 
 - D1: the product name. Phase 0 uses the working description through `APP_DISPLAY_NAME`.
 - D5 and D6: provisional chat and embedding model choices, needed for the Milestone-1 proposal.
-- Demonstration browser: Firefox on Windows, with Chrome as the fallback. Whether Firefox keeps the `Secure` refresh cookie on `http://localhost:3000` is checked in Phase 1 (ADR-013, ADR-020).
+- Demonstration browser: Firefox on Windows, with Chrome as the fallback. Both keep the `Secure` refresh cookie on `http://localhost:3000` (checked 2026-10-07, ADR-013).
 - D21: report template and reference style. D22: how stakeholder evidence is collected. Both are due for Milestone-1.
 - Specification 27.8, to ask the guide or coordinator: the Milestone-2 date, the final evaluation date, report length, the final marks split, Milestone-1 and Milestone-2 submission details, prescribed templates, the university rule on plagiarism and responsible AI use (before the Milestone-1 submission), the Milestone 0 approval and Group ID, and whether demo time is inside the presentation slot.
 

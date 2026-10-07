@@ -223,6 +223,8 @@ Date 2026-10-06, status accepted.
 
 **Consequences.** What the panel sees is what a deployment runs. `prod` will require `Secure` refresh cookies (AUTH-6) while the local stack serves plain HTTP on `localhost`. Phase 1 must check how the browsers used for the demonstration treat `Secure` cookies on `http://localhost` and, if needed, record an explicit exception for that case.
 
+Implementation note (2026-10-07): checked on the Compose stack (`prod` profile, plain HTTP on `http://localhost:3000`, commit `88e541d`) in Firefox 153 on Windows, the demonstration browser, and in Chromium 152, the engine of the fallback browser Chrome. Both keep the `Secure` refresh cookie and send it back after a reload (`docs/testing.md`, TC-1-M01 and TC-1-M02). No exception is needed: `prod` keeps `Secure`, and only `dev` turns it off (AUTH-6).
+
 ---
 
 ### ADR-014: springdoc-openapi 3.1.1, pinned

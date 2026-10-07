@@ -8,7 +8,22 @@ Updated 2026-10-07. Format: specification Section 24.8.
 
 Decisions taken for this phase: D7 (ADR-020), D18 (ADR-021), password hashing (ADR-022), error model (ADR-023), audit log (ADR-024), specification corrections (ADR-025).
 
-Work in progress, in this order: error model, accounts and the bootstrap admin, audit, tokens and the authentication endpoints, admin user management, Compose and CI, then the screens. Not built yet: everything in that list.
+Built and committed on the branch (backend, Compose and CI):
+
+- Error model: every error is Problem Details with a `code`, including the security filter chain and the container's error path (ADR-023).
+- Accounts: registration as STUDENT (AUTH-1), Argon2id passwords of 10 to 128 characters (AUTH-4, ADR-022), normalized unique emails (AUTH-10), the bootstrap admin (AUTH-3).
+- Audit log: append-only table guarded by a trigger, `AuditService` (AUD-4, ADR-024); every Phase 1 action is recorded.
+- Sign-in, refresh, logout, `GET /auth/me`, `PUT /auth/me/password`: JWT access tokens, rotating refresh cookie with family revocation, Origin check (AUTH-5 to AUTH-9, ADR-020).
+- Admin user list and role and enabled changes, with the last-admin rule under a row lock (AUTH-2, 14.1).
+- nginx passes the real client address; the CI stack job signs in through nginx.
+
+Evidence so far: `./mvnw verify` passes with 107 tests (2026-10-07, commit `88e541d`); the frontend checks pass. Manual checks TC-1-M01, M03 and M04 in `docs/testing.md`.
+
+Not built yet: the screens (sign-in, registration, role-aware shell with sign-out, admin users, not found and not allowed), the decision record for the frontend libraries, `docs/data-model.md`, `docs/security.md`, `docs/api.md`, the Phase 1 rows of the automated test-case table, and the phase report.
+
+Exit criteria: 1 (the 19.2 authentication tests) and 2 (Problem Details) have passing backend tests; 4 (promotion by the bootstrap admin) has a passing backend test, and the admin screen with its own test comes with the frontend; 3 (in the browser) needs the screens.
+
+Open in this phase: TC-1-M02, the refresh cookie in Firefox on Windows, to be run by hand.
 
 Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone/pull/1) was merged into `main` on 2026-10-07 (merge commit `4b51372`). Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
 
@@ -52,6 +67,9 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - Ports 3000 and 5432 on `127.0.0.1` must be free for the Compose stack; a local PostgreSQL on 5432 clashes.
 - google-java-format is held at 1.36.1 until a Spotless release supports a newer version (ADR-009).
 - openapi-typescript runs through an npm override until a release supports TypeScript 6 (ADR-017).
+- From Phase 1 the backend does not start without `APP_SECURITY_JWT_SECRET`, `APP_SECURITY_ALLOWED_ORIGINS` and, while no admin exists, `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD`. A `.env` created before Phase 1 must add them (README quickstart), or `docker compose up` and development mode stop at startup.
+- Expired and revoked refresh tokens stay in `refresh_token`; nothing deletes them yet. One row per sign-in and refresh, so the table grows slowly.
+- Throttling of repeated failed sign-ins (AUTH-5) is `[T2]` and not built.
 - Branch protection and rulesets are not available on this private repository with the owner's GitHub plan (the API answers 403, "Upgrade to GitHub Pro"). "A red build blocks merging" (19.3) is therefore kept by convention: do not merge a pull request whose checks are not green.
 
 ## Open specification issues

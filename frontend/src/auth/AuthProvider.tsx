@@ -28,15 +28,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const [state, setState] = useState<AuthState>({ status: 'loading' })
 
-  const signedOut = useCallback(() => {
-    setAccessToken(null)
-    // Nothing fetched for one user may be shown to the next (UI-1).
-    queryClient.clear()
-    setState({ status: 'anonymous' })
-  }, [queryClient])
+  const signedOut = useCallback(
+    (onPurpose: boolean) => {
+      setAccessToken(null)
+      // Nothing fetched for one user may be shown to the next (UI-1).
+      queryClient.clear()
+      setState({ status: 'anonymous', signedOut: onPurpose })
+    },
+    [queryClient],
+  )
 
   useEffect(() => {
-    onSessionEnded(signedOut)
+    onSessionEnded(() => signedOut(false))
     let active = true
     refreshSession().then(
       (session) => {
@@ -81,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await api<void>('/api/v1/auth/logout', { method: 'POST' })
     } finally {
       // Signed out locally even if the server could not be reached.
-      signedOut()
+      signedOut(true)
     }
   }, [signedOut])
 

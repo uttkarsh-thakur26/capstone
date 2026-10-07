@@ -3,7 +3,8 @@ import type { RegistrationRequest, UserResponse } from '../api/types'
 
 export type AuthState =
   | { status: 'loading' }
-  | { status: 'anonymous' }
+  /** `signedOut` is set when the user signed out on purpose, as opposed to a session that ended. */
+  | { status: 'anonymous'; signedOut?: boolean }
   | { status: 'authenticated'; user: UserResponse }
 
 export interface Auth {

@@ -49,6 +49,12 @@ describe('RequireAuth', () => {
     expect(screen.queryByText('Admin content')).not.toBeInTheDocument()
   })
 
+  it('does not carry a return address across a deliberate sign-out', () => {
+    renderGuarded({ status: 'anonymous', signedOut: true })
+
+    expect(screen.getByText(/^Sign-in page, return to\s*$/)).toBeVisible()
+  })
+
   it('waits while the session is being restored', () => {
     renderGuarded({ status: 'loading' })
 

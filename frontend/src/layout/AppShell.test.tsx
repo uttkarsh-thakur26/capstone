@@ -58,6 +58,31 @@ describe('AppShell', () => {
     )
   })
 
+  it('starts the next person at home, not on the page the previous user had open', async () => {
+    fakeApi({
+      'GET /api/v1/meta': () => json(META),
+      'POST /api/v1/auth/refresh': () => json(session('ADMIN')),
+      'POST /api/v1/auth/logout': () => noContent(),
+      'GET /api/v1/admin/users': () =>
+        json({ items: [], page: 0, size: 20, totalItems: 0, totalPages: 0 }),
+      'POST /api/v1/auth/login': () => json(session('FACULTY')),
+    })
+    const { user, router } = renderApp('/admin/users')
+
+    await user.click(await screen.findByRole('button', { name: 'Sign out' }))
+    await user.type(
+      await screen.findByLabelText('Email'),
+      'faculty@example.org',
+    )
+    await user.type(screen.getByLabelText('Password'), 'correct horse battery')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Welcome, Test faculty' }),
+    ).toBeVisible()
+    expect(router.state.location.pathname).toBe('/')
+  })
+
   it('shows the not-found page for an unknown address', async () => {
     signedInAs('STUDENT')
 

@@ -1,6 +1,6 @@
 # Resolved versions
 
-What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`. Update this file in the same commit as any dependency change.
+What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`; the backend libraries added in Phase 1 were recorded on 2026-10-07 from branch `feat/auth-roles`. Update this file in the same commit as any dependency change.
 
 How these were collected: `./mvnw dependency:list` and `./mvnw -v` in `backend`, `npm ls --depth=0` in `frontend`, `docker image inspect --format '{{index .RepoDigests 0}}'` for images, and the tools' own `--version` output.
 
@@ -23,6 +23,9 @@ Managed by the Spring Boot 4.1.1 parent unless marked pinned.
 | Spring Boot | 4.1.1 |
 | Spring Framework | 7.0.9 |
 | Spring Security | 7.1.1 |
+| Spring Security OAuth2 resource server, JOSE and core, through `spring-boot-starter-security-oauth2-resource-server` (AUTH-6) | 7.1.1 |
+| Nimbus JOSE + JWT, through Spring Security | 10.9.1 |
+| BouncyCastle (`org.bouncycastle:bcprov-jdk18on`), for Argon2id password hashing, **pinned** (ADR-022) | 1.86 |
 | Hibernate ORM | 7.4.5.Final |
 | Jakarta Persistence | 3.2.0 |
 | Hibernate Validator | 9.1.3.Final |

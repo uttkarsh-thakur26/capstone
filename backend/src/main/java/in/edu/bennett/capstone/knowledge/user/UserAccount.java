@@ -98,4 +98,12 @@ class UserAccount {
   void changePasswordHash(String newHash) {
     this.passwordHash = newHash;
   }
+
+  void changeRole(Role newRole) {
+    this.role = newRole;
+  }
+
+  void setEnabled(boolean enabled) {
+    this.enabled = enabled;
+  }
 }

@@ -5,14 +5,19 @@ import in.edu.bennett.capstone.knowledge.audit.AuditEvent;
 import in.edu.bennett.capstone.knowledge.audit.AuditOutcome;
 import in.edu.bennett.capstone.knowledge.audit.AuditService;
 import in.edu.bennett.capstone.knowledge.common.ApiException;
+import in.edu.bennett.capstone.knowledge.common.PageResponse;
 import java.time.Clock;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -177,6 +182,90 @@ public class UserService {
             .withResource(RESOURCE_USER, user.getId())
             .withDetails(Map.of("source", "bootstrap", "role", Role.ADMIN.name())));
     log.info("Created the first admin account {}", user.getId());
+  }
+
+  /** Columns the admin user list may be sorted by: API name to entity property. */
+  private static final Map<String, String> SORTABLE =
+      Map.of(
+          "email", "email",
+          "displayName", "displayName",
+          "role", "role",
+          "createdAt", "createdAt",
+          "lastLoginAt", "lastLoginAt");
+
+  /** 14.1: list and search users. Admins only, by method security as well as by URL (AUTH-8). */
+  @PreAuthorize("hasRole('ADMIN')")
+  @Transactional(readOnly = true)
+  public PageResponse<AdminUserResponse> listUsers(
+      UserQuery query, int page, int size, String sort) {
+    return PageResponse.of(
+        users
+            .findAll(
+                query.toSpecification(),
+                PageResponse.request(page, size, sort, SORTABLE, Sort.by("email")))
+            .map(AdminUserResponse::of));
+  }
+
+  /**
+   * AUTH-2: changes a role, the enabled flag, or both. The last enabled admin can be neither
+   * demoted nor disabled. The enabled admins' rows are locked first, so two admins demoting each
+   * other at the same moment are handled one after the other and the second is refused.
+   */
+  @PreAuthorize("hasRole('ADMIN')")
+  @Transactional
+  public AdminUserResponse updateUser(UUID actorId, UUID userId, UpdateUserRequest change) {
+    List<UserAccount> enabledAdmins = users.lockEnabledAdmins();
+    // Read after the lock, so a change committed by a request we waited for is seen.
+    UserAccount user =
+        users
+            .findById(userId)
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "NOT_FOUND",
+                        "The requested resource does not exist."));
+    String actorEmail = users.findById(actorId).map(UserAccount::getEmail).orElse(null);
+    Role newRole = change.role() == null ? user.getRole() : change.role();
+    boolean newEnabled = change.enabled() == null ? user.isEnabled() : change.enabled();
+
+    boolean removesAnAdmin = enabledAdmins.contains(user) && (newRole != Role.ADMIN || !newEnabled);
+    if (removesAnAdmin && enabledAdmins.size() == 1) {
+      AuditAction action =
+          newRole != Role.ADMIN ? AuditAction.ROLE_CHANGED : AuditAction.USER_DISABLED;
+      audit.recordSeparately(
+          AuditEvent.of(action, AuditOutcome.FAILURE, actorId, actorEmail)
+              .withResource(RESOURCE_USER, user.getId())
+              .withDetails(Map.of("reason", "last enabled admin")));
+      throw new ApiException(
+          HttpStatus.CONFLICT,
+          "LAST_ADMIN",
+          "The last enabled admin cannot be demoted or disabled.");
+    }
+
+    if (newRole != user.getRole()) {
+      Map<String, Object> details = new HashMap<>();
+      details.put("from", user.getRole().name());
+      details.put("to", newRole.name());
+      user.changeRole(newRole);
+      audit.record(
+          AuditEvent.of(AuditAction.ROLE_CHANGED, AuditOutcome.SUCCESS, actorId, actorEmail)
+              .withResource(RESOURCE_USER, user.getId())
+              .withDetails(details));
+    }
+    if (newEnabled != user.isEnabled()) {
+      user.setEnabled(newEnabled);
+      audit.record(
+          AuditEvent.of(
+                  newEnabled ? AuditAction.USER_ENABLED : AuditAction.USER_DISABLED,
+                  AuditOutcome.SUCCESS,
+                  actorId,
+                  actorEmail)
+              .withResource(RESOURCE_USER, user.getId()));
+    }
+    users.flush();
+    log.info("Admin {} updated user {}", actorId, user.getId());
+    return AdminUserResponse.of(user);
   }
 
   private static ApiException emailTaken() {

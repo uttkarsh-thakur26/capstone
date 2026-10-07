@@ -4,7 +4,7 @@ Working description. The product name is not decided yet (D1 in `docs/PROJECT_SP
 
 Users upload PDFs, the system indexes them, and people search and ask questions in natural language. Answers are built only from documents the asking user is allowed to read, they cite the pages they come from, and the system says so when the documents do not contain the answer. Final-year capstone project (CSET400C).
 
-**Status:** Phase 0 (foundation). The stack starts and the interface shows the backend's name and version. Nothing else is built yet. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
+**Status:** Phase 1 (authentication and roles) in progress. The backend has accounts, sign-in with access tokens and a refresh cookie, roles, the admin user list and the audit log. The interface still shows only the product name and version: the sign-in and admin screens are not built yet. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
 ## Quickstart
 
@@ -42,7 +42,7 @@ Needs, in addition: JDK 25 (Eclipse Temurin 25, with `JAVA_HOME` set) and Node.j
 docker compose up -d db
 ```
 
-Backend, in one terminal. The `dev` profile reads the repository's `.env`, so it uses the same database credentials:
+Backend, in one terminal. The `dev` profile reads the repository's `.env`, so it uses the same database credentials, signing key and first admin; `.env` needs the same variables as for the quickstart. It accepts the refresh cookie only from the Vite dev server's origin, `http://localhost:5173`, and sends that cookie without `Secure`, because development runs on plain HTTP:
 
 ```bash
 cd backend

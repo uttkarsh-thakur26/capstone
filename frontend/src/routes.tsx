@@ -1,6 +1,7 @@
 import type { RouteObject } from 'react-router'
 import { RequireAuth } from './auth/RequireAuth'
 import { AppShell } from './layout/AppShell'
+import { AdminUsersPage } from './pages/AdminUsersPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -18,6 +19,14 @@ export const routes: RouteObject[] = [
     ),
     children: [
       { index: true, element: <HomePage /> },
+      {
+        path: 'admin/users',
+        element: (
+          <RequireAuth roles={['ADMIN']}>
+            <AdminUsersPage />
+          </RequireAuth>
+        ),
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

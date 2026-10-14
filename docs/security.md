@@ -12,7 +12,7 @@ Started in Phase 1. It grows with each phase and is complete for Milestone-2 (sp
 | Contents | Issuer, subject (the user id), issue and expiry times. No role | Nothing; it is looked up in `refresh_token` by its SHA-256 |
 | Lifetime | 15 minutes | 7 days, rotated on every use |
 | Where the SPA keeps it | A module variable in memory, never `localStorage` | An `HttpOnly`, `SameSite=Strict` cookie scoped to `/api/v1/auth`, `Secure` outside the `dev` profile |
-| Sent with | `Authorization: Bearer …` on API calls | Only to `/api/v1/auth/refresh` and `/logout`, by the browser |
+| Sent with | `Authorization: Bearer …` on API calls | By the browser to every path under `/api/v1/auth` (login, register, refresh, logout, `/me`, `/me/password`); only refresh and logout read it |
 
 Decisions: ADR-020 (strategy, D7), ADR-022 (password hashing), ADR-013 (the `Secure` cookie on plain-HTTP localhost, checked in Firefox 153 and Chromium 152).
 

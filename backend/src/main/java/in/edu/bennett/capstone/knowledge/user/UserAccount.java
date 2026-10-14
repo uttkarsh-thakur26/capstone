@@ -9,15 +9,23 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.UuidGenerator;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-/** An account (table {@code app_user}). Never leaves the {@code user} module (4.3). */
+/**
+ * An account (table {@code app_user}). Never leaves the {@code user} module (4.3).
+ *
+ * <p>Updates write only the columns that changed. Writing every column would let a request that
+ * read the row earlier, such as a sign-in or a password change, put back the role or enabled flag
+ * that an admin changed in the meantime (AUTH-2, AUTH-7).
+ */
 @Entity
 @Table(name = "app_user")
 @EntityListeners(AuditingEntityListener.class)
+@DynamicUpdate
 class UserAccount {
 
   @Id

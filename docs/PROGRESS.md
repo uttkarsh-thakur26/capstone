@@ -1,6 +1,6 @@
 # Progress
 
-Updated 2026-10-07. Format: specification Section 24.8.
+Updated 2026-10-14. Format: specification Section 24.8.
 
 ## Current phase
 
@@ -10,9 +10,9 @@ Evidence (2026-10-07, last code commit `1ce5d59`): `./mvnw verify` passes with 1
 
 To close Phase 1:
 
-1. Open: push the branch and open a pull request; nothing is pushed yet, so CI has not run on Phase 1.
+1. Open: open the pull request; the branch is pushed (2026-10-14).
 2. Open: CI green on the pull request, including the new sign-in step of the stack job.
-3. Open: review by a teammate (24.2); ADR-019's exception covered pull request #1 only.
+3. Open: review under ADR-028, the standing exception to 24.2 while no teammate can review: the owner's review and an independent review in a fresh session, with the findings and fixes listed in the pull request.
 4. Open: merge, then mark Phase 1 done here.
 
 Suggested before the demonstration: run Appendix B step 1 by hand in Firefox (sign in as the bootstrap admin, promote a registered user to FACULTY). The screens were checked in Chromium only.

@@ -2,7 +2,7 @@
 
 Owner: Uttkarsh, who built the whole phase because the other members are not available yet (ADR-026, a recorded exception to 24.1). Branch `feat/auth-roles`, 18 commits on top of `main` (`4b51372`) before this report, last code change `1ce5d59`. Written 2026-10-07.
 
-Status: all four exit criteria are met with evidence below. The phase closes when the branch is pushed, CI is green on it, a teammate has reviewed the pull request (24.2), and it is merged. None of those has happened: nothing is pushed yet, so CI has not run on any Phase 1 commit.
+Status: all four exit criteria are met with evidence below. The phase closes when CI is green on the pull request, the pull request has been reviewed under ADR-028 (the owner's review and an independent review in a fresh session, a standing exception to 24.2 while no teammate can review), and it is merged.
 
 ```
 Implemented   Error model: RFC 9457 Problem Details with a stable code for every error, from
@@ -122,8 +122,8 @@ Deviations    From the specification as it stood before this phase, each correct
                 the browser shows it on the user's next sign-in, because one browser profile holds
                 one refresh cookie.
 
-Known issues  - Not pushed: CI has not run on Phase 1, and no teammate has reviewed it (24.2;
-                ADR-019 covered pull request #1 only).
+Known issues  - No teammate can review yet: the review follows ADR-028, a standing exception to
+                24.2, so it is no evidence that another member has read the code (27.7).
               - Expired and revoked refresh_token rows are never deleted.
               - Throttling of failed sign-ins (AUTH-5) and rate limits (SEC-8) are [T2].
               - Registration answers 409 EMAIL_TAKEN, which reveals registered emails (accepted,
@@ -147,8 +147,8 @@ How to run    docker compose up --build        (after cp .env.example .env and s
               Sign in at http://localhost:3000 with APP_BOOTSTRAP_ADMIN_EMAIL and
               APP_BOOTSTRAP_ADMIN_PASSWORD. Development mode: README, "Development mode".
 
-Next          Push the branch, open the pull request, get CI green and a teammate's review,
-              merge. Then Phase 2, document management (read 5, 7, 8, 14.2, Appendix B steps 2
+Next          Get CI green on the pull request, review it under ADR-028 and list the findings
+              and fixes in it, merge. Then Phase 2, document management (read 5, 7, 8, 14.2, Appendix B steps 2
               and 3; needs D8, D9, D15, D16, all with defaults). Open specification issues for
               Phase 2: S7, S8, S9, S10, and the rest of S3. The Milestone-1 pack (18 October)
               comes first on the calendar (specification 23).

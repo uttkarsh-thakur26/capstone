@@ -31,6 +31,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-025](#adr-025-specification-corrections-for-phase-1) | | Specification corrections for Phase 1 | Accepted | 2026-10-07 |
 | [ADR-026](#adr-026-phase-1-is-built-by-one-member) | | Phase 1 is built by one member | Accepted, exception to 24.1 | 2026-10-07 |
 | [ADR-027](#adr-027-frontend-libraries-for-routing-server-state-forms-and-components) | | Frontend libraries for routing, server state, forms and components | Accepted | 2026-10-07 |
+| [ADR-028](#adr-028-owner-review-with-an-independent-review-while-no-teammate-can-review) | | Owner review with an independent review while no teammate can review | Accepted, standing exception to 24.2 | 2026-10-14 |
 
 ---
 
@@ -469,3 +470,23 @@ The access token is kept in a module variable, not in React state that a library
 **Alternatives.** An HTTP client such as axios, or a typed client generated from the OpenAPI document (openapi-fetch): rejected, because one function around `fetch` covers the bearer header, the single silent refresh and Problem Details errors, and the types already come from `openapi-typescript` (ADR-017). Formik instead of React Hook Form: not chosen, the specification names React Hook Form. Testing with `fireEvent` only: rejected, single synthetic events test less of what a user does, such as opening a select and choosing an option with the keyboard.
 
 **Consequences.** Eight packages to keep current. React Router 8 follows a fast release cadence, so an upgrade re-runs the frontend checks. The versions resolved by the lockfile are in `docs/VERSIONS.md`.
+
+---
+
+### ADR-028: Owner review with an independent review while no teammate can review
+
+Date 2026-10-14, status accepted as a standing exception to specification 24.2. It applies from the Phase 1 pull request on and ends as soon as a teammate can review.
+
+**Context.** Specification 24.2 requires a teammate to review each pull request before it is merged, with reviewers rotating, and 27.7 counts those reviews as evidence of individual work. ADR-019 made a one-time exception for pull request #1. The other members are still not available (ADR-026), and recording a new exception for every pull request would repeat one decision.
+
+**Decision.** While no teammate can review, every pull request is reviewed in two parts before it is merged:
+
+- The owner reviews the branch against the specification sections of its phase and its exit criteria.
+- An independent review is made in a fresh session that took no part in building the branch, so the code is read without the assumptions of the person who wrote it.
+- The pull request lists the findings of both reviews, and for each one the commit that fixed it or the reason it was left unfixed.
+
+Every other merge rule of 24.2 stays: CI is green, and nothing is committed to `main` directly. The exception ends when a teammate can review; from then on 24.2 applies unchanged, and the first pull request a teammate reviews says so.
+
+**Alternatives.** A new exception per pull request, as ADR-019 did: rejected, because it repeats the same decision. Merging without a review until a teammate is available: rejected, because reviews find defects; the review of Phase 0 found seven. Waiting for a teammate before merging: not chosen, because the plan of Section 23 has no spare week.
+
+**Consequences.** Review records under this exception name the owner as the reviewer, so they are no evidence that another member has read the code (27.7). The findings and fixes listed in each pull request make each review checkable afterwards. ADR-019 remains the record for pull request #1.

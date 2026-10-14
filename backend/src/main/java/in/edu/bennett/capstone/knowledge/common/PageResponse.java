@@ -22,6 +22,12 @@ public record PageResponse<T>(
 
   public static final int MAX_SIZE = 100;
 
+  /**
+   * The last page a list may ask for: beyond it, a full page would start past the largest row
+   * offset a query can take, which would fail as a 500 instead of a 400 (15.1).
+   */
+  public static final int MAX_PAGE = Integer.MAX_VALUE / MAX_SIZE;
+
   public static <T> PageResponse<T> of(Page<T> page) {
     return new PageResponse<>(
         page.getContent(),

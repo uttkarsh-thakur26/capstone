@@ -224,6 +224,8 @@ class AdminUsersTest {
   void invalidPagingAndSortingAreRefused() {
     assertCode(get(admin, ADMIN_USERS + "?size=101"), "VALIDATION_FAILED");
     assertCode(get(admin, ADMIN_USERS + "?page=-1"), "VALIDATION_FAILED");
+    // Page 30,000,000 of 100 starts past the largest row offset the database query can take.
+    assertCode(get(admin, ADMIN_USERS + "?page=30000000&size=100"), "VALIDATION_FAILED");
     assertCode(get(admin, ADMIN_USERS + "?sort=password_hash"), "INVALID_SORT");
     assertCode(get(admin, ADMIN_USERS + "?sort=email,sideways"), "INVALID_SORT");
   }

@@ -10,7 +10,7 @@ Started in Phase 1 (specification Section 25). The contract is in `docs/PROJECT_
 - Base path `/api/v1`. JSON request and response bodies; responses declare their media type, so the generated types are exact.
 - Authentication: `Authorization: Bearer <access token>` from `POST /auth/login` or `POST /auth/refresh`. The refresh token travels only in the `refresh_token` cookie (`docs/security.md`).
 - Times are ISO 8601 in UTC; ids are UUID strings.
-- Lists use the envelope `{ items, page, size, totalItems, totalPages }`, with `page` from 0, `size` from 1 to 100, and `sort` as `field` or `field,asc|desc` from an allow-list per endpoint.
+- Lists use the envelope `{ items, page, size, totalItems, totalPages }`, with `page` from 0 to 21,474,836 (a full page further on would start past the largest row offset a query can take), `size` from 1 to 100, and `sort` as `field` or `field,asc|desc` from an allow-list per endpoint.
 - Errors are RFC 9457 Problem Details, `application/problem+json`, described in the OpenAPI document as `ProblemResponse` and attached to every operation as its default response (ADR-023):
 
 ```json

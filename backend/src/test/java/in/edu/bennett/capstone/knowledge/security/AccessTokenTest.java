@@ -93,7 +93,8 @@ class AccessTokenTest {
                   account.id().toString(),
                   Instant.now(),
                   Instant.now().plusSeconds(600));
-          case "tampered" -> withSubject(validToken, UUID.randomUUID().toString());
+          // Another real account, so that only the signature can reject the token.
+          case "tampered" -> withSubject(validToken, registerStudent(mvc).id().toString());
           case "unsigned" -> unsigned(account.id().toString());
           case "issuer" ->
               sign(

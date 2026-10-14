@@ -1,6 +1,6 @@
 ## Phase 1: Authentication and roles
 
-Owner: Uttkarsh, who built the whole phase because the other members are not available yet (ADR-026, a recorded exception to 24.1). Branch `feat/auth-roles`, 18 commits on top of `main` (`4b51372`) before this report, last code change `1ce5d59`. Written 2026-10-07.
+Owner: Uttkarsh, who built the whole phase because the other members are not available yet (ADR-026, a recorded exception to 24.1). Branch `feat/auth-roles`, 18 commits on top of `main` (`4b51372`) before this report, last code change `1ce5d59`. Written 2026-10-07. Updated 2026-10-14 after the independent review (ADR-028): six findings, each fixed in its own commit (see Deviations); the last code change is now `a3bab16`, and the counts and runs below are from 2026-10-14 unless they name another date.
 
 Status: all four exit criteria are met with evidence below. The phase closes when CI is green on the pull request, the pull request has been reviewed under ADR-028 (the owner's review and an independent review in a fresh session, a standing exception to 24.2 while no teammate can review), and it is merged.
 
@@ -44,7 +44,7 @@ Files         backend/src/main/java/in/edu/bennett/capstone/knowledge/
                   RefreshCookies, OriginCheck, PasswordAuthenticator, PasswordConfig, AuthService,
                   AuthController, AccessDeniedAuditor, ProblemDetailsSecurityHandler
               backend/src/main/resources/ application*.yaml, db/migration/V2 to V4
-              backend/src/test/ 14 new test classes, IntegrationTest, TestAccounts, AuditRows
+              backend/src/test/ 15 new test classes, IntegrationTest, TestAccounts, AuditRows
               frontend/src/ api/client.ts, api/types.ts, auth/, layout/, pages/, components/,
                 routes.tsx, App.tsx, app/, test/fakeApi.ts, test/renderApp.tsx, 8 test files
               frontend/nginx.conf, compose.yaml, .env.example, .github/workflows/ci.yml
@@ -71,17 +71,22 @@ API           POST /api/v1/auth/register        public
               Every operation documents ProblemResponse as its default response. Error codes:
               docs/api.md.
 
-Tests         Backend: 107 tests in 19 classes, 107 passed, 0 failed, 0 skipped; 94 of them are
-              new in this phase (14 new classes; 13 tests in 5 classes are from Phase 0).
-              Frontend: 39 tests in 8 files, 39 passed; 36 are new (App.test.tsx was rewritten
-              from 3 to 4 tests). Test-case table: docs/testing.md, TC-1-01 to TC-1-25 and the
-              manual checks TC-1-M01 to TC-1-M07.
+Tests         Backend: 110 tests in 20 classes, 110 passed, 0 failed, 0 skipped; 97 of them are
+              new in this phase (15 new classes, and one new test in the Phase 0 class
+              ApplicationStartupTest; 13 tests in 5 classes are from Phase 0).
+              Frontend: 41 tests in 8 files, 41 passed; 38 are new (App.test.tsx was rewritten
+              from 3 to 4 tests). Test-case table: docs/testing.md, TC-1-01 to TC-1-27 and the
+              manual checks TC-1-M01 to TC-1-M08.
               Mutation checks, each removing one safeguard and showing its test fails: the /error
               controller, code-point password length, chain revocation on refresh reuse, the
               bearer header ignored on auth endpoints, the last-admin row lock, @PreAuthorize on
               the admin service, forwarded headers, the shared refresh in the SPA, the role check
               on the Users link, the error notice on the admin screen, the return address after
-              a deliberate sign-out.
+              a deliberate sign-out. After the review: @DynamicUpdate on UserAccount (both
+              ConcurrentAccountChangesTest cases fail without it), the JPA settings (the guard in
+              ApplicationStartupTest fails on both with the block misplaced), the JWT signature
+              check (with it off, the old tampered-token case still passed and the new one
+              fails), the user check on silent refresh, and the bound on the page number.
 
 Evidence      See below, one entry per exit criterion, then the clean-clone check.
 
@@ -114,6 +119,22 @@ Deviations    From the specification as it stood before this phase, each correct
               - VERSIONS.md was not updated in the same commits that added BouncyCastle and the
                 resource server, as the file asks; fixed in a2c4bb5.
               - The not-allowed page is shown in place by the route guard, not at its own path.
+              Found by the independent review (ADR-028, 2026-10-14), each fixed in its own
+              commit with a test that failed first:
+              - A sign-in or password change that read the account before an admin disabled or
+                demoted it wrote the old role and enabled flag back, because Hibernate updated
+                every column (AUTH-2, AUTH-7). Fixed in 311e425 (@DynamicUpdate).
+              - spring.jpa had slipped under server in application.yaml (88e541d), so
+                open-in-view was on and Hibernate did not validate the schema (4.5, 7.1). Fixed
+                in 113b2b0; the schema validated without changes.
+              - The tampered-token test passed even without signature checking (19.2). Fixed in
+                f54c68a.
+              - A tab whose silent refresh returned another user's session carried on as that
+                user (UI-1). Fixed in ebd90a2.
+              - A page number beyond the largest row offset gave 500, not 400 (15.1). Fixed in
+                a3bab16.
+              - security.md said the refresh cookie goes only to refresh and logout. Fixed in
+                6b7aa92.
               Evidence limits:
               - The browser checks of exit criteria 3 and 4 were scripted in Chromium 152 on a
                 throwaway stack at port 3001, not done by hand. In Firefox, the demonstration
@@ -134,7 +155,8 @@ Known issues  - No teammate can review yet: the review follows ADR-028, a standi
               - The JavaScript bundle is 523 kB (162 kB gzipped), above Vite's 500 kB advisory
                 limit; splitting routes into separate chunks is left for later.
               - One browser profile holds one refresh cookie, so two accounts cannot be signed in
-                at the same time in one browser.
+                at the same time in one browser. A tab whose silent refresh returns another
+                account ends its own session.
               - Playwright end-to-end tests come with Phase 6 (S20).
               - Branch protection is unavailable on the repository plan (from Phase 0).
 
@@ -147,8 +169,8 @@ How to run    docker compose up --build        (after cp .env.example .env and s
               Sign in at http://localhost:3000 with APP_BOOTSTRAP_ADMIN_EMAIL and
               APP_BOOTSTRAP_ADMIN_PASSWORD. Development mode: README, "Development mode".
 
-Next          Get CI green on the pull request, review it under ADR-028 and list the findings
-              and fixes in it, merge. Then Phase 2, document management (read 5, 7, 8, 14.2, Appendix B steps 2
+Next          The independent review's findings are fixed and listed in the pull request.
+              Still to do: CI green on the pull request, the owner's review under ADR-028, merge. Then Phase 2, document management (read 5, 7, 8, 14.2, Appendix B steps 2
               and 3; needs D8, D9, D15, D16, all with defaults). Open specification issues for
               Phase 2: S7, S8, S9, S10, and the rest of S3. The Milestone-1 pack (18 October)
               comes first on the calendar (specification 23).
@@ -164,14 +186,14 @@ Each 19.2 item and the test that checks it:
 |---|---|---|
 | Registration ignores a role in the request | `user.RegistrationTest.registrationIgnoresARoleInTheRequest` | Pass |
 | Wrong password and unknown email give the same response | `security.LoginTest.wrongPasswordUnknownEmailAndDisabledAccountGiveTheSameResponse` (bodies compared byte for byte, a disabled account included) | Pass |
-| Missing, expired, tampered and wrongly signed tokens give 401 | `security.AccessTokenTest.aMissingTokenGets401` and `badTokensGet401` (expired, another key, payload changed after signing, `alg: none`, another issuer, bad subject, unknown user, malformed) | Pass |
+| Missing, expired, tampered and wrongly signed tokens give 401 | `security.AccessTokenTest.aMissingTokenGets401` and `badTokensGet401` (expired, another key, payload changed after signing to name another real account, `alg: none`, another issuer, bad subject, unknown user, malformed) | Pass |
 | A disabled user is rejected | `security.AccountStateTest.aDisabledUserIsRejectedOnTheNextRequestAtRefreshAndAtSignIn`; `user.AdminUsersTest.disablingAUserTakesEffectOnTheirNextRequestAndIsAudited` | Pass |
 | A non-admin gets 403 on admin endpoints | `user.AdminUsersTest.studentsAndFacultyGet403OnEveryAdminEndpoint` and `methodSecurityGuardsTheServiceOnItsOwn`; `security.AccessDeniedAuditTest` | Pass |
 | Refresh rotates the token and a reused old token is rejected | `security.RefreshAndLogoutTest.refreshRotatesTheTokenAndIssuesANewAccessToken` and `aReusedRefreshTokenIsRejectedAndEndsTheWholeSignIn` | Pass |
 | The last admin cannot be demoted or disabled | `user.LastAdminTest` (3 tests, one with two concurrent demotions) | Pass |
 | A role change applies on the user's next request | `user.AdminUsersTest.theBootstrapAdminPromotesARegisteredUserToFacultyEffectiveOnTheirNextRequest` and `aRoleChangeAppliesToAccessOnTheNextRequest` | Pass |
 
-Run on 2026-10-07 at `1ce5d59`, Docker running, JDK 25:
+Run on 2026-10-14 at `6b7aa92` (code as `a3bab16`), Docker running, JDK 25. The first run, on 2026-10-07 at `1ce5d59`, passed with 107 tests.
 
 ```
 $ cd backend && ./mvnw verify
@@ -180,10 +202,11 @@ Tests run: 4, Failures: 0, Errors: 0, Skipped: 0 | security.AccountStateTest
 Tests run: 6, Failures: 0, Errors: 0, Skipped: 0 | security.LoginTest
 Tests run: 11, Failures: 0, Errors: 0, Skipped: 0 | security.RefreshAndLogoutTest
 Tests run: 9, Failures: 0, Errors: 0, Skipped: 0 | user.AdminUsersTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0 | user.ConcurrentAccountChangesTest
 Tests run: 3, Failures: 0, Errors: 0, Skipped: 0 | user.LastAdminTest
 Tests run: 14, Failures: 0, Errors: 0, Skipped: 0 | user.RegistrationTest
-... (19 classes in total)
-Tests run: 107, Failures: 0, Errors: 0, Skipped: 0
+... (20 classes in total)
+Tests run: 110, Failures: 0, Errors: 0, Skipped: 0
 --- spotless:3.10.3:check (default) @ knowledge-platform ---
 BUILD SUCCESS
 ```
@@ -196,14 +219,14 @@ The concurrency test holds the admins' row lock from a second transaction, waits
 
 **3. A user can register, sign in, see a role-aware shell and sign out in the browser.** Met.
 
-Component tests (Vitest, jsdom, `user-event`), 39 passed at `1ce5d59`:
+Component tests (Vitest, jsdom, `user-event`), 41 passed at `6b7aa92` (39 at `1ce5d59`):
 
 ```
 $ cd frontend && npm run lint && npm run typecheck && npm test && npm run build && npm run format:check
 > eslint . --max-warnings 0
  Test Files  8 passed (8)
-      Tests  39 passed (39)
-✓ built in 517ms
+      Tests  41 passed (41)
+✓ built in 1.14s
 All matched files use Prettier code style!
 ```
 
@@ -223,4 +246,4 @@ The audit log of that stack recorded USER_REGISTERED, LOGIN_SUCCESS and LOGOUT f
 
 In the browser (TC-1-M06), continuing the session of criterion 3: the bootstrap admin signed in and started at Home, not on the page Sam had open, with Home and Users in the navigation. On Users, choosing FACULTY in Sam Student's role select showed "Sam Student is now FACULTY and enabled." and the row changed to FACULTY. After the admin signed out, Sam Student's next sign-in showed the badge FACULTY. The audit log recorded ROLE_CHANGED from STUDENT to FACULTY by `admin@example.org`.
 
-**Clean clone (DEP-2).** The branch was cloned at `dcbdbd4` (code identical to `1ce5d59`) into an empty folder: no `.env`, no untracked files, `backend/mvnw` mode 100755 with LF endings. In the clone, `./mvnw verify` passed with 107 tests; `npm ci` reported 0 vulnerabilities and the frontend checks passed with 39 tests; `npm run gen:api` left `schema.d.ts` unchanged. Following the README quickstart (`cp .env.example .env`, then the database password, signing key and admin password), `docker compose build --no-cache` and `up -d --wait` brought all three services to healthy in 85 seconds. `/api/v1/meta` answered 200 with the name and version, `/api/v1/auth/me` without a token answered 401, and the CI sign-in script (bootstrap admin through nginx, `/auth/me`, refresh with the cookie) passed. One difference from the README: the owner's own stack held port 3000, so a Compose override published the clone's interface on 3001, without a database port, and the allowed origin was set to match.
+**Clean clone (DEP-2).** The branch was cloned at `dcbdbd4` (code identical to `1ce5d59`) into an empty folder: no `.env`, no untracked files, `backend/mvnw` mode 100755 with LF endings. In the clone, `./mvnw verify` passed with 107 tests; `npm ci` reported 0 vulnerabilities and the frontend checks passed with 39 tests; `npm run gen:api` left `schema.d.ts` unchanged. Following the README quickstart (`cp .env.example .env`, then the database password, signing key and admin password), `docker compose build --no-cache` and `up -d --wait` brought all three services to healthy in 85 seconds. `/api/v1/meta` answered 200 with the name and version, `/api/v1/auth/me` without a token answered 401, and the CI sign-in script (bootstrap admin through nginx, `/auth/me`, refresh with the cookie) passed. One difference from the README: the owner's own stack held port 3000, so a Compose override published the clone's interface on 3001, without a database port, and the allowed origin was set to match. The clean-clone check was not repeated after the review fixes; on 2026-10-14 the Compose stack was rebuilt from the working tree at `6b7aa92`, started healthy in the `prod` profile with schema validation on, and passed the CI sign-in script (TC-1-M08). CI's fresh checkout covers the clean build.

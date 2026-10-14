@@ -6,13 +6,13 @@ Updated 2026-10-14. Format: specification Section 24.8.
 
 **Phase 1, authentication and roles: every exit criterion is met; the phase is not closed yet.** Built on branch `feat/auth-roles` entirely by Uttkarsh, because the other members are not available yet (ADR-026, a recorded exception to 24.1). Report: [phase-reports/phase-1.md](phase-reports/phase-1.md).
 
-Evidence (2026-10-07, last code commit `1ce5d59`): `./mvnw verify` passes with 107 tests, the frontend checks with 39 tests, a clean clone passes all of them and starts with the README quickstart, and the browser checks of exit criteria 3 and 4 passed in Chromium 152 (`docs/testing.md`, TC-1-01 to TC-1-25 and TC-1-M01 to TC-1-M07). The refresh cookie was checked by hand in Firefox 153, the demonstration browser (TC-1-M02).
+Evidence (2026-10-07, last code commit `1ce5d59`): `./mvnw verify` passes with 107 tests, the frontend checks with 39 tests, a clean clone passes all of them and starts with the README quickstart, and the browser checks of exit criteria 3 and 4 passed in Chromium 152 (`docs/testing.md`, TC-1-01 to TC-1-25 and TC-1-M01 to TC-1-M07). The refresh cookie was checked by hand in Firefox 153, the demonstration browser (TC-1-M02). After the six fixes of the independent review (2026-10-14, last code commit `a3bab16`): 110 backend and 41 frontend tests pass, and the Compose stack starts with schema validation on and passes the CI sign-in script (TC-1-26, TC-1-27, TC-1-M08).
 
 To close Phase 1:
 
-1. Open: open the pull request; the branch is pushed (2026-10-14).
+1. Done: pull request [#2](https://github.com/uttkarsh-thakur26/capstone/pull/2) is open.
 2. Open: CI green on the pull request, including the new sign-in step of the stack job.
-3. Open: review under ADR-028, the standing exception to 24.2 while no teammate can review: the owner's review and an independent review in a fresh session, with the findings and fixes listed in the pull request.
+3. Open: review under ADR-028, the standing exception to 24.2 while no teammate can review. The independent review in a fresh session found six gaps, each fixed in its own commit and listed in the pull request; the owner's review is still to be recorded there.
 4. Open: merge, then mark Phase 1 done here.
 
 Suggested before the demonstration: run Appendix B step 1 by hand in Firefox (sign in as the bootstrap admin, promote a registered user to FACULTY). The screens were checked in Chromium only.
@@ -26,7 +26,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 | Phase | Name | Status | Date |
 |---|---|---|---|
 | 0 | Foundation | Done. All exit criteria met, CI green, reviewed by the owner (ADR-019), merged in `4b51372` | 2026-10-07 |
-| 1 | Authentication and roles | All exit criteria met with evidence; awaiting push, CI, review and merge | 2026-10-07 |
+| 1 | Authentication and roles | All exit criteria met with evidence; pushed, independent review fixed; awaiting CI, the owner's review and merge | 2026-10-14 |
 | 2 | Document management | Not started | |
 | 3 | Ingestion and indexing | Not started | |
 | 4 | Retrieval and semantic search | Not started | |
@@ -65,7 +65,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - Expired and revoked refresh tokens stay in `refresh_token`; nothing deletes them yet. One row per sign-in and refresh, so the table grows slowly.
 - Throttling of repeated failed sign-ins (AUTH-5) is `[T2]` and not built.
 - The JavaScript bundle is 523 kB (162 kB gzipped), above Vite's 500 kB advisory limit. Splitting routes into separate chunks is left for later.
-- One browser profile holds one refresh cookie, so two accounts cannot be signed in at the same time in one browser.
+- One browser profile holds one refresh cookie, so two accounts cannot be signed in at the same time in one browser. A tab whose silent refresh returns another account ends its own session.
 - Branch protection and rulesets are not available on this private repository with the owner's GitHub plan (the API answers 403, "Upgrade to GitHub Pro"). "A red build blocks merging" (19.3) is therefore kept by convention: do not merge a pull request whose checks are not green.
 
 ## Open specification issues

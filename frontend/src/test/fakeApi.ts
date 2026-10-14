@@ -87,11 +87,15 @@ export function user(
 export function session(
   role: 'ADMIN' | 'FACULTY' | 'STUDENT' = 'STUDENT',
   token = `token-${role}`,
+  userOverrides: Parameters<typeof user>[1] = {},
 ) {
   return {
     accessToken: token,
     tokenType: 'Bearer',
     expiresAt: '2026-10-07T12:15:00Z',
-    user: user(role),
+    user: user(role, userOverrides),
   }
 }
+
+/** The id of a second account, for sessions that must belong to someone else. */
+export const OTHER_USER_ID = '0199a1b2-0000-7000-8000-000000000002'

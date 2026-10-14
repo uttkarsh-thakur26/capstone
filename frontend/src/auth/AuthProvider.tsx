@@ -6,12 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import {
-  api,
-  onSessionEnded,
-  refreshSession,
-  setAccessToken,
-} from '../api/client'
+import { api, onSessionEnded, refreshSession, setSession } from '../api/client'
 import type {
   RegistrationRequest,
   SessionResponse,
@@ -30,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signedOut = useCallback(
     (onPurpose: boolean) => {
-      setAccessToken(null)
+      setSession(null)
       // Nothing fetched for one user may be shown to the next (UI-1).
       queryClient.clear()
       setState({ status: 'anonymous', signedOut: onPurpose })
@@ -65,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: 'POST',
       body: { email, password },
     })
-    setAccessToken(session.accessToken)
+    setSession(session)
     setState({ status: 'authenticated', user: session.user })
     return session.user
   }, [])

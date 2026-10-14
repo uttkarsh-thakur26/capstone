@@ -24,11 +24,18 @@ export class ApiError extends Error {
 
 /** Kept in memory only, never in localStorage or a cookie that scripts can read (AUTH-6). */
 let accessToken: string | null = null
+/**
+ * Whose access token it is. The browser keeps one refresh cookie for every tab, so after someone
+ * else signs in in another tab, a refresh here returns their session, not this tab's.
+ */
+let sessionUserId: string | null = null
 let sessionEndedListener: (() => void) | null = null
 let refreshInFlight: Promise<SessionResponse | null> | null = null
 
-export function setAccessToken(token: string | null): void {
-  accessToken = token
+/** Starts using a session from sign-in or refresh, or forgets the current one with null. */
+export function setSession(session: SessionResponse | null): void {
+  accessToken = session?.accessToken ?? null
+  sessionUserId = session?.user.id ?? null
 }
 
 /** Called when a request needed a session and none could be restored. */
@@ -48,6 +55,10 @@ const AUTH_ENDPOINTS = [
  * Exchanges the refresh cookie for a new access token. Calls that overlap share one request, and
  * across tabs the Web Locks API lets only one tab refresh at a time: two requests with the same
  * cookie at once look like a stolen token to the server, which then ends the sign-in (ADR-020).
+ *
+ * A refresh that returns a different user than the one this tab signed in as ends the session
+ * instead: carrying on would act as that user while the page still shows the previous one and
+ * their cached data (UI-1).
  */
 export function refreshSession(): Promise<SessionResponse | null> {
   if (!refreshInFlight) {
@@ -57,11 +68,15 @@ export function refreshSession(): Promise<SessionResponse | null> {
         headers: { Accept: 'application/json' },
       })
       if (!response.ok) {
-        accessToken = null
+        setSession(null)
         return null
       }
       const session = (await response.json()) as SessionResponse
-      accessToken = session.accessToken
+      if (sessionUserId !== null && session.user.id !== sessionUserId) {
+        setSession(null)
+        return null
+      }
+      setSession(session)
       return session
     }).finally(() => {
       refreshInFlight = null
@@ -94,7 +109,7 @@ export async function api<T>(
       response = await send(path, request, true)
     }
     if (response.status === 401) {
-      accessToken = null
+      setSession(null)
       sessionEndedListener?.()
     }
   }

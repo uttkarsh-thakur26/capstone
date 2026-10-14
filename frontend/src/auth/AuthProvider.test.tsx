@@ -3,7 +3,14 @@ import { act, render, screen } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { describe, expect, it } from 'vitest'
 import { api } from '../api/client'
-import { fakeApi, json, noContent, problem, session } from '../test/fakeApi'
+import {
+  fakeApi,
+  json,
+  noContent,
+  OTHER_USER_ID,
+  problem,
+  session,
+} from '../test/fakeApi'
 import { AuthProvider } from './AuthProvider'
 import type { Auth } from './authContext'
 import { useAuth } from './useAuth'
@@ -76,6 +83,39 @@ describe('AuthProvider', () => {
     expect(
       server.to('GET', '/api/v1/auth/me')[0].headers.get('Authorization'),
     ).toBe('Bearer admin-token')
+  })
+
+  it('ends the session when a silent refresh comes back as another user', async () => {
+    let refreshes = 0
+    const server = fakeApi({
+      // The first refresh restores this tab's session. By the second, someone else has signed
+      // in in another tab, and the browser's one refresh cookie now belongs to them.
+      'POST /api/v1/auth/refresh': () => {
+        refreshes += 1
+        return json(
+          refreshes === 1
+            ? session('STUDENT')
+            : session('ADMIN', 'other-token', { id: OTHER_USER_ID }),
+        )
+      },
+      'GET /api/v1/auth/me': (request) =>
+        request.headers.get('Authorization') === 'Bearer other-token'
+          ? json({})
+          : problem(401, 'UNAUTHENTICATED', 'Authentication is required.'),
+    })
+    const { queryClient } = renderProvider()
+    await screen.findByText('authenticated STUDENT')
+    queryClient.setQueryData(['private'], 'data of the student')
+
+    await act(() => api('/api/v1/auth/me').catch(() => undefined))
+
+    expect(screen.getByText('anonymous')).toBeVisible()
+    expect(queryClient.getQueryData(['private'])).toBeUndefined()
+    expect(
+      server
+        .to('GET', '/api/v1/auth/me')
+        .map((request) => request.headers.get('Authorization')),
+    ).not.toContain('Bearer other-token')
   })
 
   it('signs out on the server and drops every cached query', async () => {

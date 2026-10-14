@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fakeApi, json, problem, session } from '../test/fakeApi'
+import { fakeApi, json, OTHER_USER_ID, problem, session } from '../test/fakeApi'
 import {
   api,
   ApiError,
   onSessionEnded,
   refreshSession,
-  setAccessToken,
+  setSession,
 } from './client'
 
 afterEach(() => onSessionEnded(null))
@@ -16,7 +16,7 @@ describe('api client', () => {
       'GET /api/v1/auth/me': () => json({}),
       'POST /api/v1/auth/login': () => json(session()),
     })
-    setAccessToken('token-1')
+    setSession(session('ADMIN', 'token-1'))
 
     await api('/api/v1/auth/me')
     await api('/api/v1/auth/login', { method: 'POST', body: {} })
@@ -35,7 +35,7 @@ describe('api client', () => {
           : problem(401, 'UNAUTHENTICATED', 'Authentication is required.'),
       'POST /api/v1/auth/refresh': () => json(session('ADMIN', 'fresh')),
     })
-    setAccessToken('expired')
+    setSession(session('ADMIN', 'expired'))
 
     await expect(api('/api/v1/admin/users')).resolves.toEqual({ items: [] })
 
@@ -52,13 +52,33 @@ describe('api client', () => {
     })
     const ended = vi.fn()
     onSessionEnded(ended)
-    setAccessToken('expired')
+    setSession(session('ADMIN', 'expired'))
 
     const error = await api('/api/v1/auth/me').catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).status).toBe(401)
     expect(ended).toHaveBeenCalledOnce()
+  })
+
+  it('ends the session when the refresh returns another user, and never sends their token', async () => {
+    const server = fakeApi({
+      'GET /api/v1/auth/me': () =>
+        problem(401, 'UNAUTHENTICATED', 'Authentication is required.'),
+      // Someone else signed in in another tab; the browser's one cookie is theirs now.
+      'POST /api/v1/auth/refresh': () =>
+        json(session('ADMIN', 'other-token', { id: OTHER_USER_ID })),
+    })
+    const ended = vi.fn()
+    onSessionEnded(ended)
+    setSession(session('STUDENT', 'expired'))
+
+    const error = await api('/api/v1/auth/me').catch((e: unknown) => e)
+
+    expect((error as ApiError).status).toBe(401)
+    expect(ended).toHaveBeenCalledOnce()
+    // The request is not repeated with the other user's token.
+    expect(server.to('GET', '/api/v1/auth/me')).toHaveLength(1)
   })
 
   it('lets overlapping requests share one refresh', async () => {
@@ -73,7 +93,7 @@ describe('api client', () => {
           release = () => resolve(json(session('STUDENT', 'fresh')))
         }),
     })
-    setAccessToken('expired')
+    setSession(session('ADMIN', 'expired'))
 
     const both = Promise.all([api('/api/v1/auth/me'), api('/api/v1/auth/me')])
     await vi.waitFor(() =>

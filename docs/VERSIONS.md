@@ -1,6 +1,6 @@
 # Resolved versions
 
-What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`. Update this file in the same commit as any dependency change.
+What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`; the libraries added in Phase 1 were recorded on 2026-10-07 from branch `feat/auth-roles`. Update this file in the same commit as any dependency change.
 
 How these were collected: `./mvnw dependency:list` and `./mvnw -v` in `backend`, `npm ls --depth=0` in `frontend`, `docker image inspect --format '{{index .RepoDigests 0}}'` for images, and the tools' own `--version` output.
 
@@ -23,6 +23,9 @@ Managed by the Spring Boot 4.1.1 parent unless marked pinned.
 | Spring Boot | 4.1.1 |
 | Spring Framework | 7.0.9 |
 | Spring Security | 7.1.1 |
+| Spring Security OAuth2 resource server, JOSE and core, through `spring-boot-starter-security-oauth2-resource-server` (AUTH-6) | 7.1.1 |
+| Nimbus JOSE + JWT, through Spring Security | 10.9.1 |
+| BouncyCastle (`org.bouncycastle:bcprov-jdk18on`), for Argon2id password hashing, **pinned** (ADR-022) | 1.86 |
 | Hibernate ORM | 7.4.5.Final |
 | Jakarta Persistence | 3.2.0 |
 | Hibernate Validator | 9.1.3.Final |
@@ -50,6 +53,12 @@ From `frontend/package-lock.json`. Ranges in `package.json` follow the generator
 | Package | Version | Kind |
 |---|---|---|
 | react, react-dom | 19.3.0 | runtime |
+| react-router (ADR-027) | 8.4.0 | runtime |
+| @tanstack/react-query | 5.104.1 | runtime |
+| react-hook-form, @hookform/resolvers | 7.89.0, 5.9.1 | runtime |
+| zod | 4.6.5 | runtime |
+| react-aria-components (ADR-021) | 1.21.1 | runtime |
+| tailwindcss, @tailwindcss/vite (ADR-021) | 4.3.3 | build |
 | vite | 8.3.3 | build |
 | @vitejs/plugin-react | 6.1.2 | build |
 | typescript (ADR-010) | 6.0.3 | build |
@@ -61,6 +70,7 @@ From `frontend/package-lock.json`. Ranges in `package.json` follow the generator
 | vitest | 5.0.3 | test |
 | jsdom | 30.1.2 | test |
 | @testing-library/react, @testing-library/dom, @testing-library/jest-dom | 16.3.3, 10.4.2, 7.0.1 | test |
+| @testing-library/user-event (ADR-027) | 14.6.7 | test |
 | openapi-typescript, with an override to the project's TypeScript (ADR-017) | 7.13.0 | type generation |
 | @types/react, @types/react-dom, @types/node | 19.3.0, 19.3.0, 24.19.1 | types |
 | globals | 17.13.0 | lint |

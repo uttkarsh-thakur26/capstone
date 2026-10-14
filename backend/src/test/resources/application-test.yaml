@@ -1,3 +1,11 @@
 # Settings for automated tests (profile "test", specification 18).
 app:
   display-name: Test platform
+  security:
+    # Base64 of the 32 bytes "test-only-signing-key-not-secret". A test value, not a secret.
+    jwt-secret: dGVzdC1vbmx5LXNpZ25pbmcta2V5LW5vdC1zZWNyZXQ=
+    allowed-origins: http://localhost:3000
+  # Test-only account. The .invalid domain is reserved and never delivers mail.
+  bootstrap-admin:
+    email: admin@test.invalid
+    password: test-only-admin-password

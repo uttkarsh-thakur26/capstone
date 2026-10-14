@@ -23,6 +23,15 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-017](#adr-017-api-types-from-openapi-typescript-with-an-npm-override) | | API types from openapi-typescript, with an npm override | Accepted | 2026-10-06 |
 | [ADR-018](#adr-018-requirement-tiers-follow-the-course-milestones) | | Requirement tiers follow the course milestones | Accepted | 2026-10-07 |
 | [ADR-019](#adr-019-phase-0-was-reviewed-by-its-owner-alone) | | Phase 0 was reviewed by its owner alone | Accepted, exception to 24.2 | 2026-10-07 |
+| [ADR-020](#adr-020-jwt-access-token-and-rotating-refresh-cookie-d7) | D7 | JWT access token and rotating refresh cookie | Accepted | 2026-10-07 |
+| [ADR-021](#adr-021-tailwind-css-4-with-react-aria-components-d18) | D18 | Tailwind CSS 4 with React Aria Components | Accepted | 2026-10-07 |
+| [ADR-022](#adr-022-passwords-are-hashed-with-argon2id) | | Passwords are hashed with Argon2id | Accepted | 2026-10-07 |
+| [ADR-023](#adr-023-every-error-is-a-problem-details-response) | | Every error is a Problem Details response | Accepted | 2026-10-07 |
+| [ADR-024](#adr-024-the-audit-log-is-append-only-and-written-through-jdbc) | | The audit log is append-only and written through JDBC | Accepted | 2026-10-07 |
+| [ADR-025](#adr-025-specification-corrections-for-phase-1) | | Specification corrections for Phase 1 | Accepted | 2026-10-07 |
+| [ADR-026](#adr-026-phase-1-is-built-by-one-member) | | Phase 1 is built by one member | Accepted, exception to 24.1 | 2026-10-07 |
+| [ADR-027](#adr-027-frontend-libraries-for-routing-server-state-forms-and-components) | | Frontend libraries for routing, server state, forms and components | Accepted | 2026-10-07 |
+| [ADR-028](#adr-028-owner-review-with-an-independent-review-while-no-teammate-can-review) | | Owner review with an independent review while no teammate can review | Accepted, standing exception to 24.2 | 2026-10-14 |
 
 ---
 
@@ -216,6 +225,8 @@ Date 2026-10-06, status accepted.
 
 **Consequences.** What the panel sees is what a deployment runs. `prod` will require `Secure` refresh cookies (AUTH-6) while the local stack serves plain HTTP on `localhost`. Phase 1 must check how the browsers used for the demonstration treat `Secure` cookies on `http://localhost` and, if needed, record an explicit exception for that case.
 
+Implementation note (2026-10-07): checked on the Compose stack (`prod` profile, plain HTTP on `http://localhost:3000`, commit `88e541d`) in Firefox 153 on Windows, the demonstration browser, and in Chromium 152, the engine of the fallback browser Chrome. Both keep the `Secure` refresh cookie and send it back after a reload (`docs/testing.md`, TC-1-M01 and TC-1-M02). No exception is needed: `prod` keeps `Secure`, and only `dev` turns it off (AUTH-6).
+
 ---
 
 ### ADR-014: springdoc-openapi 3.1.1, pinned
@@ -307,3 +318,175 @@ Date 2026-10-07, status accepted as a recorded exception to specification 24.2, 
 **Alternatives.** Waiting for a teammate's review: not chosen, because no teammate was available.
 
 **Consequences.** The review record for Phase 0 names only the owner, so it is no evidence that another member has read the Phase 0 code. The exception covers pull request #1 only; 24.2 applies unchanged to later pull requests.
+
+---
+
+### ADR-020: JWT access token and rotating refresh cookie (D7)
+
+Date 2026-10-07, status accepted. The team chose the specification default with two changes.
+
+**Context.** D7 offers the default of AUTH-6 (a short JWT access token plus a rotating refresh cookie) or a simpler variant (an access token only, 60 minutes, then sign in again). The default as written has two gaps. Section 15.2 made `POST /auth/logout` require a valid access token, so after the 15-minute token expires the client cannot log out and the 7-day refresh token stays valid. And rotation only rejected a reused old token: if an attacker copied a refresh token and used it first, the attacker kept a valid chain while the real user was refused.
+
+**Decision.** The default of AUTH-6, with two changes.
+
+- Access token: a JWT signed with HS256, 15 minutes. The key comes from the environment as base64 and must decode to at least 32 bytes (256 bits), or the application does not start. The token carries only the issuer, the subject (the user id), and the issue and expiry times. Role and enabled flag are read from the database on every request (AUTH-7). The SPA keeps the token in memory.
+- Refresh token: 32 random bytes, stored as their SHA-256 hash, valid 7 days, rotated on every use. Cookie `refresh_token`: `HttpOnly`, `Secure` (except in `dev`), `SameSite=Strict`, `Path=/api/v1/auth`.
+- Change 1: logout is authorized by the refresh cookie and the `Origin` check, not by the access token. It revokes the token, clears the cookie and always answers `204`.
+- Change 2: every token rotated from one sign-in shares a `family_id`. Presenting a token that was already rotated revokes the whole family, as the OAuth 2.0 Security Best Current Practice (RFC 9700, refresh token rotation) describes: two clients are using one token, one of them holds a stolen copy, and the server cannot tell which.
+- Refresh and logout reject a request whose `Origin` header is present and not in `app.security.allowed-origins`. A request without `Origin` is accepted, because browsers send `Origin` on every cross-origin `POST` and non-browser clients send none; `SameSite=Strict` already keeps the cookie off cross-site requests (AUTH-9).
+
+**Alternatives.** The simpler variant: rejected by the team, because the SPA could not keep a session across reloads without storing a token in the browser, and the refresh test of 19.2 would not apply. The default exactly as written: rejected for the two gaps above. Hashing refresh tokens with Argon2id or bcrypt: rejected, because a token must be found by its value, which needs a deterministic hash, and 256 random bits cannot be guessed, so a slow hash adds nothing. An RS256 key pair: rejected, because the same application signs and verifies, so a key pair only adds key handling.
+
+**Consequences.** `refresh_token` gets a `family_id` column (specification 7.2). Logout works with an expired access token. A client that sends two refresh requests with the same cookie at the same moment logs itself out, so the SPA must run one refresh at a time, also across tabs. The specification (6 AUTH-6, 15.2, 26) was corrected.
+
+---
+
+### ADR-021: Tailwind CSS 4 with React Aria Components (D18)
+
+Date 2026-10-07, status accepted. Exact versions and the maintenance check are recorded when the packages are added, together with the other frontend libraries.
+
+**Context.** UI-8 asks for keyboard operation, labelled controls, managed focus in dialogs and WCAG 2.1 AA contrast, and UI-9 for one consistent set of components. The default of D18, "Tailwind CSS with one accessible component set", named no set, and neither appeared in specification 3.1 (open issue S5). The screens up to Milestone-2 need text fields with labels and error messages, selects, switches, dialogs, tables and menus.
+
+**Decision.** Tailwind CSS 4, through its Vite plugin, for styling. React Aria Components (Adobe, `react-aria-components`, 1.21.1 released 2026-10-06 when checked) as the one component set: unstyled components that provide the accessibility behavior, styled with Tailwind classes.
+
+**Alternatives.** shadcn/ui: a generator that copies styled component source, built on Radix, into the repository, with several helper packages. Rejected: the fastest to look finished, but it puts a large amount of generated code into the repository under the committer's name. Radix UI primitives (`radix-ui` 1.7.0): no text field or table, so those would be built by hand. Headless UI (2.2.10, last release 2026-04-13): a smaller set with no table and a slower release pace.
+
+**Consequences.** Focus management, keyboard handling and label wiring come from a maintained library instead of hand-written code. All styling is in Tailwind classes, so there is one place for spacing and colors. Specification 3.1, 16.1 and 26 were corrected.
+
+---
+
+### ADR-022: Passwords are hashed with Argon2id
+
+Date 2026-10-07, status accepted.
+
+**Context.** AUTH-4 allowed bcrypt or Argon2id, with a maximum of 128 characters. In Spring Security 7.1.1, bcrypt rejects any password longer than 72 bytes: `BCrypt` in `spring-security-crypto-7.1.1.jar` throws "password cannot be more than 72 bytes". A character takes up to 4 bytes in UTF-8, so a valid 128-character password would fail at registration with a server error, and so would a 25-character one written in Devanagari, which takes 3 bytes per character. Spring Security's `Argon2PasswordEncoder` uses BouncyCastle's Argon2 implementation, which Spring Security does not bring in.
+
+**Decision.** Passwords are stored through Spring Security's `DelegatingPasswordEncoder`, which hashes new passwords with Argon2id using Spring's current default parameters (`Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8()`), under the id `argon2@SpringSecurity_v5_8`. Add `org.bouncycastle:bcprov-jdk18on` 1.86 (released 2026-09-11, actively maintained by the Legion of the Bouncy Castle), pinned in `backend/pom.xml` because Spring Boot does not manage it. Password lengths, 10 to 128, count Unicode code points.
+
+**Alternatives.** bcrypt with a maximum of 72 bytes: rejected, because it changes AUTH-4 and refuses long passphrases. Hashing the password with SHA-256 before bcrypt: rejected, a home-made construction. PBKDF2, which needs no extra library: rejected, it is the weakest of the options in the OWASP Password Storage Cheat Sheet, which recommends Argon2id first.
+
+**Consequences.** One more dependency to keep current. Each hash costs more memory and time than bcrypt, by design; this matters only for sign-in and registration. The `{id}` prefix that the delegating encoder stores lets the algorithm or its parameters change later without invalidating existing hashes. Specification 3.3 and AUTH-4 were corrected.
+
+---
+
+### ADR-023: Every error is a Problem Details response
+
+Date 2026-10-07, status accepted.
+
+**Context.** Specification 15.1 requires RFC 9457 Problem Details with a stable `code`, field errors for validation, and no internal data. Spring Boot leaves its Problem Details support off by default, and responses written by the Spring Security filter chain (`401`, `403`) are not Problem Details. Errors raised outside Spring MVC, such as a request rejected by Spring Security's firewall, go to the servlet container's error path, where Boot's `BasicErrorController` writes its own JSON (open issue S6).
+
+**Decision.** Three parts, with the mapping from exception to response in one place (24.4).
+
+- One `@RestControllerAdvice` in `common` that extends Spring's `ResponseEntityExceptionHandler`. Spring MVC's own exceptions keep their standard Problem Details. Every response gets a `code`, taken from the domain exception or from a table by status. Validation failures add `errors`, a list of field and message. Anything unexpected becomes a generic `500` with the code `INTERNAL`; the exception is logged and never put in the body. Boot's `spring.mvc.problemdetails.enabled` stays off, because this handler replaces Boot's.
+- The filter chain's authentication entry point and access-denied handler pass the exception to the same handler, so `401` and `403` are mapped there too.
+- An `ErrorController` replaces Boot's `BasicErrorController`, so the container's error path also answers with Problem Details. Error dispatches are permitted by the security rules, so they are not turned into `401`.
+
+**Alternatives.** Switching on Boot's property alone: rejected, it covers neither the filter chain nor the error path and adds no `code`. Writing the JSON by hand in each security handler: rejected, a second mapping that could drift from the first.
+
+**Consequences.** The SPA can rely on `code` for every failure. The list of codes is kept in `docs/api.md`. A test checks each path: validation, unreadable body, `401` and `403` from the filter chain, `403` from method security, `404`, `405`, `409`, `415`, `500`, and a request rejected by the firewall.
+
+---
+
+### ADR-024: The audit log is append-only and written through JDBC
+
+Date 2026-10-07, status accepted. It settles open issue S4 and the `audit_log` part of S3.
+
+**Context.** Specification 7.2 required `audit_log` to be append-only with no update or delete path, but gave it the `updated_at` column that every table inherited (S3). AUD-4 requires the table and `AuditService.record(...)` in Phase 1. When `ACCESS_DENIED` is recorded was undefined (S4). The client address must be one a client cannot forge: nginx appends to `X-Forwarded-For`, so a client can put any address at the front of that header.
+
+**Decision.**
+
+- Table: a `bigint` identity key and `occurred_at` as the only time column; no `created_at` or `updated_at`. `actor_user_id` references `app_user` with `ON DELETE SET NULL` and is indexed. `ip_address` is `inet`, `details` is `jsonb`. Check constraints list the outcomes and every action in 14.2, so later phases need no migration to add their actions.
+- A trigger rejects `UPDATE` and `DELETE` on the table. Revoking those privileges was not enough, because the application connects as the table's owner, whom a `REVOKE` does not bind.
+- Entries are written through `JdbcClient`, with the time from the injected `Clock`. There is no JPA entity, so Hibernate never has an object it could update, and the `jsonb` column needs no Hibernate JSON mapping, which would have to choose between the Jackson 3 the application uses and the Jackson 2 that springdoc brings.
+- A successful action's entry joins the caller's transaction, so the change and its entry commit together or not at all. `DENIED` and `FAILURE` entries are written in a transaction of their own, so the rollback of the failed action does not erase them.
+- `details` never holds passwords, tokens or keys (AUD-2); the service refuses detail keys that name a password, token or secret.
+- `ACCESS_DENIED` is recorded for a `403` only. A `404` for a document the user cannot read is not recorded: ACL-8 says it must behave exactly like a missing document, and an extra database write on only that path is a timing difference that could reveal that the document exists. `401` responses are not recorded; `LOGIN_FAILURE` covers wrong credentials.
+- The address is the request's remote address. nginx sets `X-Forwarded-For` to the address it received the connection from, replacing anything the client sent, and the backend reads that header only from a proxy on a private network (`server.forward-headers-strategy=native`).
+
+**Alternatives.** A JPA entity marked immutable: rejected for the reasons above. Recording `404`s for unreadable documents: rejected (timing). Keeping `updated_at` on a table whose rows never change: rejected.
+
+**Consequences.** A future decision to delete users (AUTH-11 says they are never deleted) would be blocked by the trigger, because `SET NULL` is an update; it would need a migration of its own, which is the safe direction for an audit trail. Specification 7.1, 7.2, 7.4 and 14.2 were corrected.
+
+---
+
+### ADR-025: Specification corrections for Phase 1
+
+Date 2026-10-07, status accepted. It settles open issues S2, S24 and the Phase 1 tables of S3. The rest of S3 (unique constraints on `document_grant` and `document_summary`, the `ON DELETE` rules of `document.owner_id` and `query_log.user_id`) stays open for Phases 2 and 9.
+
+**Context.** Checking the specification before Phase 0 found gaps that Phase 1 must settle (`docs/PROGRESS.md`, open specification issues). Planning Phase 1 found two more: registration and its domain list sit in different modules, and the last-admin rule can be broken by two concurrent requests.
+
+**Decision.**
+
+- S2: `GET /auth/me` and `PUT /auth/me/password` are built in Phase 1; the role-aware shell needs the first. Changing one's own password requires the current one, revokes all of the user's refresh tokens, and is recorded as the new audit action `PASSWORD_CHANGED`. `PASSWORD_RESET` stays the admin action `[T2]`. Section 16.2 lists no screen for it, so Phase 1 adds none.
+- S3 for the Phase 1 tables: `app_user.email` gets a check constraint that it is trimmed and lower-cased (AUTH-10). Foreign keys used in lookups get indexes that 7.4 left out: `refresh_token(user_id)`, `refresh_token(family_id)`, `audit_log(actor_user_id)`. JPA auditing reads the injected `Clock`, and tables written through `JdbcClient` take their times from the same `Clock`. The `audit_log` part is in ADR-024.
+- S24: Phases 1, 2 and 6 now read 14.2 and Appendix B. Section 2.2 says SSO is excluded from T1 and T2, because 2.3 lists it as T3. Appendix B's preamble now matches steps 1 to 3: both documents of step 2 are uploaded live, and everything else is indexed in advance.
+- The allowed email domains of AUTH-1 move from `app.security` to `app.registration`. Registration belongs to the `user` module, and the `security` module depends on `user`; reading a `security` setting from `user` would make each module depend on the other.
+- AUTH-2: the last-admin check and the change run under a lock on the enabled admins' rows. Without it, two admins demoting each other at the same moment would each see the other still enabled, and both changes would succeed.
+- Registration with an email that is already registered answers `409` with the code `EMAIL_TAKEN`. This tells the caller that the email has an account. Avoiding that would need email verification, which 2.2 excludes, so it is accepted and listed in the threat table of `docs/security.md`. AUTH-5 still applies to login.
+
+**Alternatives.** Leaving `/auth/me` and the password change to a later phase: rejected, because the shell needs `/auth/me` and both are T1. Reading the domain list from `app.security` inside the `user` module: rejected, it creates the circular module dependency above.
+
+**Consequences.** Specification 2.2, 6, 7.1, 7.2, 7.4, 14.2, 15.2, 18, 23 and Appendix B were corrected. The configuration table in Section 18 now has the groups `app.registration` and `app.bootstrap-admin`.
+
+---
+
+### ADR-026: Phase 1 is built by one member
+
+Date 2026-10-07, status accepted as a recorded exception to specification 24.1, for Phase 1 only.
+
+**Context.** Specification 24.1 splits the work by area: backend and security to member 1, and the screens, Docker and CI to member 3. Phase 1 has work in both areas. The other members are not available yet.
+
+**Decision.** Uttkarsh builds all of Phase 1: backend, security, database, screens, Docker and CI changes, and the documentation.
+
+**Alternatives.** Leaving the screens for the frontend member: not chosen, because that member is not available yet and Phase 1 cannot meet its exit criteria without the screens.
+
+**Consequences.** Every Phase 1 commit is evidence of Uttkarsh's work only. Nobody else is credited for Phase 1. The exception covers Phase 1 only; 24.1 applies unchanged to later phases.
+
+---
+
+### ADR-027: Frontend libraries for routing, server state, forms and components
+
+Date 2026-10-07, status accepted.
+
+**Context.** Phase 1 builds the first screens: sign-in, registration, a role-aware shell, the admin user list, and the not-found and not-allowed pages. Specification 3.1 and 16.1 name React Router, TanStack Query, React Hook Form with Zod, and the component approach of D18 (ADR-021), but no package was installed yet, and 24.3 rule 7 requires a record of need, alternatives and maintenance status for each dependency. All packages below were checked on 2026-10-07: release date of the installed version, and the repository on GitHub (not archived, date of the last push).
+
+**Decision.**
+
+| Package | Version | Released | Repository, last push | Licence | Need |
+|---|---|---|---|---|---|
+| `react-router` | 8.4.0 | 2026-09-15 | remix-run/react-router, 2026-10-06 | MIT | Routes, protected routes and redirects (16.2) |
+| `@tanstack/react-query` | 5.104.1 | 2026-10-02 | TanStack/query, 2026-10-06 | MIT | Server state, cache cleared on sign-out (UI-1) |
+| `react-hook-form` | 7.89.0 | 2026-09-26 | react-hook-form/react-hook-form, 2026-10-06 | MIT | Form state and errors |
+| `zod` | 4.6.5 | 2026-09-13 | colinhacks/zod, 2026-10-02 | MIT | Form validation rules in one schema per form |
+| `@hookform/resolvers` | 5.9.1 | 2026-08-17 | react-hook-form/resolvers, 2026-09-17 | MIT | Connects React Hook Form to Zod. Not named in 3.1, but it is how the two are used together |
+| `react-aria-components` | 1.21.1 | 2026-09-04 | adobe/react-spectrum, 2026-10-07 | Apache-2.0 | Accessible components (ADR-021, UI-8) |
+| `tailwindcss`, `@tailwindcss/vite` (development) | 4.3.3 | 2026-07-16 | tailwindlabs/tailwindcss, 2026-09-25 | MIT | Styling at build time (ADR-021) |
+| `@testing-library/user-event` (development) | 14.6.7 | 2026-09-02 | testing-library/user-event, 2026-09-02 | MIT | Component tests that type and click like a user: it sends the full sequence of pointer and keyboard events a browser sends, which React Aria's components listen to, where `fireEvent` sends one synthetic event |
+
+React Router 8 is used in data mode (`createBrowserRouter`). Version 8 removed the `react-router-dom` package: `RouterProvider` comes from `react-router/dom` and everything else from `react-router`. Its minimum versions are Node.js 22.22 and React 19.2.7; the project uses Node.js 24 (ADR-012) and React 19.3.
+
+The access token is kept in a module variable, not in React state that a library persists and not in browser storage (AUTH-6). The API is called with `fetch` through one small client written for this project, typed by the generated `schema.d.ts`, so no HTTP client library is added.
+
+**Alternatives.** An HTTP client such as axios, or a typed client generated from the OpenAPI document (openapi-fetch): rejected, because one function around `fetch` covers the bearer header, the single silent refresh and Problem Details errors, and the types already come from `openapi-typescript` (ADR-017). Formik instead of React Hook Form: not chosen, the specification names React Hook Form. Testing with `fireEvent` only: rejected, single synthetic events test less of what a user does, such as opening a select and choosing an option with the keyboard.
+
+**Consequences.** Eight packages to keep current. React Router 8 follows a fast release cadence, so an upgrade re-runs the frontend checks. The versions resolved by the lockfile are in `docs/VERSIONS.md`.
+
+---
+
+### ADR-028: Owner review with an independent review while no teammate can review
+
+Date 2026-10-14, status accepted as a standing exception to specification 24.2. It applies from the Phase 1 pull request on and ends as soon as a teammate can review.
+
+**Context.** Specification 24.2 requires a teammate to review each pull request before it is merged, with reviewers rotating, and 27.7 counts those reviews as evidence of individual work. ADR-019 made a one-time exception for pull request #1. The other members are still not available (ADR-026), and recording a new exception for every pull request would repeat one decision.
+
+**Decision.** While no teammate can review, every pull request is reviewed in two parts before it is merged:
+
+- The owner reviews the branch against the specification sections of its phase and its exit criteria.
+- An independent review is made in a fresh session that took no part in building the branch, so the code is read without the assumptions of the person who wrote it.
+- The pull request lists the findings of both reviews, and for each one the commit that fixed it or the reason it was left unfixed.
+
+Every other merge rule of 24.2 stays: CI is green, and nothing is committed to `main` directly. The exception ends when a teammate can review; from then on 24.2 applies unchanged, and the first pull request a teammate reviews says so.
+
+**Alternatives.** A new exception per pull request, as ADR-019 did: rejected, because it repeats the same decision. Merging without a review until a teammate is available: rejected, because reviews find defects; the review of Phase 0 found seven. Waiting for a teammate before merging: not chosen, because the plan of Section 23 has no spare week.
+
+**Consequences.** Review records under this exception name the owner as the reviewer, so they are no evidence that another member has read the code (27.7). The findings and fixes listed in each pull request make each review checkable afterwards. ADR-019 remains the record for pull request #1.

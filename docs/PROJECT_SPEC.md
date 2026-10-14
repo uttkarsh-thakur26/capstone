@@ -88,7 +88,7 @@ The team can:
 
 ### 2.2 Non-goals
 
-Microservices, message brokers, Redis, Kubernetes. Multi-tenancy (one institution per deployment). Training or fine-tuning models. Agents or model tool-calling. OCR of scanned documents (T3 at most). SSO, MFA, email verification, emailed password reset. Real-time collaboration. Mobile apps.
+Microservices, message brokers, Redis, Kubernetes. Multi-tenancy (one institution per deployment). Training or fine-tuning models. Agents or model tool-calling. OCR of scanned documents (T3 at most). MFA, email verification, emailed password reset. SSO in T1 and T2 (it is a T3 stretch item). Real-time collaboration. Mobile apps.
 
 Adding any of these needs a decision record that names the concrete requirement it serves.
 
@@ -122,7 +122,7 @@ If time runs short, cut from the bottom: all of T3, then comparison, then analyt
 | Build | Maven with the Maven Wrapper | | D3 |
 | Backend tests | JUnit 6, Mockito, AssertJ, Spring test starters, Testcontainers 2 | Managed by Boot | |
 | Frontend | React, TypeScript, Vite | React 19, Vite 8, TypeScript 6.0.x | Take what the generator produces (TypeScript ~6.0.2 from create-vite 9.2.1). TypeScript 7.0 is not used yet: it ships no compiler API, so typescript-eslint and openapi-typescript fail on it (ADR-010) |
-| Frontend libraries | React Router, TanStack Query, React Hook Form with Zod, pdf.js through `react-pdf`, `openapi-typescript` | Current | Section 16 |
+| Frontend libraries | React Router, TanStack Query, React Hook Form with Zod, Tailwind CSS 4 with React Aria Components (D18, ADR-021), pdf.js through `react-pdf`, `openapi-typescript` | Current | Section 16 |
 | Frontend tests | Vitest, React Testing Library, Playwright | Current | |
 | Frontend toolchain runtime | Node.js | A supported LTS line, pinned to 24.x (ADR-012) | `.nvmrc`, `engines`, CI and the Docker build stage use the same line |
 | Packaging | Docker and Docker Compose | Current | |
@@ -162,9 +162,10 @@ These were checked against official sources on 2026-10-05 and extended on 2026-1
 - Testcontainers 2 moved container classes into module packages, for example `org.testcontainers.postgresql.PostgreSQLContainer`. That class is not generic and accepts `pgvector/pgvector` images directly. Testcontainers cannot parse an image reference with both a tag and a digest, so tests use the digest alone.
 - `spring.jpa.open-in-view` is on by default. This project turns it off (Section 4.5).
 - Boot 4.1 removed the `layertools` jar mode. Container builds use `java -Djarmode=tools -jar app.jar extract --layers`.
-- RFC 9457 Problem Details are off by default (`spring.mvc.problemdetails.enabled=false`), and responses written by the Spring Security filter chain are not Problem Details at all. Section 15.1 needs both handled (Phase 1).
+- RFC 9457 Problem Details are off by default (`spring.mvc.problemdetails.enabled=false`), and responses written by the Spring Security filter chain are not Problem Details at all. Both are handled as ADR-023 describes.
 - With virtual threads on, the auto-configured task executor ignores `spring.task.execution.pool.*` and has no concurrency limit unless one is set. A bounded executor (Section 4.5, ING-12) is a dedicated bean.
 - With Spring Security on the classpath and no other security configuration, Boot creates an in-memory user and logs its generated password. This project excludes `UserDetailsServiceAutoConfiguration` until Phase 1 provides real accounts.
+- Spring Security 7.1.1's bcrypt rejects a password longer than 72 bytes ("password cannot be more than 72 bytes"), so it cannot take AUTH-4's maximum of 128 characters. `Argon2PasswordEncoder` needs BouncyCastle (`org.bouncycastle:bcprov-jdk18on`) on the classpath (ADR-022).
 - springdoc lists a response under the content type `*/*` unless the mapping declares `produces`, and Java fields are optional in the schema unless marked required. Both weaken the generated TypeScript types.
 
 **Spring AI 2.0**
@@ -360,14 +361,15 @@ A disabled user cannot authenticate, so every cell is "no".
 ## 6. Authentication and accounts
 
 - **AUTH-1 Registration.** Self-registration always creates a STUDENT account. The role is never read from the request. An optional allowed-email-domain list restricts who can register.
-- **AUTH-2 Role changes.** Only an ADMIN can change a role or enable or disable a user. The last enabled admin cannot be demoted or disabled.
+- **AUTH-2 Role changes.** Only an ADMIN can change a role or enable or disable a user. The last enabled admin cannot be demoted or disabled. The check and the change run under a lock on the enabled admins' rows, so two admins demoting each other at the same moment cannot leave none.
 - **AUTH-3 First admin.** Created at startup from environment variables, and only when no admin exists. There is no built-in default account or password.
-- **AUTH-4 Passwords.** Stored with Spring Security's `DelegatingPasswordEncoder` (bcrypt or Argon2id). Minimum length 10, maximum 128, no composition rules. Never logged, never returned.
+- **AUTH-4 Passwords.** Stored with Spring Security's `DelegatingPasswordEncoder`, which hashes new passwords with Argon2id (ADR-022; bcrypt cannot take 128 characters, 3.3). Lengths count Unicode code points. Minimum length 10, maximum 128, no composition rules. Never logged, never returned.
 - **AUTH-5 Login.** Failures return one generic message that does not reveal whether the email exists. Repeated failures are throttled per account and per address `[T2]`.
 - **AUTH-6 Tokens (D7).** Use Spring Security's built-in JWT support (resource server with the Nimbus encoder and decoder), not a hand-written filter or parser.
   - Access token: JWT, 15 minutes, signed with a key of at least 256 bits from the environment. The SPA keeps it in memory, not in `localStorage`.
   - Refresh token: random opaque value, stored hashed, valid 7 days, rotated on every use, revocable. Sent as an `HttpOnly`, `Secure`, `SameSite=Strict` cookie scoped to the auth path. Only the `dev` profile may drop `Secure`, for plain-HTTP localhost.
-  - Logout revokes the refresh token.
+  - Logout is authorized by the refresh cookie and the `Origin` check, not by the access token, so an expired access token cannot leave a live refresh token behind. It revokes the refresh token.
+  - Presenting a refresh token that was already rotated revokes every token rotated from the same sign-in, because one of the two clients holding it has a stolen copy (ADR-020).
 - **AUTH-7 Current state wins.** The token proves identity only. Role and enabled flag are loaded from the database on every request. This is one primary-key lookup and is not cached, so a demotion or a disabled account takes effect on the next request (ACL-7).
 - **AUTH-8 Default deny.** Every endpoint needs authentication unless it is on an explicit public list: register, login, refresh, health, meta, and the API documentation in development. Admin endpoints are protected both by URL rules and by method security.
 - **AUTH-9 Cross-origin.** Production serves the SPA and the API from one origin. Development uses the Vite proxy. If CORS is enabled at all, origins come from configuration and are never a wildcard. The API is stateless with bearer tokens, so CSRF protection is disabled for it. The cookie-based refresh and logout endpoints rely on `SameSite=Strict` and an `Origin` check.
@@ -384,18 +386,18 @@ Out of scope for T1 and T2: email verification, emailed password reset (an admin
 
 - The schema is created and changed only by Flyway migrations. `spring.jpa.hibernate.ddl-auto=validate`.
 - Primary keys are UUIDs, time-ordered version 7 where the tooling supports it. High-volume log tables may use `bigint` identity.
-- Timestamps are `timestamptz` in UTC. `created_at` and `updated_at` come from JPA auditing.
+- Timestamps are `timestamptz` in UTC. `created_at` and `updated_at` come from JPA auditing, which reads the injected `Clock` (4.5). Tables written through `JdbcClient` set them from the same `Clock` in the statement. A table whose rows never change has no `updated_at` (ADR-025).
 - Enums are stored as text with a `CHECK` constraint, never as ordinals.
 - Foreign keys are declared with explicit `ON DELETE` behavior. Every foreign key column used in joins or filters is indexed.
 - Table names are singular snake_case. `user` is a reserved word, so the table is `app_user`.
 
 ### 7.2 Tables
 
-Columns listed are in addition to `id`, `created_at` and `updated_at`.
+Columns listed are in addition to `id`, `created_at` and `updated_at`, unless the table says otherwise.
 
-**app_user**: `email` (unique), `display_name`, `password_hash`, `role` (ADMIN, FACULTY, STUDENT), `enabled`, `last_login_at`.
+**app_user**: `email` (unique, stored trimmed and lower-cased, enforced by a check constraint; AUTH-10), `display_name`, `password_hash`, `role` (ADMIN, FACULTY, STUDENT), `enabled`, `last_login_at`.
 
-**refresh_token**: `user_id` (cascade), `token_hash` (unique), `expires_at`, `revoked_at`.
+**refresh_token**: `user_id` (cascade), `token_hash` (unique), `family_id` (shared by every token rotated from one sign-in; ADR-020), `expires_at`, `revoked_at`.
 
 **document**: `owner_id` (to `app_user`), `title`, `description`, `category`, `original_filename`, `content_type`, `size_bytes`, `sha256`, `storage_key`, `status` (UPLOADED, PROCESSING, INDEXED, FAILED), `failure_code`, `failure_message`, `page_count`, `chunk_count`, `document_date` (optional date the content takes effect), `archived`, `supersedes_document_id` (optional self-reference `[T3]`), `processing_attempts`, `processing_started_at`, `indexed_at`, `embedding_model`, `embedding_dim`, `row_version` (optimistic locking).
 
@@ -411,7 +413,7 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`.
 
 **document_summary** `[T2]`: `document_id` (cascade), `content`, `model`, `prompt_version`, `status`. One row per document, model and prompt version.
 
-**audit_log** (written from Phase 1, read API in T2): `occurred_at`, `actor_user_id` (set null), `actor_email` (snapshot), `action`, `resource_type`, `resource_id`, `outcome` (SUCCESS, DENIED, FAILURE), `ip_address`, `details` (jsonb). Append-only. No update or delete path exists.
+**audit_log** (written from Phase 1, read API in T2): `id` is a `bigint` identity, and the table has no `created_at` or `updated_at`, because `occurred_at` is the time and rows never change. Columns: `occurred_at`, `actor_user_id` (set null), `actor_email` (snapshot), `action`, `resource_type`, `resource_id`, `outcome` (SUCCESS, DENIED, FAILURE), `ip_address`, `details` (jsonb). Append-only: no update or delete path exists in code, and a trigger rejects `UPDATE` and `DELETE` (ADR-024).
 
 **query_log** `[T2]`: `user_id`, `type` (SEARCH_KEYWORD, SEARCH_SEMANTIC, SEARCH_HYBRID, ASK, SUMMARIZE, COMPARE), `outcome`, `total_ms`, `retrieval_ms`, `generation_ms`, `retrieved_count`, `top_score`, `model`, `input_tokens`, `output_tokens`, `query_text` (stored only when D14 allows).
 
@@ -424,7 +426,7 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`.
 
 ### 7.4 Indexes
 
-Unique: `app_user(email)`, `refresh_token(token_hash)`, `document_chunk(document_id, chunk_index)`. Lookup: `document(owner_id)`, `document(status)`, `document(sha256)`, `document_grant(document_id)`, `document_grant(grantee_user_id)`, `document_chunk(document_id)`, `conversation(user_id, updated_at)`, `message(conversation_id, created_at)`, `audit_log(occurred_at)`, `query_log(created_at)`. Full-text (Phase 7): GIN on `document_chunk(content_tsv)`. Vector: none at first, HNSW later if measured need exists (RET-3).
+Unique: `app_user(email)`, `refresh_token(token_hash)`, `document_chunk(document_id, chunk_index)`. Lookup: `refresh_token(user_id)`, `refresh_token(family_id)`, `audit_log(actor_user_id)`, `document(owner_id)`, `document(status)`, `document(sha256)`, `document_grant(document_id)`, `document_grant(grantee_user_id)`, `document_chunk(document_id)`, `conversation(user_id, updated_at)`, `message(conversation_id, created_at)`, `audit_log(occurred_at)`, `query_log(created_at)`. Full-text (Phase 7): GIN on `document_chunk(content_tsv)`. Vector: none at first, HNSW later if measured need exists (RET-3).
 
 ---
 
@@ -618,7 +620,9 @@ Two things in this section start in Phase 1 and belong to T1: listing users and 
 
 ### 14.2 Audit log
 
-Recorded actions: `LOGIN_SUCCESS`, `LOGIN_FAILURE`, `LOGOUT`, `USER_REGISTERED`, `ROLE_CHANGED`, `USER_ENABLED`, `USER_DISABLED`, `PASSWORD_RESET`, `DOCUMENT_UPLOADED`, `DOCUMENT_DOWNLOADED`, `DOCUMENT_UPDATED`, `DOCUMENT_DELETED`, `DOCUMENT_REPROCESSED`, `DOCUMENT_ARCHIVED`, `GRANTS_CHANGED`, `ACCESS_DENIED`, `AI_QUERY`, `SUMMARY_REQUESTED`, `COMPARISON_REQUESTED`, `REINDEX_STARTED`.
+Recorded actions: `LOGIN_SUCCESS`, `LOGIN_FAILURE`, `LOGOUT`, `USER_REGISTERED`, `ROLE_CHANGED`, `USER_ENABLED`, `USER_DISABLED`, `PASSWORD_CHANGED`, `PASSWORD_RESET`, `DOCUMENT_UPLOADED`, `DOCUMENT_DOWNLOADED`, `DOCUMENT_UPDATED`, `DOCUMENT_DELETED`, `DOCUMENT_REPROCESSED`, `DOCUMENT_ARCHIVED`, `GRANTS_CHANGED`, `ACCESS_DENIED`, `AI_QUERY`, `SUMMARY_REQUESTED`, `COMPARISON_REQUESTED`, `REINDEX_STARTED`.
+
+`PASSWORD_CHANGED` is a user changing their own password. `PASSWORD_RESET` is an admin setting a new one `[T2]`. `ACCESS_DENIED` is recorded for a `403` only: an authenticated user refused by a role rule. A `404` for a document the user cannot read is not recorded, so that path behaves exactly like a missing document (ACL-8), and a `401` is not recorded either (ADR-024).
 
 - **AUD-1** Each entry holds actor, action, resource type and id, outcome, time, address and structured details.
 - **AUD-2** Never recorded: passwords, tokens, keys, document content, model prompts or answers. Question text only when D14 allows it.
@@ -639,7 +643,7 @@ Users by role. Documents by status. Uploads over time. Ingestion failures by cod
 
 - Base path `/api/v1`. JSON bodies. Request and response types are DTO records. JPA entities are never serialized.
 - Input is validated with Bean Validation at the boundary.
-- Errors use RFC 9457 Problem Details (`application/problem+json`) with a stable machine-readable `code` and, for validation, a list of field errors. No stack traces, SQL, class names or file paths.
+- Errors use RFC 9457 Problem Details (`application/problem+json`) with a stable machine-readable `code` and, for validation, a list of field errors. No stack traces, SQL, class names or file paths. Responses written by the Spring Security filter chain and by the servlet container's error path are Problem Details too (ADR-023).
 - Status codes: `400` invalid input, `401` not authenticated, `403` authenticated but the role is not allowed (role-restricted endpoints such as upload and admin), `404` not found or not readable (ACL-8), `409` conflict, `413` too large, `415` unsupported type, `429` rate limited, `503` model provider or file storage unavailable.
 - An empty search result is a normal `200` with an empty list, not an error.
 - Lists are paginated: `page` (from 0), `size` (maximum 100), `sort`. The envelope is `{ items, page, size, totalItems, totalPages }`.
@@ -654,9 +658,9 @@ Users by role. Documents by status. Uploads over time. Ingestion failures by cod
 | `POST /auth/register` | public | Create a STUDENT account |
 | `POST /auth/login` | public | Access token, sets refresh cookie |
 | `POST /auth/refresh` | refresh cookie | New access token, rotates refresh token |
-| `POST /auth/logout` | authenticated | Revoke refresh token |
+| `POST /auth/logout` | refresh cookie | Revoke refresh token (ADR-020) |
 | `GET /auth/me` | authenticated | Current user |
-| `PUT /auth/me/password` | authenticated | Change own password |
+| `PUT /auth/me/password` | authenticated | Change own password. Needs the current one and revokes all the user's refresh tokens |
 | `POST /documents` | ADMIN, FACULTY | Upload |
 | `GET /documents` | authenticated | List readable documents |
 | `GET /documents/{id}` | readable | Detail |
@@ -715,7 +719,7 @@ For insufficient evidence: `outcome` is `INSUFFICIENT_EVIDENCE`, `answer` is the
 
 ### 16.1 Stack and structure
 
-React, TypeScript and Vite. React Router for routes. TanStack Query for server state. React Hook Form with Zod for forms. One accessible component approach (D18). pdf.js through `react-pdf` for viewing PDFs.
+React, TypeScript and Vite. React Router for routes. TanStack Query for server state. React Hook Form with Zod for forms. Tailwind CSS 4 with React Aria Components as the one accessible component set (D18, ADR-021). pdf.js through `react-pdf` for viewing PDFs.
 
 API types are generated from the OpenAPI document with `openapi-typescript` and regenerated whenever the API changes. No hand-written duplicates of backend DTOs.
 
@@ -774,7 +778,9 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 | Group | Settings (defaults) |
 |---|---|
 | `app` | Display name (`app.display-name`, required, no default in code; D1, ADR-007) |
-| `app.security` | Access token lifetime (15 min), refresh lifetime (7 days), allowed email domains (none), rate limits |
+| `app.security` | Token signing key (required), access token lifetime (15 min), refresh lifetime (7 days), allowed origins (required), `Secure` refresh cookie (on; only `dev` may turn it off), rate limits `[T2]` |
+| `app.registration` | Allowed email domains (none) |
+| `app.bootstrap-admin` | Email, password and display name of the first admin (AUTH-3). Email and password are required while no admin exists |
 | `app.upload` | Maximum file size (25 MB), allowed types (PDF) |
 | `app.ingestion` | Chunk size (400 tokens), overlap (60), embedding batch size, parallel documents (2), stuck timeout (15 min), maximum attempts (3), maximum pages (500), minimum characters per page |
 | `app.embedding` | Model name, dimension, maximum input tokens |
@@ -1002,9 +1008,9 @@ Exit criteria:
 
 ### Phase 1: Authentication and roles
 
-Read: Sections 5.1, 6, 7, 14.1, 17. Needs: D7, D18.
+Read: Sections 5.1, 6, 7, 14.1, 14.2, 17, Appendix B step 1. Needs: D7, D18.
 
-Build: accounts, registration, login, refresh, logout, admin bootstrap, role checks, admin user list with role and enabled changes, audit table and service (AUD-4), error model, login and registration screens, a basic admin users screen, protected routes.
+Build: accounts, registration, login, refresh, logout, current user (`GET /auth/me`), own password change (`PUT /auth/me/password`), admin bootstrap, role checks, admin user list with role and enabled changes, audit table and service (AUD-4), error model, login and registration screens, a basic admin users screen, protected routes.
 
 Exit criteria:
 
@@ -1015,7 +1021,7 @@ Exit criteria:
 
 ### Phase 2: Document management
 
-Read: Sections 5, 7, 8. Needs: D8, D9, D15, D16.
+Read: Sections 5, 7, 8, 14.2, Appendix B steps 2 and 3. Needs: D8, D9, D15, D16.
 
 Build: upload, storage, list, detail, download, update, archive, delete, grants, user lookup for grants, and their screens.
 
@@ -1064,7 +1070,7 @@ Exit criteria:
 
 ### Phase 6: Conversations and citation viewer
 
-Read: Sections 11.1, 12, 16.
+Read: Sections 11.1, 12, 14.2, 16, Appendix B.
 
 Build: conversation list and history, follow-up condensation (step 3 of 11.1), assistant screen, citation chips, document viewer opening at a page.
 
@@ -1305,7 +1311,7 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | D4 | Java version | 25, or 21 if the team's machines require it | Phase 0 | Accepted: Java 25 (ADR-003) |
 | D5 | Chat model and provider | None. See Section 3.4 | A provisional choice for the Milestone-1 proposal. Final in Phase 5 | Open |
 | D6 | Embedding model and dimension | None. Fixes the vector column | A provisional choice for the Milestone-1 proposal. Final in Phase 3 | Open |
-| D7 | Token strategy | JWT access token plus rotating refresh cookie. A simpler variant (access token only, 60 minutes, sign in again) is allowed if recorded | Phase 1 | Default |
+| D7 | Token strategy | JWT access token plus rotating refresh cookie. A simpler variant (access token only, 60 minutes, sign in again) is allowed if recorded | Phase 1 | Accepted: the default, with logout by cookie and revocation on reuse (ADR-020) |
 | D8 | File storage | Local volume | Phase 2 | Default |
 | D9 | File formats | PDF only | Phase 2 | Default |
 | D10 | Chunking | Custom token chunker, 400 tokens, 60 overlap | Phase 3 | Default |
@@ -1316,7 +1322,7 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | D15 | Admin reach | Admins read all documents, but not other users' conversations | Phase 2 | Default |
 | D16 | Student uploads | Not allowed | Phase 2 | Default |
 | D17 | Hosting target for the final demo | A team machine running Docker Compose, because the final evaluation is preferably held in person. A hosted copy is optional | Phase 11 | Default |
-| D18 | UI component approach | Tailwind CSS with one accessible component set | Phase 1 | Default |
+| D18 | UI component approach | Tailwind CSS with one accessible component set | Phase 1 | Accepted: Tailwind CSS 4 with React Aria Components (ADR-021) |
 | D19 | Lombok | Not used. Records instead | Phase 0 | Accepted (ADR-004) |
 | D20 | Course dates | Milestone-1 on 18 October 2026. Milestone-2 on 23 November 2026, the earlier of the two dates the framework prints (the other is 30 November). Final panel and guide evaluation at the end of the semester, date not announced | Phase 0 | Accepted (ADR-005). Two dates to confirm (Section 27.8) |
 | D21 | Report template and reference style | The school's template if one is prescribed. Otherwise the format in Section 27.6 with numbered IEEE-style references | Milestone-1 | Open |
@@ -1574,7 +1580,7 @@ This appendix records what was written for the university form. It is context, n
 
 This script is also the end-to-end acceptance test for the project. Steps 1 to 10 need T1 and are the Milestone-2 demonstration. Steps 11 and 12 need T2.
 
-Rehearse two versions: the full script, and a short path (steps 4, 5, 6 and 9) for when time is cut. Before a demonstration, create the accounts and index the larger documents in advance, then upload one small document live. Keep screenshots and a screen recording of one complete run as a fallback.
+Rehearse two versions: the full script, and a short path (steps 4, 5, 6 and 9) for when time is cut. Before a demonstration, create the accounts and index every other document in advance. The two documents of step 2 are uploaded live, so keep them small enough to index during the demonstration. Keep screenshots and a screen recording of one complete run as a fallback.
 
 1. The admin signs in, opens the user list and promotes a registered user to FACULTY.
 2. That faculty member uploads "Examination Policy 2026" with a grant to students, and "Faculty Evaluation Guidelines" with a grant to faculty only.

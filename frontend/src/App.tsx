@@ -1,38 +1,29 @@
-import { useEffect, useState } from 'react'
-import { fetchMeta, type Meta } from './api/meta'
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { createBrowserRouter } from 'react-router'
+import { RouterProvider } from 'react-router/dom'
+import { createQueryClient } from './app/queryClient'
+import { AuthProvider } from './auth/AuthProvider'
+import { routes } from './routes'
 
-type MetaState =
-  { status: 'loading' } | { status: 'ready'; meta: Meta } | { status: 'error' }
+type Router = ReturnType<typeof createBrowserRouter>
 
-function App() {
-  const [state, setState] = useState<MetaState>({ status: 'loading' })
-
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchMeta(controller.signal)
-      .then((meta) => {
-        document.title = meta.name
-        setState({ status: 'ready', meta })
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setState({ status: 'error' })
-      })
-    return () => controller.abort()
-  }, [])
-
+/** Server state, the session and the routes. Tests pass a memory router and their own client. */
+function App({
+  router,
+  queryClient,
+}: {
+  router?: Router
+  queryClient?: QueryClient
+}) {
+  const [client] = useState(() => queryClient ?? createQueryClient())
+  const [appRouter] = useState(() => router ?? createBrowserRouter(routes))
   return (
-    <main className="shell">
-      {state.status === 'loading' && <p aria-busy="true">Loading…</p>}
-      {state.status === 'error' && (
-        <p role="alert">The server could not be reached. Try again later.</p>
-      )}
-      {state.status === 'ready' && (
-        <>
-          <h1>{state.meta.name}</h1>
-          <p className="version">Version {state.meta.version}</p>
-        </>
-      )}
-    </main>
+    <QueryClientProvider client={client}>
+      <AuthProvider>
+        <RouterProvider router={appRouter} />
+      </AuthProvider>
+    </QueryClientProvider>
   )
 }
 

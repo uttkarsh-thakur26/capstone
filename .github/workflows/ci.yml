@@ -70,8 +70,34 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - run: cp .env.example .env && docker compose up --build -d --wait
+      # .env.example's signing key and admin password are invalid on purpose; CI generates both.
+      - name: Environment from .env.example
+        run: |
+          cp .env.example .env
+          sed -i "s|^APP_SECURITY_JWT_SECRET=.*|APP_SECURITY_JWT_SECRET=$(openssl rand -base64 32)|" .env
+          sed -i "s/^APP_BOOTSTRAP_ADMIN_PASSWORD=.*/APP_BOOTSTRAP_ADMIN_PASSWORD=$(openssl rand -hex 16)/" .env
+
+      - run: docker compose up --build -d --wait
       - run: curl -fsS http://localhost:3000/api/v1/meta
+
+      # The bootstrap admin signs in through nginx, reads the current user, and refreshes the
+      # session with the cookie from the sign-in (AUTH-3, AUTH-6, AUTH-9).
+      - name: Sign in through nginx
+        run: |
+          email=$(grep '^APP_BOOTSTRAP_ADMIN_EMAIL=' .env | cut -d= -f2-)
+          password=$(grep '^APP_BOOTSTRAP_ADMIN_PASSWORD=' .env | cut -d= -f2-)
+          json() { python3 -c "import json, sys; print(json.load(sys.stdin)$1)"; }
+          login=$(curl -fsS -D login-headers.txt -H 'Content-Type: application/json' \
+            -d "{\"email\": \"$email\", \"password\": \"$password\"}" \
+            http://localhost:3000/api/v1/auth/login)
+          token=$(printf '%s' "$login" | json "['accessToken']")
+          cookie=$(grep -i '^set-cookie: refresh_token=' login-headers.txt \
+            | sed -E 's/^[^:]+: (refresh_token=[^;]*).*/\1/')
+          role=$(curl -fsS -H "Authorization: Bearer $token" \
+            http://localhost:3000/api/v1/auth/me | json "['role']")
+          test "$role" = ADMIN
+          curl -fsS -X POST -H 'Origin: http://localhost:3000' -H "Cookie: $cookie" \
+            http://localhost:3000/api/v1/auth/refresh | json "['user']['role']"
 
       - name: Container logs
         if: failure()

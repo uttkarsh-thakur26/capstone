@@ -1,15 +1,19 @@
 package in.edu.bennett.capstone.knowledge;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
+import jakarta.persistence.EntityManagerFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
+import org.springframework.orm.jpa.support.OpenEntityManagerInViewInterceptor;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
@@ -26,6 +30,32 @@ class ApplicationStartupTest {
   @Autowired MockMvcTester mvc;
 
   @Autowired BuildProperties build;
+
+  @Autowired ApplicationContext context;
+
+  @Autowired EntityManagerFactory entityManagerFactory;
+
+  /**
+   * Specification 4.5 and 7.1, checked on the running application: a key that is misplaced in
+   * application.yaml is ignored without any error, and the defaults are the opposite.
+   */
+  @Test
+  void openInViewIsOffAndHibernateOnlyValidatesTheSchema() {
+    assertSoftly(
+        softly -> {
+          softly
+              .assertThat(
+                  context
+                      .getBeanProvider(OpenEntityManagerInViewInterceptor.class)
+                      .getIfAvailable())
+              .as("open-in-view interceptor")
+              .isNull();
+          softly
+              .assertThat(entityManagerFactory.getProperties().get("hibernate.hbm2ddl.auto"))
+              .as("hibernate.hbm2ddl.auto")
+              .isEqualTo("validate");
+        });
+  }
 
   @Test
   void healthIsPublicAndUp() {

@@ -4,7 +4,7 @@ Working description. The product name is not decided yet (D1 in `docs/PROJECT_SP
 
 Users upload PDFs, the system indexes them, and people search and ask questions in natural language. Answers are built only from documents the asking user is allowed to read, they cite the pages they come from, and the system says so when the documents do not contain the answer. Final-year capstone project (CSET400C).
 
-**Status:** Phase 0 (foundation). The stack starts and the interface shows the backend's name and version. Nothing else is built yet. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
+**Status:** Phase 1 (authentication and roles) is built: registration, sign-in that survives a reload, a shell that adapts to the user's role, sign-out, and an admin screen for roles and accounts, with an audit log behind them. Documents, search and questions come in later phases. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
 ## Quickstart
 
@@ -16,13 +16,19 @@ cd <repository-folder>
 cp .env.example .env
 ```
 
-Open `.env` and set `POSTGRES_PASSWORD` to a value of your own. Then:
+Open `.env` and set these to values of your own:
+
+- `POSTGRES_PASSWORD`.
+- `APP_SECURITY_JWT_SECRET`: the key that signs sign-in tokens, base64 of 32 random bytes. Generate it with `openssl rand -base64 32` (Git Bash, macOS, Linux), or in Windows PowerShell with `$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`.
+- `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD` (10 to 128 characters): the first admin account, created on the first start because no admin exists yet. There is no built-in account; with the placeholder password the backend refuses to start.
+
+Then:
 
 ```bash
 docker compose up --build
 ```
 
-Open <http://localhost:3000>. The page shows the product name and the backend version. Stop with `Ctrl+C`; `docker compose down` removes the containers, and `docker compose down -v` also deletes the database volume.
+Open <http://localhost:3000> and sign in with `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD`, or register: self-registration always creates a student account, and the admin can then change its role under Users. Stop with `Ctrl+C`; `docker compose down` removes the containers, and `docker compose down -v` also deletes the database volume.
 
 The stack runs three containers: `db` (PostgreSQL 18 with pgvector), `backend` (Spring Boot, `prod` profile) and `frontend` (the built interface behind nginx, which also forwards `/api` to the backend). Only ports 3000 and 5432 are published, and only on `127.0.0.1`.
 
@@ -36,7 +42,7 @@ Needs, in addition: JDK 25 (Eclipse Temurin 25, with `JAVA_HOME` set) and Node.j
 docker compose up -d db
 ```
 
-Backend, in one terminal. The `dev` profile reads the repository's `.env`, so it uses the same database credentials:
+Backend, in one terminal. The `dev` profile reads the repository's `.env`, so it uses the same database credentials, signing key and first admin; `.env` needs the same variables as for the quickstart. It accepts the refresh cookie only from the Vite dev server's origin, `http://localhost:5173`, and sends that cookie without `Secure`, because development runs on plain HTTP:
 
 ```bash
 cd backend
@@ -69,7 +75,7 @@ cd backend && ./mvnw verify
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build && npm run format:check
 ```
 
-CI also builds both images and starts the stack from `.env.example` (`docker compose up --build -d --wait`), then calls `/api/v1/meta` through nginx.
+CI also builds both images and starts the stack from `.env.example`, with a generated signing key and admin password (`docker compose up --build -d --wait`), then calls `/api/v1/meta` through nginx.
 
 Formatting: `./mvnw spotless:apply` in `backend`, `npm run format` in `frontend`.
 
@@ -92,4 +98,6 @@ compose.yaml        the whole system
 - [`docs/PROGRESS.md`](docs/PROGRESS.md): where the work stands
 - [`docs/DECISIONS.md`](docs/DECISIONS.md): decision records
 - [`docs/VERSIONS.md`](docs/VERSIONS.md): resolved versions
-- [`docs/architecture.md`](docs/architecture.md), [`docs/testing.md`](docs/testing.md), [`docs/deployment.md`](docs/deployment.md)
+- [`docs/architecture.md`](docs/architecture.md), [`docs/data-model.md`](docs/data-model.md), [`docs/security.md`](docs/security.md), [`docs/api.md`](docs/api.md)
+- [`docs/testing.md`](docs/testing.md), [`docs/deployment.md`](docs/deployment.md)
+- [`docs/phase-reports/`](docs/phase-reports/): one report per finished phase

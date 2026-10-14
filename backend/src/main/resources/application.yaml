@@ -1,17 +1,17 @@
 spring:
   application:
     name: knowledge-platform
-
-server:
-  # Tomcat reads X-Forwarded-For only from proxies on private or loopback addresses, which is where
-  # nginx runs in Compose, and nginx sets it to the real client address (ADR-024).
-  forward-headers-strategy: native
   jpa:
     # No database connection is held open while a view renders (specification 4.5).
     open-in-view: false
     hibernate:
       # Flyway owns the schema; Hibernate only checks it (specification 7.1).
       ddl-auto: validate
+
+server:
+  # Tomcat reads X-Forwarded-For only from proxies on private or loopback addresses, which is where
+  # nginx runs in Compose, and nginx sets it to the real client address (ADR-024).
+  forward-headers-strategy: native
 
 management:
   endpoints:

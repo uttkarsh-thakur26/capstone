@@ -668,6 +668,7 @@ Users by role. Documents by status. Uploads over time. Ingestion failures by cod
 | `PUT /auth/me/password` | authenticated | Change own password. Needs the current one and revokes all the user's refresh tokens |
 | `POST /documents` | ADMIN, FACULTY | Upload |
 | `GET /documents` | authenticated | List readable documents |
+| `GET /documents/upload-limits` | authenticated | Maximum file size and accepted type, for the upload form's own check (UI-4, ADR-031) |
 | `GET /documents/{id}` | readable | Detail |
 | `PATCH /documents/{id}` | owner, ADMIN | Update metadata, archive |
 | `DELETE /documents/{id}` | owner, ADMIN | Delete |

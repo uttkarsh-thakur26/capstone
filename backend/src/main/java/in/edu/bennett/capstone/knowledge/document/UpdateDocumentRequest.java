@@ -15,7 +15,9 @@ import java.time.LocalDate;
 public record UpdateDocumentRequest(
     @Schema(description = "Required to change the metadata; replaces all four fields.")
         @Size(max = 200)
-        @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank")
+        // At least one character that String.strip() keeps, since the title is stored stripped.
+        // \S would let Unicode spaces such as U+2003 through and fail at the database.
+        @Pattern(regexp = "(?s).*\\P{javaWhitespace}.*", message = "must not be blank")
         String title,
     @Size(max = 2000) String description,
     @Size(max = 100) String category,

@@ -180,6 +180,22 @@ class DocumentManagementTest {
     assertThat(actions(id)).containsExactly("DOCUMENT_UPLOADED");
   }
 
+  /**
+   * A title of Unicode spaces (here an em space and an en space) is blank too: the title is
+   * stripped before it is stored, so it must be refused as a 400, not reach the database's
+   * not-blank check and fail there (15.1).
+   */
+  @Test
+  void aTitleOfUnicodeSpacesIsRefusedAsBlank() {
+    UUID id = uploaded(mvc, ownerSession, "Doc", "[]");
+
+    MvcTestResult result = patch(id, "{\"title\": \"\\u2003\\u2002\"}");
+
+    assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+    assertThat(result).bodyJson().extractingPath("$.errors[0].field").isEqualTo("title");
+    assertThat(actions(id)).containsExactly("DOCUMENT_UPLOADED");
+  }
+
   @Test
   void reprocessSendsAFinishedDocumentBackWithAFreshCounter() {
     UUID failed = uploaded(mvc, ownerSession, "Failed", "[]");

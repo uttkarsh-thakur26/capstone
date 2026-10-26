@@ -1,6 +1,7 @@
 package in.edu.bennett.capstone.knowledge.user;
 
 import in.edu.bennett.capstone.knowledge.common.PageResponse;
+import in.edu.bennett.capstone.knowledge.common.PlainText;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -30,7 +31,7 @@ class AdminUserController {
 
   @GetMapping(path = "/api/v1/admin/users", produces = MediaType.APPLICATION_JSON_VALUE)
   PageResponse<AdminUserResponse> list(
-      @RequestParam(required = false) @Size(max = 254) String query,
+      @RequestParam(required = false) @Size(max = 254) @PlainText String query,
       @RequestParam(required = false) Role role,
       @RequestParam(required = false) Boolean enabled,
       @RequestParam(defaultValue = "0") @Min(0) @Max(PageResponse.MAX_PAGE) int page,

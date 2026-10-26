@@ -4,11 +4,22 @@ Updated 2026-10-26. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 2, document management: in progress** on branch `feat/phase-2-documents`.
+**Phase 2, document management: every exit criterion is met; the phase is not closed yet.** Branch `feat/phase-2-documents`, built by Uttkarsh (ADR-032).
+
+Evidence (2026-10-26):
+
+- `./mvnw verify` on `49f9f9f` passes with 273 backend tests and the format check. `DocumentAccessMatrixTest` asserts all 30 cells of the 5.4 fixture (ADR-030) on detail, download and grant management, the list and its total for every user, identical 404 bodies, and a disabled user (97 cases). Breaking the role-grant condition of the readable predicate made 18 of them fail. The "Documents" tests of 19.2 are in `DocumentUploadTest`, `DocumentManagementTest`, `DocumentStatusTest`, `PdfCheckTest` and `FileDeletionQueueTest`.
+- Frontend checks on `0910d94`: 59 tests, lint, type check, build, format. `npm run gen:api` gives no difference.
+- Compose stack (`prod` profile) built from `0ad9ece`, with the commands of the new CI step: a PDF goes up through nginx and comes back byte for byte, a 26 MB upload gets the backend's 413 and a 30 MB one nginx's, both with `FILE_TOO_LARGE`.
+- Browser (Chromium in the desktop app's pane, stack rebuilt from `49f9f9f`): a faculty member uploaded a PDF with no grant; a student did not see it and got 404 on its address; the faculty member granted it to STUDENT; the student then saw it and downloaded it (`GET /content` 200, `DOCUMENT_DOWNLOADED` recorded). A second PDF shared with that student only stayed invisible to another student, with 404 on its address. The file was put into the upload form's file input by a script, because the pane cannot drive the system file picker.
+
+To close Phase 2: pull request, CI green (the stack job now also uploads and downloads through nginx), review under ADR-028 (the owner's and an independent one), merge.
+
+Decisions taken for this phase: D8, D9, D15, D16 (ADR-029), specification corrections S3, S7 to S10 (ADR-030), upload, storage and download (ADR-031), one member builds every phase (ADR-032).
 
 Phase 1 is done: pull request [#2](https://github.com/uttkarsh-thakur26/capstone/pull/2) was merged into `main` on 2026-10-14 (merge commit `70b2041`) with every CI check green, 110 backend and 41 frontend tests passing. Report: [phase-reports/phase-1.md](phase-reports/phase-1.md). Decisions taken for that phase: D7 (ADR-020), D18 (ADR-021), password hashing (ADR-022), error model (ADR-023), audit log (ADR-024), specification corrections (ADR-025), one member builds the phase (ADR-026), frontend libraries (ADR-027).
 
-Suggested before the demonstration: run Appendix B step 1 by hand in Firefox (sign in as the bootstrap admin, promote a registered user to FACULTY). The screens were checked in Chromium only.
+Suggested before the demonstration: run Appendix B steps 1 and 2 by hand in Firefox (promote a registered user to FACULTY, upload with the real file picker and share). The screens were checked in Chromium only.
 
 Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone/pull/1) was merged into `main` on 2026-10-07 (merge commit `4b51372`). Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
 
@@ -18,7 +29,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 |---|---|---|---|
 | 0 | Foundation | Done. All exit criteria met, CI green, reviewed by the owner (ADR-019), merged in `4b51372` | 2026-10-07 |
 | 1 | Authentication and roles | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `70b2041` | 2026-10-14 |
-| 2 | Document management | In progress | |
+| 2 | Document management | All exit criteria met with evidence; awaiting pull request, CI, review and merge | 2026-10-26 |
 | 3 | Ingestion and indexing | Not started | |
 | 4 | Retrieval and semantic search | Not started | |
 | 5 | Grounded question answering | Not started | |
@@ -56,7 +67,9 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - From Phase 1 the backend does not start without `APP_SECURITY_JWT_SECRET`, `APP_SECURITY_ALLOWED_ORIGINS` and, while no admin exists, `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD`. A `.env` created before Phase 1 must add them (README quickstart), or `docker compose up` and development mode stop at startup.
 - Expired and revoked refresh tokens stay in `refresh_token`; nothing deletes them yet. One row per sign-in and refresh, so the table grows slowly.
 - Throttling of repeated failed sign-ins (AUTH-5) is `[T2]` and not built.
-- The JavaScript bundle is 523 kB (162 kB gzipped), above Vite's 500 kB advisory limit. Splitting routes into separate chunks is left for later.
+- The JavaScript bundle is 854 kB (249 kB gzipped) after Phase 2, up from 523 kB, above Vite's 500 kB advisory limit. Splitting routes into separate chunks is left for later.
+- Not built yet, by plan: documents are never processed, so every upload stays `UPLOADED` and the detail page says so. Processing, status polling (UI-4, DOC-12) and the reprocess button come with Phase 3; the reprocess endpoint exists (ADR-030).
+- A crash between storing an uploaded file and inserting its row, or in the middle of writing it (a `.part` file), leaves a file on the volume that no row points at. Nothing removes it yet (ADR-031).
 - One browser profile holds one refresh cookie, so two accounts cannot be signed in at the same time in one browser. A tab whose silent refresh returns another account ends its own session.
 - Branch protection and rulesets are not available on this private repository with the owner's GitHub plan (the API answers 403, "Upgrade to GitHub Pro"). "A red build blocks merging" (19.3) is therefore kept by convention: do not merge a pull request whose checks are not green.
 

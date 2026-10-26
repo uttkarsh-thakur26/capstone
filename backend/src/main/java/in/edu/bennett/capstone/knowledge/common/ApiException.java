@@ -1,5 +1,6 @@
 package in.edu.bennett.capstone.knowledge.common;
 
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 
 /**
@@ -11,11 +12,22 @@ public class ApiException extends RuntimeException {
 
   private final HttpStatus status;
   private final String code;
+  private final Map<String, Object> properties;
 
   public ApiException(HttpStatus status, String code, String detail) {
+    this(status, code, detail, Map.of());
+  }
+
+  /**
+   * @param properties extra members of the Problem Details body, for example the id of the document
+   *     that a duplicate upload matches. Only values the client may see.
+   */
+  public ApiException(
+      HttpStatus status, String code, String detail, Map<String, Object> properties) {
     super(detail);
     this.status = status;
     this.code = code;
+    this.properties = Map.copyOf(properties);
   }
 
   public HttpStatus status() {
@@ -24,5 +36,9 @@ public class ApiException extends RuntimeException {
 
   public String code() {
     return code;
+  }
+
+  public Map<String, Object> properties() {
+    return properties;
   }
 }

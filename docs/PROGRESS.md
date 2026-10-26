@@ -1,23 +1,29 @@
 # Progress
 
-Updated 2026-10-14. Format: specification Section 24.8.
+Updated 2026-10-26. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 1, authentication and roles: every exit criterion is met; the phase is not closed yet.** Built on branch `feat/auth-roles` entirely by Uttkarsh, because the other members are not available yet (ADR-026, a recorded exception to 24.1). Report: [phase-reports/phase-1.md](phase-reports/phase-1.md).
+**Phase 2, document management: every exit criterion is met; the phase is not closed yet.** Branch `feat/phase-2-documents`, built by Uttkarsh (ADR-032).
 
-Evidence (2026-10-07, last code commit `1ce5d59`): `./mvnw verify` passes with 107 tests, the frontend checks with 39 tests, a clean clone passes all of them and starts with the README quickstart, and the browser checks of exit criteria 3 and 4 passed in Chromium 152 (`docs/testing.md`, TC-1-01 to TC-1-25 and TC-1-M01 to TC-1-M07). The refresh cookie was checked by hand in Firefox 153, the demonstration browser (TC-1-M02). After the six fixes of the independent review (2026-10-14, last code commit `a3bab16`): 110 backend and 41 frontend tests pass, and the Compose stack starts with schema validation on and passes the CI sign-in script (TC-1-26, TC-1-27, TC-1-M08).
+Evidence (2026-10-26):
 
-To close Phase 1:
+- `./mvnw verify` on `49f9f9f` passes with 273 backend tests and the format check. `DocumentAccessMatrixTest` asserts all 30 cells of the 5.4 fixture (ADR-030) on detail, download and grant management, the list and its total for every user, identical 404 bodies, and a disabled user (97 cases). Breaking the role-grant condition of the readable predicate made 18 of them fail. The "Documents" tests of 19.2 are in `DocumentUploadTest`, `DocumentManagementTest`, `DocumentStatusTest`, `PdfCheckTest` and `FileDeletionQueueTest`.
+- Frontend checks on `0910d94`: 59 tests, lint, type check, build, format. `npm run gen:api` gives no difference.
+- Compose stack (`prod` profile) built from `0ad9ece`, with the commands of the new CI step: a PDF goes up through nginx and comes back byte for byte, a 26 MB upload gets the backend's 413 and a 30 MB one nginx's, both with `FILE_TOO_LARGE`.
+- Browser (Chromium in the desktop app's pane, stack rebuilt from `49f9f9f`): a faculty member uploaded a PDF with no grant; a student did not see it and got 404 on its address; the faculty member granted it to STUDENT; the student then saw it and downloaded it (`GET /content` 200, `DOCUMENT_DOWNLOADED` recorded). A second PDF shared with that student only stayed invisible to another student, with 404 on its address. The file was put into the upload form's file input by a script, because the pane cannot drive the system file picker.
 
-1. Done: pull request [#2](https://github.com/uttkarsh-thakur26/capstone/pull/2) is open.
-2. Open: CI green on the pull request, including the new sign-in step of the stack job.
-3. Open: review under ADR-028, the standing exception to 24.2 while no teammate can review. The independent review in a fresh session found six gaps, each fixed in its own commit and listed in the pull request; the owner's review is still to be recorded there.
-4. Open: merge, then mark Phase 1 done here.
+To close Phase 2:
 
-Suggested before the demonstration: run Appendix B step 1 by hand in Firefox (sign in as the bootstrap admin, promote a registered user to FACULTY). The screens were checked in Chromium only.
+1. Done: pull request [#3](https://github.com/uttkarsh-thakur26/capstone/pull/3) is open; CI was green on `7154dff`, including the new upload step of the stack job.
+2. Done: the independent review under ADR-028 (2026-10-27) found one gap in two parts, both fixed with a failing test first: a `PATCH` title of Unicode spaces failed in the database as a 500 (`ea9347f`), and a NUL character in document text or search input failed as a 500 (`4c7beea`). The same NUL problem in the Phase 1 account input, where registration even answered 409 `EMAIL_TAKEN`, was fixed in `c1e3459`. After the fixes, `./mvnw verify` passes with 278 tests.
+3. Open: CI green on the fixes, the owner's review recorded in the pull request, then merge.
 
-Decisions taken for this phase: D7 (ADR-020), D18 (ADR-021), password hashing (ADR-022), error model (ADR-023), audit log (ADR-024), specification corrections (ADR-025), one member builds the phase (ADR-026), frontend libraries (ADR-027).
+Decisions taken for this phase: D8, D9, D15, D16 (ADR-029), specification corrections S3, S7 to S10 (ADR-030), upload, storage and download (ADR-031), one member builds every phase (ADR-032).
+
+Phase 1 is done: pull request [#2](https://github.com/uttkarsh-thakur26/capstone/pull/2) was merged into `main` on 2026-10-14 (merge commit `70b2041`) with every CI check green, 110 backend and 41 frontend tests passing. Report: [phase-reports/phase-1.md](phase-reports/phase-1.md). Decisions taken for that phase: D7 (ADR-020), D18 (ADR-021), password hashing (ADR-022), error model (ADR-023), audit log (ADR-024), specification corrections (ADR-025), one member builds the phase (ADR-026), frontend libraries (ADR-027).
+
+Suggested before the demonstration: run Appendix B steps 1 and 2 by hand in Firefox (promote a registered user to FACULTY, upload with the real file picker and share). The screens were checked in Chromium only.
 
 Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone/pull/1) was merged into `main` on 2026-10-07 (merge commit `4b51372`). Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
 
@@ -26,8 +32,8 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 | Phase | Name | Status | Date |
 |---|---|---|---|
 | 0 | Foundation | Done. All exit criteria met, CI green, reviewed by the owner (ADR-019), merged in `4b51372` | 2026-10-07 |
-| 1 | Authentication and roles | All exit criteria met with evidence; pushed, independent review fixed; awaiting CI, the owner's review and merge | 2026-10-14 |
-| 2 | Document management | Not started | |
+| 1 | Authentication and roles | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `70b2041` | 2026-10-14 |
+| 2 | Document management | All exit criteria met with evidence; awaiting pull request, CI, review and merge | 2026-10-26 |
 | 3 | Ingestion and indexing | Not started | |
 | 4 | Retrieval and semantic search | Not started | |
 | 5 | Grounded question answering | Not started | |
@@ -56,6 +62,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 
 ## Known issues
 
+- `docs/api.md` (error codes, ADR-023) and `docs/testing.md` (test cases, 19.4) are current only to the end of Phase 1. They are caught up when the owner asks for the documents.
 - Backend tests need Docker running; without it they fail with "Could not find a valid Docker environment".
 - On JDK 25, Mockito attaches itself as an agent during tests, which the JDK warns will be refused in a future release. It happens in every backend run, although no test creates a mock, because Spring Boot's test support loads Mockito. Fix: pass Mockito as `-javaagent` in the Surefire `argLine`.
 - Ports 3000 and 5432 on `127.0.0.1` must be free for the Compose stack; a local PostgreSQL on 5432 clashes.
@@ -64,7 +71,9 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - From Phase 1 the backend does not start without `APP_SECURITY_JWT_SECRET`, `APP_SECURITY_ALLOWED_ORIGINS` and, while no admin exists, `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD`. A `.env` created before Phase 1 must add them (README quickstart), or `docker compose up` and development mode stop at startup.
 - Expired and revoked refresh tokens stay in `refresh_token`; nothing deletes them yet. One row per sign-in and refresh, so the table grows slowly.
 - Throttling of repeated failed sign-ins (AUTH-5) is `[T2]` and not built.
-- The JavaScript bundle is 523 kB (162 kB gzipped), above Vite's 500 kB advisory limit. Splitting routes into separate chunks is left for later.
+- The JavaScript bundle is 854 kB (249 kB gzipped) after Phase 2, up from 523 kB, above Vite's 500 kB advisory limit. Splitting routes into separate chunks is left for later.
+- Not built yet, by plan: documents are never processed, so every upload stays `UPLOADED` and the detail page says so. Processing, status polling (UI-4, DOC-12) and the reprocess button come with Phase 3; the reprocess endpoint exists (ADR-030).
+- A crash between storing an uploaded file and inserting its row, or in the middle of writing it (a `.part` file), leaves a file on the volume that no row points at. Nothing removes it yet (ADR-031).
 - One browser profile holds one refresh cookie, so two accounts cannot be signed in at the same time in one browser. A tab whose silent refresh returns another account ends its own session.
 - Branch protection and rulesets are not available on this private repository with the owner's GitHub plan (the API answers 403, "Upgrade to GitHub Pro"). "A red build blocks merging" (19.3) is therefore kept by convention: do not merge a pull request whose checks are not green.
 
@@ -76,14 +85,14 @@ Found while checking the specification before Phase 0. Each must be settled, and
 |---|---|---|---|---|
 | S1 | The Milestone-1 checkpoint and 27.3 do not ask for the use-case diagram and level-0 DFD that Section 25 starts in the Milestone-1 pack. `deployment.md` is "first needed" at the final evaluation but used as a Milestone-2 source in 27.6 | 23, 25, 27.3, 27.6 | Milestone-1 pack | Open |
 | S2 | `GET /auth/me` and `PUT /auth/me/password` are T1 endpoints that no phase builds; changing your own password has no audit action | 15.2, 14.2, 23 | Phase 1 | Resolved, ADR-025 |
-| S3 | Data model: `audit_log` is append-only but inherits `updated_at`; tables written through JDBC cannot get JPA auditing; unique constraints for `document_grant` and `document_summary` and several foreign-key indexes are missing from 7.4; `document.owner_id` and `query_log.user_id` have no `ON DELETE` rule | 7.1, 7.2, 7.4 | Phase 1 (tables of that phase), then each phase for its own tables | Phase 1 tables resolved (ADR-024, ADR-025); open for Phases 2 and 9 |
+| S3 | Data model: `audit_log` is append-only but inherits `updated_at`; tables written through JDBC cannot get JPA auditing; unique constraints for `document_grant` and `document_summary` and several foreign-key indexes are missing from 7.4; `document.owner_id` and `query_log.user_id` have no `ON DELETE` rule | 7.1, 7.2, 7.4 | Phase 1 (tables of that phase), then each phase for its own tables | Phase 1 and 2 tables resolved (ADR-024, ADR-025, ADR-030); open for Phase 9 |
 | S4 | When `ACCESS_DENIED` is recorded is undefined (403 only, or also 404 on unreadable documents) | 14.2, 5.2 ACL-8 | Phase 1 | Resolved, ADR-024 |
 | S5 | D18's default names no component set, and neither Tailwind nor a component set is in 3.1 | 26 D18, 3.1, 16.1 | Phase 1 | Resolved, ADR-021 |
 | S6 | Problem Details: Boot's support is off by default and responses written by the Spring Security filter chain are not Problem Details | 15.1, 3.3 | Phase 1 | Resolved, ADR-023 |
-| S7 | The status machine forbids PROCESSING to UPLOADED, which stuck-job recovery needs. Also unspecified: whether reprocess resets the attempt counter, which failure code applies when attempts run out, reprocessing a document that is UPLOADED or PROCESSING, and when UNSUPPORTED_TYPE and EMPTY occur during ingestion | 8.2, 8.3, 9.2 ING-2, 8.1 DOC-10 | Phase 2 | Open |
-| S8 | Access matrix: the Admin and owner cells of D5 (failed) and D6 (archived) say "read", but ACL-4 makes those documents unretrievable for everyone. The fixture does not say that D5 has leftover chunks | 5.4, 5.2 ACL-4, 19.2 | Phase 2 | Open |
-| S9 | 403 or 404 when a user can read a document but not manage it (for example Faculty A on D4), and whether a demoted owner keeps manage rights | 15.1, 5.2 ACL-2, ACL-8 | Phase 2 | Open |
-| S10 | `POST /documents/{id}/reprocess` is a T1 endpoint that no phase builds, but the Phase 3 tests need it | 15.2, 8.1 DOC-10, 23 | Phase 2 | Open |
+| S7 | The status machine forbids PROCESSING to UPLOADED, which stuck-job recovery needs. Also unspecified: whether reprocess resets the attempt counter, which failure code applies when attempts run out, reprocessing a document that is UPLOADED or PROCESSING, and when UNSUPPORTED_TYPE and EMPTY occur during ingestion | 8.2, 8.3, 9.2 ING-2, 8.1 DOC-10 | Phase 2 | Resolved, ADR-030 |
+| S8 | Access matrix: the Admin and owner cells of D5 (failed) and D6 (archived) say "read", but ACL-4 makes those documents unretrievable for everyone. The fixture does not say that D5 has leftover chunks | 5.4, 5.2 ACL-4, 19.2 | Phase 2 | Resolved, ADR-030 |
+| S9 | 403 or 404 when a user can read a document but not manage it (for example Faculty A on D4), and whether a demoted owner keeps manage rights | 15.1, 5.2 ACL-2, ACL-8 | Phase 2 | Resolved, ADR-030 |
+| S10 | `POST /documents/{id}/reprocess` is a T1 endpoint that no phase builds, but the Phase 3 tests need it | 15.2, 8.1 DOC-10, 23 | Phase 2 | Resolved, ADR-030 |
 | S11 | ING-9 compares only dimensions, so a different model with the same dimension passes; the model name is configured twice; Flyway does not detect a changed dimension placeholder on an existing database | 9.2 ING-9, 18, 7.3 DATA-4 | Phase 3 | Open |
 | S12 | With the in-process ONNX model, the default chunk size of 400 tokens exceeds its 128 word-piece input, so D6 and D10 must be decided together | 3.4, 26 D6, D10, 9.2 ING-7 | Phase 3 | Open |
 | S13 | With virtual threads on, Boot's executor has no concurrency limit, so the ingestion bound (ING-12) needs a dedicated executor | 4.5, 9.2 ING-12 | Phase 3 | Open |

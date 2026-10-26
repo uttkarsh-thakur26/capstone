@@ -310,7 +310,7 @@ One role per user. Roles are an enum stored as text. Adding a role later means a
 ### 5.2 Rules
 
 - **ACL-1 Read.** An enabled user can read a document if any of these holds: the user is ADMIN, the user owns the document, a grant names the user's role, or a grant names the user.
-- **ACL-2 Manage.** Only the owner and ADMIN can edit metadata, change grants, reprocess, archive or delete a document.
+- **ACL-2 Manage.** Only ADMIN, and the owner while the owner is FACULTY, can edit metadata, change grants, reprocess, archive or delete a document. An owner demoted to STUDENT keeps read access (ACL-1) but no longer manages the document; admins still can. A user who can read a document but not manage it gets `403` for a manage action, because the document's existence is already known to them; a user who cannot read it gets `404` (ACL-8, ADR-030).
 - **ACL-3 Upload.** ADMIN and FACULTY can upload. The uploader becomes the owner.
 - **ACL-4 Retrievable.** Search and question answering use only chunks of documents that are readable, have status `INDEXED` and are not archived. Summarization and comparison act on documents the requester names, so they need readable and `INDEXED`, and archived documents are allowed.
 - **ACL-5 Secure default.** A new document has no grants. Only its owner and admins see it until grants are added. The upload request may include grants.
@@ -351,10 +351,10 @@ The fixture below defines expected behavior. Tests build it once and assert ever
 | D2 | A | role STUDENT | indexed | read | read | no | read | read |
 | D3 | A | user S1 | indexed | read | read | no | read | no |
 | D4 | B | role FACULTY | indexed | read | read | read | no | no |
-| D5 | A | role STUDENT | failed | read | read | no | read, not retrievable | read, not retrievable |
-| D6 | A | role STUDENT | indexed, archived | read | read | no | read, not retrievable | read, not retrievable |
+| D5 | A | role STUDENT | failed, with leftover chunks | read, not retrievable | read, not retrievable | no | read, not retrievable | read, not retrievable |
+| D6 | A | role STUDENT | indexed, archived | read, not retrievable | read, not retrievable | no | read, not retrievable | read, not retrievable |
 
-A disabled user cannot authenticate, so every cell is "no".
+A disabled user cannot authenticate, so every cell is "no". ACL-4 applies to admins and owners too, so D5 and D6 are not retrievable for anyone. D5 keeps chunk rows from an earlier run (ING-3), so the retrieval tests prove that the status filter excludes it, not that it has no chunks; the fixture adds them once `document_chunk` exists (Phase 3). Grant management follows ACL-2: Admin and Faculty A manage D1, D2, D3, D5 and D6, Admin and Faculty B manage D4 (ADR-030).
 
 ---
 
@@ -399,9 +399,11 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`, unless th
 
 **refresh_token**: `user_id` (cascade), `token_hash` (unique), `family_id` (shared by every token rotated from one sign-in; ADR-020), `expires_at`, `revoked_at`.
 
-**document**: `owner_id` (to `app_user`), `title`, `description`, `category`, `original_filename`, `content_type`, `size_bytes`, `sha256`, `storage_key`, `status` (UPLOADED, PROCESSING, INDEXED, FAILED), `failure_code`, `failure_message`, `page_count`, `chunk_count`, `document_date` (optional date the content takes effect), `archived`, `supersedes_document_id` (optional self-reference `[T3]`), `processing_attempts`, `processing_started_at`, `indexed_at`, `embedding_model`, `embedding_dim`, `row_version` (optimistic locking).
+**document**: `owner_id` (to `app_user`, restrict on delete: users are never deleted, AUTH-11), `title`, `description`, `category`, `original_filename`, `content_type`, `size_bytes`, `sha256`, `storage_key`, `status` (UPLOADED, PROCESSING, INDEXED, FAILED), `failure_code`, `failure_message`, `page_count`, `chunk_count`, `document_date` (optional date the content takes effect), `archived`, `supersedes_document_id` (optional self-reference `[T3]`), `processing_attempts`, `processing_started_at`, `indexed_at`, `embedding_model`, `embedding_dim`, `row_version` (optimistic locking). One document per owner and content: unique on `(owner_id, sha256)` (DOC-2).
 
-**document_grant**: `document_id` (cascade), `grantee_type` (ROLE, USER), `grantee_role` (nullable), `grantee_user_id` (nullable, cascade), `created_by`. A check constraint ensures exactly one grantee column matches the type. One grant per document and grantee.
+**document_grant**: `document_id` (cascade), `grantee_type` (ROLE, USER), `grantee_role` (nullable), `grantee_user_id` (nullable, cascade), `created_by` (set null). A check constraint ensures exactly one grantee column matches the type. One grant per document and grantee, enforced by a unique constraint with `NULLS NOT DISTINCT`. Grants are replaced as a set and never changed, so the table has `created_at` and no `updated_at` (ADR-030).
+
+**storage_deletion**: stored files still to be deleted (DOC-9). `id` is a `bigint` identity. Columns: `storage_key` (unique), `requested_at`, `attempts`, `last_attempt_at`. Written through `JdbcClient`; a row is removed once its file is gone (ADR-031).
 
 **document_chunk**: `document_id` (cascade), `chunk_index`, `page_start`, `page_end`, `section` (nullable), `content`, `token_count`, `embedding vector(N)` (not null), `content_tsv` (generated `tsvector` of `content`, added by a migration in Phase 7). Unique on `(document_id, chunk_index)`.
 
@@ -426,7 +428,7 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`, unless th
 
 ### 7.4 Indexes
 
-Unique: `app_user(email)`, `refresh_token(token_hash)`, `document_chunk(document_id, chunk_index)`. Lookup: `refresh_token(user_id)`, `refresh_token(family_id)`, `audit_log(actor_user_id)`, `document(owner_id)`, `document(status)`, `document(sha256)`, `document_grant(document_id)`, `document_grant(grantee_user_id)`, `document_chunk(document_id)`, `conversation(user_id, updated_at)`, `message(conversation_id, created_at)`, `audit_log(occurred_at)`, `query_log(created_at)`. Full-text (Phase 7): GIN on `document_chunk(content_tsv)`. Vector: none at first, HNSW later if measured need exists (RET-3).
+Unique: `app_user(email)`, `refresh_token(token_hash)`, `document(owner_id, sha256)`, `document_grant(document_id, grantee_type, grantee_role, grantee_user_id)`, `storage_deletion(storage_key)`, `document_chunk(document_id, chunk_index)`. The two unique indexes on `document` and `document_grant` also serve the lookups by `owner_id` and by `document_id`, so those get no index of their own. Lookup: `refresh_token(user_id)`, `refresh_token(family_id)`, `audit_log(actor_user_id)`, `document(status)`, `document_grant(grantee_user_id)`, `document_chunk(document_id)`, `conversation(user_id, updated_at)`, `message(conversation_id, created_at)`, `audit_log(occurred_at)`, `query_log(created_at)`. Full-text (Phase 7): GIN on `document_chunk(content_tsv)`. Vector: none at first, HNSW later if measured need exists (RET-3).
 
 ---
 
@@ -434,16 +436,16 @@ Unique: `app_user(email)`, `refresh_token(token_hash)`, `document_chunk(document
 
 ### 8.1 Requirements
 
-- **DOC-1 Upload.** Multipart request with the file, `title` (required), `description`, `category`, `document_date` and optional grants. T1 accepts PDF only (D9). The type is verified from the file content, not from the extension or the client's header. Empty files are rejected. The maximum size is configurable (default 25 MB).
+- **DOC-1 Upload.** Multipart request with the file, `title` (required), `description`, `category`, `document_date` and optional grants. T1 accepts PDF only (D9). The type is verified from the file content, not from the extension or the client's header: the file must start with the PDF signature and PDFBox must be able to open it. Empty files are rejected. A PDF that needs a password to open is rejected with `PDF_ENCRYPTED` (ADR-031). The maximum size is configurable (default 25 MB).
 - **DOC-2 Storage.** The file is stored under a generated key. The user's filename is kept only as metadata and is never used in a path. A SHA-256 of the content is stored. An identical file uploaded again by the same owner returns `409` with the existing document id.
 - **DOC-3 Asynchronous processing.** Upload returns `201` with status `UPLOADED` as soon as the file is stored. Processing happens in the background (Section 9).
 - **DOC-4 List.** Returns readable documents only, with filters for status, category, "mine" and a text match on title or description, plus pagination and sorting.
 - **DOC-5 Detail.** Metadata, status, failure reason, page and chunk counts. Grants are visible to the owner and admins only.
 - **DOC-6 Download.** Streams the original file with a sanitized `Content-Disposition`, the correct content type and `X-Content-Type-Options: nosniff`.
-- **DOC-7 Update.** Owner or admin can change title, description, category and document date. Content is immutable.
+- **DOC-7 Update.** Owner or admin can change title, description, category and document date. Content is immutable. `PATCH /documents/{id}` replaces the four together (title required, an omitted optional field is cleared), sets `archived` (DOC-11), or both in one request (ADR-031).
 - **DOC-8 Grants.** Owner or admin can replace the set of grants for a document. Changes apply immediately (ACL-7). To grant to a person, faculty and admins can look up users by name or email. The lookup needs at least three characters and returns only id, display name and email.
-- **DOC-9 Delete.** Owner or admin. Database rows are removed in one transaction (DATA-2). The stored file is deleted after commit. A failed file deletion is logged and retried by a cleanup task.
-- **DOC-10 Reprocess.** Owner or admin can return a document to `UPLOADED`. It leaves search and AI retrieval until it is `INDEXED` again (ACL-4).
+- **DOC-9 Delete.** Owner or admin. Database rows are removed in one transaction (DATA-2). The stored file is deleted after commit. A failed file deletion is logged and retried by a cleanup task, from the `storage_deletion` table so that a restart does not lose it.
+- **DOC-10 Reprocess.** Owner or admin can return a `FAILED` or `INDEXED` document to `UPLOADED`, which resets its attempt counter. A document that is `UPLOADED` or `PROCESSING` is already queued or running, so reprocessing it answers `409`. It leaves search and AI retrieval until it is `INDEXED` again (ACL-4). Built in Phase 2 (ADR-030).
 - **DOC-11 Archive.** Owner or admin. An archived document stays readable and downloadable but is excluded from search and question answering, so superseded rules do not leak into answers. Summary and comparison still work on it when a user names it explicitly.
 - **DOC-12 Status visibility.** The interface shows the current status and failure reason, and polls while a document is `UPLOADED` or `PROCESSING`.
 
@@ -452,15 +454,18 @@ Unique: `app_user(email)`, `refresh_token(token_hash)`, `document_chunk(document
 ```
 UPLOADED -> PROCESSING -> INDEXED
                        -> FAILED
+                       -> UPLOADED   (stuck-job recovery only, ING-2)
 FAILED   -> UPLOADED   (reprocess)
 INDEXED  -> UPLOADED   (reprocess)
 ```
 
-No other transition is legal. Only `INDEXED` documents are retrievable (ACL-4).
+No other transition is legal. `PROCESSING -> UPLOADED` is taken only by the recovery of ING-2, never through the API. Only `INDEXED` documents are retrievable (ACL-4).
 
 ### 8.3 Failure codes
 
-`UNSUPPORTED_TYPE`, `EMPTY`, `ENCRYPTED`, `NO_TEXT_LAYER`, `TOO_MANY_PAGES`, `EXTRACTION_ERROR`, `EMBEDDING_ERROR`, `INTERNAL`. Each has a user-readable message. Internal details go to the log, not to the response.
+`UNSUPPORTED_TYPE`, `EMPTY`, `ENCRYPTED`, `NO_TEXT_LAYER`, `TOO_MANY_PAGES`, `EXTRACTION_ERROR`, `EMBEDDING_ERROR`, `PROCESSING_TIMEOUT`, `INTERNAL`. Each has a user-readable message. Internal details go to the log, not to the response.
+
+Upload already rejects empty, non-PDF and password-protected files (DOC-1), so `EMPTY`, `UNSUPPORTED_TYPE` and `ENCRYPTED` occur in ingestion only when the stored file no longer passes the same check. `PROCESSING_TIMEOUT` is set when stuck-job recovery runs out of attempts (ING-2, ADR-030).
 
 ---
 
@@ -482,9 +487,9 @@ file validated and stored, row is UPLOADED
 ### 9.2 Requirements
 
 - **ING-1 Durable queue without new infrastructure.** The `document` table is the queue. A scheduled worker claims work atomically (`SELECT ... FOR UPDATE SKIP LOCKED`, or one `UPDATE ... RETURNING`), so jobs survive a restart and two workers never take the same document. An after-commit event may wake the worker right after an upload.
-- **ING-2 Crash recovery.** A document that stays `PROCESSING` beyond a timeout (default 15 minutes) returns to `UPLOADED` with its attempt counter increased. After the maximum number of attempts (default 3) it becomes `FAILED`.
+- **ING-2 Crash recovery.** A document that stays `PROCESSING` beyond a timeout (default 15 minutes) returns to `UPLOADED` with its attempt counter increased. After the maximum number of attempts (default 3) it becomes `FAILED` with `PROCESSING_TIMEOUT`. Reprocess resets the counter (DOC-10).
 - **ING-3 Atomic index.** Old chunks are replaced and the status becomes `INDEXED` in one transaction. A document is never `INDEXED` with a partial or mixed set of chunks. After a failed run the status is `FAILED`, so whatever chunk rows remain are not retrievable.
-- **ING-4 Extraction.** PDF through Spring AI's `PagePdfDocumentReader`, one unit per page, keeping page numbers. A password-protected file fails with `ENCRYPTED`. If extraction yields almost no text (average below a configurable number of characters per page), the file is probably scanned and fails with `NO_TEXT_LAYER`. OCR is T3.
+- **ING-4 Extraction.** PDF through Spring AI's `PagePdfDocumentReader`, one unit per page, keeping page numbers. A password-protected file fails with `ENCRYPTED` (upload rejects these, so this is a re-check of the stored file; its test puts the file into storage directly, ADR-031). If extraction yields almost no text (average below a configurable number of characters per page), the file is probably scanned and fails with `NO_TEXT_LAYER`. OCR is T3.
 - **ING-5 Normalization.** Join words hyphenated across line breaks, collapse whitespace, and drop lines that repeat as headers or footers on most pages. Never alter numbers, dates, clause numbers or casing. Table layout is lost in text extraction. Record that as a known limitation.
 - **ING-6 Chunking (D10).** Behind a `Chunker` interface with configurable `chunk-size-tokens` (default 400) and `chunk-overlap-tokens` (default 60). Split at paragraph or sentence boundaries where possible. A chunk never spans two documents. It may span pages only when `page_start` and `page_end` are recorded. Each chunk stores index, page range and token count. Tokens are counted with one tokenizer throughout (the jtokkit encoding that ships with Spring AI is an acceptable approximation). Spring AI's built-in splitter has no overlap, so overlap needs a small custom chunker. If the team chooses the built-in splitter instead, overlap is 0 and the decision is recorded.
 - **ING-7 Chunk size limit.** Chunk size must stay within the embedding model's maximum input, with a safety margin because tokenizers differ. The application checks this at startup against a configured `max-input-tokens` and refuses to start if violated. Otherwise the tail of every chunk is silently ignored by the model.
@@ -644,7 +649,7 @@ Users by role. Documents by status. Uploads over time. Ingestion failures by cod
 - Base path `/api/v1`. JSON bodies. Request and response types are DTO records. JPA entities are never serialized.
 - Input is validated with Bean Validation at the boundary.
 - Errors use RFC 9457 Problem Details (`application/problem+json`) with a stable machine-readable `code` and, for validation, a list of field errors. No stack traces, SQL, class names or file paths. Responses written by the Spring Security filter chain and by the servlet container's error path are Problem Details too (ADR-023).
-- Status codes: `400` invalid input, `401` not authenticated, `403` authenticated but the role is not allowed (role-restricted endpoints such as upload and admin), `404` not found or not readable (ACL-8), `409` conflict, `413` too large, `415` unsupported type, `429` rate limited, `503` model provider or file storage unavailable.
+- Status codes: `400` invalid input, `401` not authenticated, `403` authenticated but the role is not allowed (role-restricted endpoints such as upload and admin), or a manage action on a document the user can read but not manage (ACL-2), `404` not found or not readable (ACL-8), `409` conflict, `413` too large, `415` unsupported type, `429` rate limited, `503` model provider or file storage unavailable.
 - An empty search result is a normal `200` with an empty list, not an error.
 - Lists are paginated: `page` (from 0), `size` (maximum 100), `sort`. The envelope is `{ items, page, size, totalItems, totalPages }`.
 - Times are ISO 8601 in UTC. Ids are UUID strings.
@@ -663,11 +668,12 @@ Users by role. Documents by status. Uploads over time. Ingestion failures by cod
 | `PUT /auth/me/password` | authenticated | Change own password. Needs the current one and revokes all the user's refresh tokens |
 | `POST /documents` | ADMIN, FACULTY | Upload |
 | `GET /documents` | authenticated | List readable documents |
+| `GET /documents/upload-limits` | authenticated | Maximum file size and accepted type, for the upload form's own check (UI-4, ADR-031) |
 | `GET /documents/{id}` | readable | Detail |
 | `PATCH /documents/{id}` | owner, ADMIN | Update metadata, archive |
 | `DELETE /documents/{id}` | owner, ADMIN | Delete |
 | `GET /documents/{id}/content` | readable | Download or view the file |
-| `POST /documents/{id}/reprocess` | owner, ADMIN | Run ingestion again |
+| `POST /documents/{id}/reprocess` | owner, ADMIN | Run ingestion again (built in Phase 2, DOC-10) |
 | `GET /documents/{id}/grants` | owner, ADMIN | Read grants |
 | `PUT /documents/{id}/grants` | owner, ADMIN | Replace grants |
 | `GET /users/search` | ADMIN, FACULTY | Find users to grant to (DOC-8) |
@@ -781,7 +787,7 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 | `app.security` | Token signing key (required), access token lifetime (15 min), refresh lifetime (7 days), allowed origins (required), `Secure` refresh cookie (on; only `dev` may turn it off), rate limits `[T2]` |
 | `app.registration` | Allowed email domains (none) |
 | `app.bootstrap-admin` | Email, password and display name of the first admin (AUTH-3). Email and password are required while no admin exists |
-| `app.upload` | Maximum file size (25 MB), allowed types (PDF) |
+| `app.upload` | Maximum file size (25 MB). Not a setting: the allowed types, because PDF is the only one the code can check (D9, ADR-029) |
 | `app.ingestion` | Chunk size (400 tokens), overlap (60), embedding batch size, parallel documents (2), stuck timeout (15 min), maximum attempts (3), maximum pages (500), minimum characters per page |
 | `app.embedding` | Model name, dimension, maximum input tokens |
 | `app.retrieval` | `k` (6), similarity floor, mode |
@@ -1023,7 +1029,7 @@ Exit criteria:
 
 Read: Sections 5, 7, 8, 14.2, Appendix B steps 2 and 3. Needs: D8, D9, D15, D16.
 
-Build: upload, storage, list, detail, download, update, archive, delete, grants, user lookup for grants, and their screens.
+Build: upload, storage, list, detail, download, update, archive, delete, reprocess (the endpoint; its button comes with Phase 3), grants, user lookup for grants, and their screens.
 
 Exit criteria:
 
@@ -1312,15 +1318,15 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | D5 | Chat model and provider | None. See Section 3.4 | A provisional choice for the Milestone-1 proposal. Final in Phase 5 | Open |
 | D6 | Embedding model and dimension | None. Fixes the vector column | A provisional choice for the Milestone-1 proposal. Final in Phase 3 | Open |
 | D7 | Token strategy | JWT access token plus rotating refresh cookie. A simpler variant (access token only, 60 minutes, sign in again) is allowed if recorded | Phase 1 | Accepted: the default, with logout by cookie and revocation on reuse (ADR-020) |
-| D8 | File storage | Local volume | Phase 2 | Default |
-| D9 | File formats | PDF only | Phase 2 | Default |
+| D8 | File storage | Local volume | Phase 2 | Accepted (ADR-029) |
+| D9 | File formats | PDF only | Phase 2 | Accepted (ADR-029) |
 | D10 | Chunking | Custom token chunker, 400 tokens, 60 overlap | Phase 3 | Default |
 | D11 | Vector index | Exact search first | Phase 4 | Default |
 | D12 | Chunk storage design | Application-owned table (ADR-001) | Phase 3 | Default |
 | D13 | Corpus and answer language | English | Phase 5 | Default |
 | D14 | Store question text for analytics | Off | Phase 9 | Default |
-| D15 | Admin reach | Admins read all documents, but not other users' conversations | Phase 2 | Default |
-| D16 | Student uploads | Not allowed | Phase 2 | Default |
+| D15 | Admin reach | Admins read all documents, but not other users' conversations | Phase 2 | Accepted (ADR-029) |
+| D16 | Student uploads | Not allowed | Phase 2 | Accepted (ADR-029) |
 | D17 | Hosting target for the final demo | A team machine running Docker Compose, because the final evaluation is preferably held in person. A hosted copy is optional | Phase 11 | Default |
 | D18 | UI component approach | Tailwind CSS with one accessible component set | Phase 1 | Accepted: Tailwind CSS 4 with React Aria Components (ADR-021) |
 | D19 | Lombok | Not used. Records instead | Phase 0 | Accepted (ADR-004) |

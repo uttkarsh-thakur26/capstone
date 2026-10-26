@@ -69,6 +69,12 @@ public class SecurityConfig {
               }
               // Admin endpoints also carry method security (AUTH-8).
               requests.requestMatchers("/api/v1/admin/**").hasRole("ADMIN");
+              // Uploading and finding people to share with are never for students (ACL-3, D16,
+              // DOC-8). The services check the same roles.
+              requests
+                  .requestMatchers(HttpMethod.POST, "/api/v1/documents")
+                  .hasAnyRole("ADMIN", "FACULTY");
+              requests.requestMatchers("/api/v1/users/search").hasAnyRole("ADMIN", "FACULTY");
               requests.anyRequest().authenticated();
             })
         .oauth2ResourceServer(

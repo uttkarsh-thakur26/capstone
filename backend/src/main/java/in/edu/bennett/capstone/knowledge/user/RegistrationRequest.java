@@ -1,5 +1,6 @@
 package in.edu.bennett.capstone.knowledge.user;
 
+import in.edu.bennett.capstone.knowledge.common.PlainText;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import jakarta.validation.constraints.Email;
@@ -11,8 +12,10 @@ import jakarta.validation.constraints.Size;
  * (AUTH-1), and a {@code role} sent by the client is ignored.
  */
 public record RegistrationRequest(
-    @Schema(requiredMode = RequiredMode.REQUIRED) @NotBlank @Email @Size(max = 254) String email,
-    @Schema(requiredMode = RequiredMode.REQUIRED) @NotBlank @Size(max = 100) String displayName,
+    @Schema(requiredMode = RequiredMode.REQUIRED) @NotBlank @Email @Size(max = 254) @PlainText
+        String email,
+    @Schema(requiredMode = RequiredMode.REQUIRED) @NotBlank @Size(max = 100) @PlainText
+        String displayName,
     @Schema(requiredMode = RequiredMode.REQUIRED, minLength = 10, maxLength = 128) @ValidPassword
         String password) {
 

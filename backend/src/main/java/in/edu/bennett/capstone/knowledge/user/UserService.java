@@ -7,14 +7,18 @@ import in.edu.bennett.capstone.knowledge.audit.AuditService;
 import in.edu.bennett.capstone.knowledge.common.ApiException;
 import in.edu.bennett.capstone.knowledge.common.PageResponse;
 import java.time.Clock;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -78,6 +82,39 @@ public class UserService {
   @Transactional(readOnly = true)
   public Optional<UserResponse> find(UUID id) {
     return users.findById(id).map(UserResponse::of);
+  }
+
+  /**
+   * Names and emails of the given accounts, enabled or not, in one query: for example the owners of
+   * a page of documents, or the people a document is shared with. Unknown ids are left out.
+   */
+  @Transactional(readOnly = true)
+  public Map<UUID, UserSummary> findSummaries(Collection<UUID> ids) {
+    if (ids.isEmpty()) {
+      return Map.of();
+    }
+    return users.findAllById(Set.copyOf(ids)).stream()
+        .collect(Collectors.toMap(UserAccount::getId, UserSummary::of));
+  }
+
+  /**
+   * DOC-8: finds enabled users to share a document with, by part of the name or the email. Faculty
+   * and admins only, by URL rule and by method security. At least three characters are needed, so
+   * the search cannot list every account.
+   */
+  @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY')")
+  @Transactional(readOnly = true)
+  public PageResponse<UserSummary> searchUsers(String text, int page, int size) {
+    if (text == null || text.strip().codePointCount(0, text.strip().length()) < 3) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST, "QUERY_TOO_SHORT", "Type at least three characters to search.");
+    }
+    return PageResponse.of(
+        users
+            .findAll(
+                new UserQuery(text, null, true).toSpecification(),
+                PageRequest.of(page, size, Sort.by("displayName", "email", "id")))
+            .map(UserSummary::of));
   }
 
   @Transactional

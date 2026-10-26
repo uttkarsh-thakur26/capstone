@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
@@ -58,6 +59,23 @@ public final class TestAccounts {
             .exchange();
     assertThat(result).hasStatus(HttpStatus.CREATED);
     return new Account(UUID.fromString(JsonPath.read(body(result), "$.id")), email);
+  }
+
+  /**
+   * Registers an account through the endpoint and gives it a role directly in the database, for
+   * tests whose subject is not the role change itself.
+   */
+  public static Account registerAs(MockMvcTester mvc, JdbcClient jdbc, String role) {
+    Account account = registerStudent(mvc);
+    jdbc.sql("UPDATE app_user SET role = :role WHERE id = :id")
+        .param("role", role)
+        .param("id", account.id())
+        .update();
+    return account;
+  }
+
+  public static Session login(MockMvcTester mvc, Account account) {
+    return login(mvc, account.email(), PASSWORD);
   }
 
   public static MvcTestResult loginRequest(MockMvcTester mvc, String email, String password) {

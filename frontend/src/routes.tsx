@@ -2,10 +2,13 @@ import type { RouteObject } from 'react-router'
 import { RequireAuth } from './auth/RequireAuth'
 import { AppShell } from './layout/AppShell'
 import { AdminUsersPage } from './pages/AdminUsersPage'
+import { DocumentDetailPage } from './pages/DocumentDetailPage'
+import { DocumentsPage } from './pages/DocumentsPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { UploadDocumentPage } from './pages/UploadDocumentPage'
 
 /** The routes of 16.2 that exist so far. Everything except sign-in and registration needs a session. */
 export const routes: RouteObject[] = [
@@ -19,6 +22,16 @@ export const routes: RouteObject[] = [
     ),
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'documents', element: <DocumentsPage /> },
+      {
+        path: 'documents/upload',
+        element: (
+          <RequireAuth roles={['ADMIN', 'FACULTY']}>
+            <UploadDocumentPage />
+          </RequireAuth>
+        ),
+      },
+      { path: 'documents/:id', element: <DocumentDetailPage /> },
       {
         path: 'admin/users',
         element: (

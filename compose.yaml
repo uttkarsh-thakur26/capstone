@@ -36,6 +36,12 @@ services:
       APP_BOOTSTRAP_ADMIN_EMAIL: ${APP_BOOTSTRAP_ADMIN_EMAIL:-}
       APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-}
       APP_REGISTRATION_ALLOWED_EMAIL_DOMAINS: ${APP_REGISTRATION_ALLOWED_EMAIL_DOMAINS:-}
+      # Uploaded files live on their own volume (D8, ADR-029). Back it up with the database.
+      APP_STORAGE_ROOT: /var/lib/knowledge-platform/files
+      # nginx accepts request bodies up to 30MB, so keep this below about 29MB (ADR-031).
+      APP_UPLOAD_MAX_FILE_SIZE: ${APP_UPLOAD_MAX_FILE_SIZE:-25MB}
+    volumes:
+      - document-files:/var/lib/knowledge-platform/files
     depends_on:
       db:
         condition: service_healthy
@@ -69,3 +75,4 @@ services:
 
 volumes:
   db-data:
+  document-files:

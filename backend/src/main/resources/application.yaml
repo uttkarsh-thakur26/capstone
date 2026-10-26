@@ -42,3 +42,9 @@ app:
     email: ${APP_BOOTSTRAP_ADMIN_EMAIL:}
     password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
     display-name: ${APP_BOOTSTRAP_ADMIN_DISPLAY_NAME:Administrator}
+  storage:
+    # Required: the directory that holds uploaded files (D8). Compose mounts a volume there.
+    root: ${APP_STORAGE_ROOT:}
+  upload:
+    # DOC-1. nginx accepts bodies up to 30MB, so raising this above about 29MB needs nginx too.
+    max-file-size: ${APP_UPLOAD_MAX_FILE_SIZE:25MB}

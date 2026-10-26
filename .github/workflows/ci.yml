@@ -81,8 +81,10 @@ jobs:
       - run: curl -fsS http://localhost:3000/api/v1/meta
 
       # The bootstrap admin signs in through nginx, reads the current user, and refreshes the
-      # session with the cookie from the sign-in (AUTH-3, AUTH-6, AUTH-9).
-      - name: Sign in through nginx
+      # session with the cookie from the sign-in (AUTH-3, AUTH-6, AUTH-9). Then a PDF goes up and
+      # comes back unchanged, which needs the files volume to be writable, and a body above
+      # nginx's limit gets a Problem Details 413 (DOC-1, DOC-6, ADR-031).
+      - name: Sign in, upload and download through nginx
         run: |
           email=$(grep '^APP_BOOTSTRAP_ADMIN_EMAIL=' .env | cut -d= -f2-)
           password=$(grep '^APP_BOOTSTRAP_ADMIN_PASSWORD=' .env | cut -d= -f2-)
@@ -98,6 +100,21 @@ jobs:
           test "$role" = ADMIN
           curl -fsS -X POST -H 'Origin: http://localhost:3000' -H "Cookie: $cookie" \
             http://localhost:3000/api/v1/auth/refresh | json "['user']['role']"
+          printf '%%PDF-1.4\n1 0 obj <</Type/Catalog/Pages 2 0 R>> endobj\n2 0 obj <</Type/Pages/Kids[3 0 R]/Count 1>> endobj\n3 0 obj <</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>> endobj\ntrailer <</Root 1 0 R>>\n%%%%EOF\n' > ci.pdf
+          id=$(curl -fsS -H "Authorization: Bearer $token" \
+            -F 'file=@ci.pdf;type=application/pdf' \
+            -F 'metadata={"title": "CI upload"};type=application/json' \
+            http://localhost:3000/api/v1/documents | json "['id']")
+          curl -fsS -H "Authorization: Bearer $token" -o downloaded.pdf \
+            "http://localhost:3000/api/v1/documents/$id/content"
+          cmp ci.pdf downloaded.pdf
+          head -c 31457281 /dev/zero > too-large.pdf
+          status=$(curl -sS -o too-large.json -w '%{http_code}' -H "Authorization: Bearer $token" \
+            -F 'file=@too-large.pdf;type=application/pdf' \
+            -F 'metadata={"title": "Too large"};type=application/json' \
+            http://localhost:3000/api/v1/documents)
+          test "$status" = 413
+          test "$(json "['code']" < too-large.json)" = FILE_TOO_LARGE
 
       - name: Container logs
         if: failure()

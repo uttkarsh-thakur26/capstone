@@ -22,3 +22,7 @@ app:
     allowed-origins: http://localhost:5173
     # Plain HTTP on localhost. Only this profile may turn Secure off (AUTH-6).
     refresh-cookie-secure: false
+  storage:
+    # Relative to the working directory: data/files in the repository when started from backend/.
+    # Ignored by git.
+    root: ${APP_STORAGE_ROOT:../data/files}

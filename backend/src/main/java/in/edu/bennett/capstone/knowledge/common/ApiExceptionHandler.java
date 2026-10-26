@@ -5,6 +5,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSourceResolvable;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -33,11 +35,28 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
   private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
+  /** The same code as the upload's own size check, so the client sees one code either way. */
+  private static final String FILE_TOO_LARGE = "FILE_TOO_LARGE";
+
   @ExceptionHandler(ApiException.class)
   ResponseEntity<Object> handleApiException(ApiException ex, WebRequest request) {
     ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
+    ex.properties().forEach(problem::setProperty);
     problem.setProperty("code", ex.code());
     return handleExceptionInternal(ex, problem, new HttpHeaders(), ex.status(), request);
+  }
+
+  /** A multipart request above the configured limit (DOC-1), stopped before the controller runs. */
+  @Override
+  protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+      MaxUploadSizeExceededException ex,
+      HttpHeaders headers,
+      HttpStatusCode status,
+      WebRequest request) {
+    ProblemDetail problem =
+        ProblemDetail.forStatusAndDetail(status, "The file is larger than the upload limit.");
+    problem.setProperty("code", FILE_TOO_LARGE);
+    return handleExceptionInternal(ex, problem, headers, status, request);
   }
 
   @ExceptionHandler(AuthenticationException.class)
@@ -52,6 +71,21 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(AccessDeniedException.class)
   ResponseEntity<Object> handleAccessDenied(AccessDeniedException ex, WebRequest request) {
     return problem(ex, HttpStatus.FORBIDDEN, "You are not allowed to do this.", request);
+  }
+
+  /**
+   * Two requests changed the same row at the same time, and the row version let only the first
+   * succeed (DATA-3). The client reloads and tries again.
+   */
+  @ExceptionHandler(OptimisticLockingFailureException.class)
+  ResponseEntity<Object> handleConcurrentChange(
+      OptimisticLockingFailureException ex, WebRequest request) {
+    ProblemDetail problem =
+        ProblemDetail.forStatusAndDetail(
+            HttpStatus.CONFLICT,
+            "It was changed by someone else at the same time. Reload it and try again.");
+    problem.setProperty("code", "CONCURRENT_CHANGE");
+    return handleExceptionInternal(ex, problem, new HttpHeaders(), HttpStatus.CONFLICT, request);
   }
 
   /** Anything not mapped above is a bug: log it, and tell the client nothing about it. */

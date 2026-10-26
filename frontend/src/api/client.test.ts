@@ -1,11 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fakeApi, json, OTHER_USER_ID, problem, session } from '../test/fakeApi'
+import {
+  fakeApi,
+  fakeUploads,
+  json,
+  OTHER_USER_ID,
+  problem,
+  session,
+} from '../test/fakeApi'
 import {
   api,
   ApiError,
   onSessionEnded,
   refreshSession,
   setSession,
+  upload,
 } from './client'
 
 afterEach(() => onSessionEnded(null))
@@ -140,5 +148,44 @@ describe('api client', () => {
     expect(error.message).toBe(
       'The last enabled admin cannot be demoted or disabled.',
     )
+  })
+
+  it('uploads with the token, reports progress and refreshes once on a 401', async () => {
+    const server = fakeApi({
+      'POST /api/v1/auth/refresh': () => json(session('FACULTY', 'fresh')),
+    })
+    const uploads = fakeUploads((upload) =>
+      upload.headers.Authorization === 'Bearer fresh'
+        ? json({ id: 'new' }, 201)
+        : problem(401, 'UNAUTHENTICATED', 'Authentication is required.'),
+    )
+    setSession(session('FACULTY', 'expired'))
+    const progress: number[] = []
+    const form = new FormData()
+    form.append('file', new Blob(['%PDF-']), 'a.pdf')
+
+    await expect(
+      upload('/api/v1/documents', form, (p) => progress.push(p)),
+    ).resolves.toEqual({ id: 'new' })
+
+    expect(server.to('POST', '/api/v1/auth/refresh')).toHaveLength(1)
+    expect(uploads.map((u) => u.headers.Authorization)).toEqual([
+      'Bearer expired',
+      'Bearer fresh',
+    ])
+    expect(uploads[1].form.get('file')).toBeInstanceOf(Blob)
+    expect(progress.at(-1)).toBe(1)
+  })
+
+  it('turns a refused upload into an ApiError', async () => {
+    fakeUploads(() => problem(413, 'FILE_TOO_LARGE', 'The file is too large.'))
+    setSession(session('FACULTY'))
+
+    const error = (await upload('/api/v1/documents', new FormData()).catch(
+      (e: unknown) => e,
+    )) as ApiError
+
+    expect(error.status).toBe(413)
+    expect(error.code).toBe('FILE_TOO_LARGE')
   })
 })

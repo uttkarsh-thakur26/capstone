@@ -101,12 +101,55 @@ export async function api<T>(
   path: string,
   request: ApiRequest = {},
 ): Promise<T> {
+  const response = await withSession(path, () =>
+    send(path, request, !AUTH_ENDPOINTS.includes(path)),
+  )
+  if (response.status === 204) {
+    return undefined as T
+  }
+  return (await response.json()) as T
+}
+
+/** Like {@link api}, for a file: the body as a Blob, for example a download (DOC-6). */
+export async function apiBlob(
+  path: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const response = await withSession(path, () => send(path, { signal }, true))
+  return response.blob()
+}
+
+/**
+ * Sends a multipart form, reporting the share of it sent so far. It uses XMLHttpRequest, because
+ * fetch reports no upload progress (UI-4, ADR-031). The token, the single silent refresh and the
+ * errors are the same as for {@link api}; after a refresh the form is sent again from the start.
+ */
+export async function upload<T>(
+  path: string,
+  form: FormData,
+  onProgress?: (fraction: number) => void,
+  signal?: AbortSignal,
+): Promise<T> {
+  const response = await withSession(path, () =>
+    sendForm(path, form, onProgress, signal),
+  )
+  return (await response.json()) as T
+}
+
+/**
+ * Sends once, and after a 401 refreshes the session once and sends again (UI-1). Resolves with a
+ * successful response or throws {@link ApiError}.
+ */
+async function withSession(
+  path: string,
+  attempt: () => Promise<Response>,
+): Promise<Response> {
   const isAuthEndpoint = AUTH_ENDPOINTS.includes(path)
-  let response = await send(path, request, !isAuthEndpoint)
+  let response = await attempt()
   if (response.status === 401 && !isAuthEndpoint) {
     const session = await refreshSession()
     if (session) {
-      response = await send(path, request, true)
+      response = await attempt()
     }
     if (response.status === 401) {
       setSession(null)
@@ -116,10 +159,7 @@ export async function api<T>(
   if (!response.ok) {
     throw new ApiError(response.status, await problemOf(response))
   }
-  if (response.status === 204) {
-    return undefined as T
-  }
-  return (await response.json()) as T
+  return response
 }
 
 function send(
@@ -139,6 +179,45 @@ function send(
     headers,
     body: request.body === undefined ? undefined : JSON.stringify(request.body),
     signal: request.signal,
+  })
+}
+
+function sendForm(
+  path: string,
+  form: FormData,
+  onProgress: ((fraction: number) => void) | undefined,
+  signal: AbortSignal | undefined,
+): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', path)
+    xhr.setRequestHeader('Accept', 'application/json')
+    if (accessToken) {
+      xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`)
+    }
+    onProgress?.(0)
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) onProgress?.(event.loaded / event.total)
+    })
+    xhr.addEventListener('load', () => {
+      const empty = xhr.status === 204 || xhr.status === 304
+      resolve(
+        new Response(empty ? null : xhr.responseText, {
+          status: xhr.status,
+          headers: {
+            'Content-Type': xhr.getResponseHeader('Content-Type') ?? '',
+          },
+        }),
+      )
+    })
+    xhr.addEventListener('error', () =>
+      reject(new TypeError('The connection failed during the upload.')),
+    )
+    xhr.addEventListener('abort', () =>
+      reject(new DOMException('The upload was cancelled.', 'AbortError')),
+    )
+    signal?.addEventListener('abort', () => xhr.abort(), { once: true })
+    xhr.send(form)
   })
 }
 

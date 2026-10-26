@@ -13,7 +13,11 @@ Evidence (2026-10-26):
 - Compose stack (`prod` profile) built from `0ad9ece`, with the commands of the new CI step: a PDF goes up through nginx and comes back byte for byte, a 26 MB upload gets the backend's 413 and a 30 MB one nginx's, both with `FILE_TOO_LARGE`.
 - Browser (Chromium in the desktop app's pane, stack rebuilt from `49f9f9f`): a faculty member uploaded a PDF with no grant; a student did not see it and got 404 on its address; the faculty member granted it to STUDENT; the student then saw it and downloaded it (`GET /content` 200, `DOCUMENT_DOWNLOADED` recorded). A second PDF shared with that student only stayed invisible to another student, with 404 on its address. The file was put into the upload form's file input by a script, because the pane cannot drive the system file picker.
 
-To close Phase 2: pull request, CI green (the stack job now also uploads and downloads through nginx), review under ADR-028 (the owner's and an independent one), merge.
+To close Phase 2:
+
+1. Done: pull request [#3](https://github.com/uttkarsh-thakur26/capstone/pull/3) is open; CI was green on `7154dff`, including the new upload step of the stack job.
+2. Done: the independent review under ADR-028 (2026-10-27) found one gap in two parts, both fixed with a failing test first: a `PATCH` title of Unicode spaces failed in the database as a 500 (`ea9347f`), and a NUL character in document text or search input failed as a 500 (`4c7beea`). The same NUL problem in the Phase 1 account input, where registration even answered 409 `EMAIL_TAKEN`, was fixed in `c1e3459`. After the fixes, `./mvnw verify` passes with 278 tests.
+3. Open: CI green on the fixes, the owner's review recorded in the pull request, then merge.
 
 Decisions taken for this phase: D8, D9, D15, D16 (ADR-029), specification corrections S3, S7 to S10 (ADR-030), upload, storage and download (ADR-031), one member builds every phase (ADR-032).
 

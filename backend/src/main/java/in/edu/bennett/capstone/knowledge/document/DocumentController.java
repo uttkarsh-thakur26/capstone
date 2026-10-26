@@ -1,6 +1,7 @@
 package in.edu.bennett.capstone.knowledge.document;
 
 import in.edu.bennett.capstone.knowledge.common.PageResponse;
+import in.edu.bennett.capstone.knowledge.common.PlainText;
 import in.edu.bennett.capstone.knowledge.security.CurrentUser;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -67,9 +68,9 @@ class DocumentController {
   @GetMapping(path = "/api/v1/documents", produces = MediaType.APPLICATION_JSON_VALUE)
   PageResponse<DocumentSummaryResponse> list(
       @AuthenticationPrincipal CurrentUser user,
-      @RequestParam(required = false) @Size(max = 200) String query,
+      @RequestParam(required = false) @Size(max = 200) @PlainText String query,
       @RequestParam(required = false) DocumentStatus status,
-      @RequestParam(required = false) @Size(max = 100) String category,
+      @RequestParam(required = false) @Size(max = 100) @PlainText String category,
       @RequestParam(defaultValue = "false") boolean mine,
       @RequestParam(required = false) Boolean archived,
       @RequestParam(defaultValue = "0") @Min(0) @Max(PageResponse.MAX_PAGE) int page,

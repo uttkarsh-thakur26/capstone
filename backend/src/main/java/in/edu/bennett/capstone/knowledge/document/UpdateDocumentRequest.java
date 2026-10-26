@@ -1,5 +1,6 @@
 package in.edu.bennett.capstone.knowledge.document;
 
+import in.edu.bennett.capstone.knowledge.common.PlainText;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Pattern;
@@ -18,9 +19,10 @@ public record UpdateDocumentRequest(
         // At least one character that String.strip() keeps, since the title is stored stripped.
         // \S would let Unicode spaces such as U+2003 through and fail at the database.
         @Pattern(regexp = "(?s).*\\P{javaWhitespace}.*", message = "must not be blank")
+        @PlainText
         String title,
-    @Size(max = 2000) String description,
-    @Size(max = 100) String category,
+    @Size(max = 2000) @PlainText String description,
+    @Size(max = 100) @PlainText String category,
     LocalDate documentDate,
     Boolean archived) {
 

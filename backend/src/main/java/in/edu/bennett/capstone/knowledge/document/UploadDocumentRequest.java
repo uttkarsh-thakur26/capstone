@@ -1,5 +1,6 @@
 package in.edu.bennett.capstone.knowledge.document;
 
+import in.edu.bennett.capstone.knowledge.common.PlainText;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import jakarta.validation.Valid;
@@ -14,9 +15,10 @@ import java.util.List;
  * ADR-031). Without grants, only the owner and admins can read the new document (ACL-5).
  */
 public record UploadDocumentRequest(
-    @Schema(requiredMode = RequiredMode.REQUIRED) @NotBlank @Size(max = 200) String title,
-    @Size(max = 2000) String description,
-    @Size(max = 100) String category,
+    @Schema(requiredMode = RequiredMode.REQUIRED) @NotBlank @Size(max = 200) @PlainText
+        String title,
+    @Size(max = 2000) @PlainText String description,
+    @Size(max = 100) @PlainText String category,
     @Schema(description = "The date the content takes effect, if it has one.")
         LocalDate documentDate,
     @Size(max = 100) List<@Valid @NotNull GrantRequest> grants) {

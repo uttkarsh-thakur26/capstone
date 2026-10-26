@@ -1,6 +1,7 @@
 package in.edu.bennett.capstone.knowledge.user;
 
 import in.edu.bennett.capstone.knowledge.common.PageResponse;
+import in.edu.bennett.capstone.knowledge.common.PlainText;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
@@ -24,7 +25,7 @@ class UserSearchController {
 
   @GetMapping(path = "/api/v1/users/search", produces = MediaType.APPLICATION_JSON_VALUE)
   PageResponse<UserSummary> search(
-      @RequestParam @Size(max = 254) String query,
+      @RequestParam @Size(max = 254) @PlainText String query,
       @RequestParam(defaultValue = "0") @Min(0) @Max(PageResponse.MAX_PAGE) int page,
       @RequestParam(defaultValue = "10") @Min(1) @Max(PageResponse.MAX_SIZE) int size) {
     return users.searchUsers(query, page, size);

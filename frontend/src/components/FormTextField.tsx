@@ -9,6 +9,7 @@ import {
   Input,
   Label,
   Text,
+  TextArea,
   TextField,
 } from 'react-aria-components'
 
@@ -16,10 +17,16 @@ interface FormTextFieldProps<T extends FieldValues> {
   control: Control<T>
   name: FieldPath<T>
   label: string
-  type?: 'text' | 'email' | 'password'
+  type?: 'text' | 'email' | 'password' | 'date'
   autoComplete?: string
   description?: string
+  /** A text area for longer text, such as a description. */
+  multiline?: boolean
+  isDisabled?: boolean
 }
+
+const FIELD =
+  'rounded-md border border-slate-400 bg-white px-3 py-2 text-slate-900 outline-none data-[focused]:outline-2 data-[focused]:outline-indigo-600 data-[invalid]:border-red-700 data-[disabled]:opacity-50 dark:border-slate-500 dark:bg-slate-900 dark:text-slate-100'
 
 /**
  * A labelled text field bound to React Hook Form. The label, the description and the error are
@@ -32,6 +39,8 @@ export function FormTextField<T extends FieldValues>({
   type = 'text',
   autoComplete,
   description,
+  multiline,
+  isDisabled,
 }: FormTextFieldProps<T>) {
   // Destructured, so only `ref` is treated as a ref by React's rules of refs.
   const {
@@ -47,14 +56,16 @@ export function FormTextField<T extends FieldValues>({
       type={type}
       autoComplete={autoComplete}
       isInvalid={fieldState.invalid}
+      isDisabled={isDisabled}
       validationBehavior="aria"
       className="flex flex-col gap-1"
     >
       <Label className="text-sm font-medium">{label}</Label>
-      <Input
-        ref={ref}
-        className="rounded-md border border-slate-400 bg-white px-3 py-2 text-slate-900 outline-none data-[focused]:outline-2 data-[focused]:outline-indigo-600 data-[invalid]:border-red-700 dark:border-slate-500 dark:bg-slate-900 dark:text-slate-100"
-      />
+      {multiline ? (
+        <TextArea ref={ref} rows={4} className={FIELD} />
+      ) : (
+        <Input ref={ref} className={FIELD} />
+      )}
       {description && (
         <Text
           slot="description"

@@ -1,0 +1,298 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import {
+  DropZone,
+  FileTrigger,
+  Label,
+  ProgressBar,
+  Text,
+} from 'react-aria-components'
+import { Link, useNavigate } from 'react-router'
+import { api, ApiError, upload } from '../api/client'
+import type {
+  DocumentResponse,
+  ProblemResponse,
+  UploadDocumentRequest,
+  UploadLimits,
+} from '../api/types'
+import { Alert } from '../components/Alert'
+import { Button } from '../components/Button'
+import { messageOf, showServerErrors } from '../components/formErrors'
+import { FormTextField } from '../components/FormTextField'
+import { formatBytes } from '../documents/format'
+import {
+  EMPTY_METADATA,
+  METADATA_FIELDS,
+  metadataSchema,
+  toMetadata,
+  type MetadataForm,
+} from '../documents/metadata'
+import { GrantsEditor } from '../documents/GrantsEditor'
+import { NOT_SHARED, toGrantRequests, type Sharing } from '../documents/sharing'
+
+/** Checked again by the server from the content (DOC-1); this only saves a pointless upload. */
+function problemWith(file: File, limits: UploadLimits | undefined) {
+  const isPdf =
+    file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+  if (!isPdf) return 'Choose a PDF file.'
+  if (file.size === 0) return 'The file is empty.'
+  if (limits && file.size > limits.maxFileSizeBytes) {
+    return `The file is ${formatBytes(file.size)}; the limit is ${formatBytes(limits.maxFileSizeBytes)}.`
+  }
+  return null
+}
+
+/**
+ * Upload for faculty and admins (DOC-1, ACL-3): a PDF, its description and who may read it. With
+ * nothing shared, only the uploader and admins can read it (ACL-5). Shows the upload's progress
+ * (UI-4); the document is then processed in the background (DOC-3).
+ */
+export function UploadDocumentPage() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [file, setFile] = useState<File | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+  const [sharing, setSharing] = useState<Sharing>(NOT_SHARED)
+  const [progress, setProgress] = useState<number | null>(null)
+  const [duplicateId, setDuplicateId] = useState<string | null>(null)
+  const [abort, setAbort] = useState<AbortController | null>(null)
+
+  const limits = useQuery({
+    queryKey: ['upload-limits'],
+    queryFn: ({ signal }) =>
+      api<UploadLimits>('/api/v1/documents/upload-limits', { signal }),
+    staleTime: Infinity,
+  })
+
+  const form = useForm<MetadataForm>({
+    resolver: zodResolver(metadataSchema),
+    defaultValues: EMPTY_METADATA,
+  })
+  const serverError = form.formState.errors.root?.server?.message
+  const uploading = progress !== null
+
+  const choose = (chosen: File) => {
+    const problem = problemWith(chosen, limits.data)
+    setFileError(problem)
+    setDuplicateId(null)
+    if (problem) {
+      setFile(null)
+      return
+    }
+    setFile(chosen)
+    if (!form.getValues('title').trim()) {
+      form.setValue('title', chosen.name.replace(/\.pdf$/i, ''), {
+        shouldValidate: true,
+      })
+    }
+  }
+
+  const onSubmit = form.handleSubmit(async (values) => {
+    if (!file) {
+      setFileError('Choose a PDF file.')
+      return
+    }
+    const metadata: UploadDocumentRequest = {
+      ...toMetadata(values),
+      grants: toGrantRequests(sharing),
+    }
+    const body = new FormData()
+    body.append('file', file)
+    body.append(
+      'metadata',
+      new Blob([JSON.stringify(metadata)], { type: 'application/json' }),
+    )
+    const controller = new AbortController()
+    setAbort(controller)
+    setDuplicateId(null)
+    try {
+      const created = await upload<DocumentResponse>(
+        '/api/v1/documents',
+        body,
+        setProgress,
+        controller.signal,
+      )
+      await queryClient.invalidateQueries({ queryKey: ['documents'] })
+      navigate(`/documents/${created.id}`, {
+        state: {
+          notice:
+            'The document was uploaded. It is processed in the background before it can be searched.',
+        },
+      })
+    } catch (error) {
+      setProgress(null)
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        form.setError('root.server', { message: 'The upload was cancelled.' })
+        return
+      }
+      if (error instanceof ApiError && error.code === 'DUPLICATE_DOCUMENT') {
+        const problem = error.problem as ProblemResponse & {
+          documentId?: string
+        }
+        setDuplicateId(problem.documentId ?? null)
+      }
+      if (!showServerErrors(error, METADATA_FIELDS, form.setError)) {
+        form.setError('root.server', {
+          message: messageOf(error, 'The upload failed. Try again.'),
+        })
+      }
+    }
+  })
+
+  return (
+    <section className="max-w-2xl space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold">Upload a document</h1>
+        <p className="text-sm text-slate-700 dark:text-slate-300">
+          PDF only
+          {limits.data &&
+            `, up to ${formatBytes(limits.data.maxFileSizeBytes)}`}
+          . The text must be selectable: scanned pages without a text layer
+          cannot be searched.
+        </p>
+      </div>
+
+      {serverError && (
+        <Alert>
+          {serverError}
+          {duplicateId && (
+            <>
+              {' '}
+              <Link
+                className="font-medium underline underline-offset-2"
+                to={`/documents/${duplicateId}`}
+              >
+                Open the existing document
+              </Link>
+            </>
+          )}
+        </Alert>
+      )}
+
+      <form onSubmit={onSubmit} noValidate className="space-y-6">
+        <div className="space-y-2">
+          <DropZone
+            onDrop={async (event) => {
+              const item = event.items.find((i) => i.kind === 'file')
+              if (item?.kind === 'file') choose(await item.getFile())
+            }}
+            isDisabled={uploading}
+            className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-slate-400 p-6 text-center outline-none data-[drop-target]:border-indigo-600 data-[drop-target]:bg-indigo-50 data-[focus-visible]:outline-2 data-[focus-visible]:outline-indigo-600 dark:border-slate-500 dark:data-[drop-target]:bg-indigo-950"
+          >
+            <Text slot="label" className="text-sm">
+              {file ? (
+                <>
+                  <span className="font-medium">{file.name}</span> (
+                  {formatBytes(file.size)})
+                </>
+              ) : (
+                'Drop a PDF here, or'
+              )}
+            </Text>
+            <FileTrigger
+              acceptedFileTypes={['application/pdf', '.pdf']}
+              onSelect={(files) => {
+                const chosen = files?.[0]
+                if (chosen) choose(chosen)
+              }}
+            >
+              <Button variant="secondary" isDisabled={uploading}>
+                {file ? 'Choose another file' : 'Choose a file'}
+              </Button>
+            </FileTrigger>
+          </DropZone>
+          {fileError && (
+            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+              {fileError}
+            </p>
+          )}
+        </div>
+
+        <FormTextField
+          control={form.control}
+          name="title"
+          label="Title"
+          isDisabled={uploading}
+        />
+        <FormTextField
+          control={form.control}
+          name="description"
+          label="Description (optional)"
+          multiline
+          isDisabled={uploading}
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormTextField
+            control={form.control}
+            name="category"
+            label="Category (optional)"
+            description="For example Policy, Syllabus or Notice."
+            isDisabled={uploading}
+          />
+          <FormTextField
+            control={form.control}
+            name="documentDate"
+            label="Effective date (optional)"
+            type="date"
+            isDisabled={uploading}
+          />
+        </div>
+
+        <fieldset className="space-y-3 rounded-lg border border-slate-300 p-4 dark:border-slate-700">
+          <legend className="px-1 font-medium">Share with</legend>
+          <p className="text-sm text-slate-700 dark:text-slate-300">
+            Leave everything empty to keep the document to yourself and the
+            admins. You can change this later.
+          </p>
+          <GrantsEditor
+            value={sharing}
+            onChange={setSharing}
+            isDisabled={uploading}
+          />
+        </fieldset>
+
+        {uploading && (
+          <ProgressBar
+            value={Math.round((progress ?? 0) * 100)}
+            className="flex flex-col gap-1"
+          >
+            {({ percentage, valueText }) => (
+              <>
+                <div className="flex justify-between text-sm">
+                  <Label>Uploading</Label>
+                  <span>{valueText}</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                  <div
+                    className="h-full bg-indigo-700 transition-[width]"
+                    style={{ width: `${percentage ?? 0}%` }}
+                  />
+                </div>
+              </>
+            )}
+          </ProgressBar>
+        )}
+
+        <div className="flex gap-3">
+          <Button type="submit" isDisabled={uploading}>
+            Upload
+          </Button>
+          {uploading ? (
+            <Button variant="secondary" onPress={() => abort?.abort()}>
+              Cancel upload
+            </Button>
+          ) : (
+            <Link
+              to="/documents"
+              className="inline-flex items-center rounded-md px-4 py-2 text-sm font-medium underline-offset-2 hover:underline"
+            >
+              Back to documents
+            </Link>
+          )}
+        </div>
+      </form>
+    </section>
+  )
+}

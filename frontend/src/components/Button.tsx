@@ -8,6 +8,8 @@ const VARIANTS = {
     'bg-indigo-700 text-white data-[hovered]:bg-indigo-800 data-[pressed]:bg-indigo-900',
   secondary:
     'border border-slate-300 bg-white text-slate-900 data-[hovered]:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:data-[hovered]:bg-slate-800',
+  danger:
+    'bg-red-700 text-white data-[hovered]:bg-red-800 data-[pressed]:bg-red-900',
 } as const
 
 export interface ButtonProps extends AriaButtonProps {

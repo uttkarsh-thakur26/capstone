@@ -32,6 +32,10 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-026](#adr-026-phase-1-is-built-by-one-member) | | Phase 1 is built by one member | Accepted, exception to 24.1 | 2026-10-07 |
 | [ADR-027](#adr-027-frontend-libraries-for-routing-server-state-forms-and-components) | | Frontend libraries for routing, server state, forms and components | Accepted | 2026-10-07 |
 | [ADR-028](#adr-028-owner-review-with-an-independent-review-while-no-teammate-can-review) | | Owner review with an independent review while no teammate can review | Accepted, standing exception to 24.2 | 2026-10-14 |
+| [ADR-029](#adr-029-local-storage-pdf-only-admins-read-everything-no-student-uploads-d8-d9-d15-d16) | D8, D9, D15, D16 | Local storage, PDF only, admins read everything, no student uploads | Accepted (specification defaults) | 2026-10-26 |
+| [ADR-030](#adr-030-specification-corrections-for-phase-2) | | Specification corrections for Phase 2 | Accepted | 2026-10-26 |
+| [ADR-031](#adr-031-upload-storage-and-download) | | Upload, storage and download | Accepted | 2026-10-26 |
+| [ADR-032](#adr-032-one-member-builds-every-phase) | | One member builds every phase | Accepted, standing exception to 24.1; supersedes ADR-026 | 2026-10-26 |
 
 ---
 
@@ -490,3 +494,86 @@ Every other merge rule of 24.2 stays: CI is green, and nothing is committed to `
 **Alternatives.** A new exception per pull request, as ADR-019 did: rejected, because it repeats the same decision. Merging without a review until a teammate is available: rejected, because reviews find defects; the review of Phase 0 found seven. Waiting for a teammate before merging: not chosen, because the plan of Section 23 has no spare week.
 
 **Consequences.** Review records under this exception name the owner as the reviewer, so they are no evidence that another member has read the code (27.7). The findings and fixes listed in each pull request make each review checkable afterwards. ADR-019 remains the record for pull request #1.
+
+---
+
+### ADR-029: Local storage, PDF only, admins read everything, no student uploads (D8, D9, D15, D16)
+
+Date 2026-10-26, status accepted. The team keeps the four specification defaults that Phase 2 needs.
+
+**Context.** Phase 2 needs four register items (specification 26): where files are stored (D8), which formats are accepted (D9), what admins may read (D15) and whether students may upload (D16).
+
+**Decision.**
+
+- D8: files are stored on a local volume, behind the `FileStorage` interface (4.4), under generated keys (DOC-2). The Compose stack mounts a named volume for them.
+- D9: PDF only. `app.upload` has no allowed-types setting: the content check is written for PDF, so a second type needs code anyway, and a setting with only one value that works would be misleading. Specification 18 was corrected.
+- D15: admins read every document (the Admin column of the access matrix), but not other users' conversations (Phase 6).
+- D16: students cannot upload. Upload requires ADMIN or FACULTY by URL rule and by method security; a student gets `403` and an `ACCESS_DENIED` entry.
+
+**Alternatives.** S3-compatible storage: T3, and MinIO's community edition is archived (3.3). Word or plain-text files: they need another extractor and their own page model, which T1 does not need. Student uploads: they would put unreviewed files into the shared corpus.
+
+**Consequences.** Backups of the Compose stack must include the files volume as well as the database volume. Moving to S3-compatible storage later means a second `FileStorage` implementation and no change to callers.
+
+---
+
+### ADR-030: Specification corrections for Phase 2
+
+Date 2026-10-26, status accepted. It settles open issues S7, S8, S9, S10 and the Phase 2 tables of S3.
+
+**Context.** Checking the specification before Phase 0 found gaps that Phase 2 must settle (`docs/PROGRESS.md`, open specification issues).
+
+**Decision.**
+
+- S3, Phase 2 tables. `document_grant` rows are replaced as a set and never changed, so the table has `created_at` and no `updated_at`. One grant per document and grantee is a unique constraint with `NULLS NOT DISTINCT` over `(document_id, grantee_type, grantee_role, grantee_user_id)`. `document.owner_id` is `ON DELETE RESTRICT`, because users are never deleted (AUTH-11); `document_grant.created_by` is `ON DELETE SET NULL`. DOC-2's duplicate rule is the unique constraint `(owner_id, sha256)`, which also serves the lookups by owner; the separate indexes on `document(owner_id)`, `document(sha256)` and `document_grant(document_id)` are dropped from 7.4 as redundant.
+- S7, status machine. `PROCESSING -> UPLOADED` is legal, but only for the stuck-job recovery of ING-2, never through the API. Reprocess resets the attempt counter, because it is a person's decision to try again and the counter exists to stop crash loops. When recovery runs out of attempts, the document becomes `FAILED` with the new code `PROCESSING_TIMEOUT`. Reprocessing a document that is `UPLOADED` or `PROCESSING` answers `409` with the code `INVALID_STATUS`. `EMPTY`, `UNSUPPORTED_TYPE` and `ENCRYPTED` are caught at upload; ingestion uses them only when the stored file no longer passes the same check.
+- S8, access matrix. The Admin and Faculty A cells of D5 and D6 are "read, not retrievable", because ACL-4 applies to everyone. D5 keeps leftover chunks once `document_chunk` exists (Phase 3), so the retrieval tests prove the status filter.
+- S9, 403 or 404. A user who can read a document but not manage it gets `403` for a manage action, with an `ACCESS_DENIED` entry: the document's existence is already known to them. A user who cannot read it gets `404` and no entry (ACL-8, ADR-024). Manage rights belong to ADMIN and to the owner while the owner is FACULTY; a demoted owner keeps read access through ACL-1 but no longer manages.
+- S10, reprocess. `POST /documents/{id}/reprocess` is built in Phase 2: the status change, the counter reset and the `DOCUMENT_REPROCESSED` entry. It gives the test "illegal status transitions are rejected" a real endpoint. Its button arrives with Phase 3, when a document can reach `FAILED` or `INDEXED` in a running system.
+
+**Alternatives.**
+
+- `ON DELETE CASCADE` on `document.owner_id`: rejected, deleting an account would silently delete institutional documents.
+- Keeping the attempt counter across reprocess: rejected, a document that once hit the limit could never be tried again. `INTERNAL` for exhausted attempts: rejected, it mixes a resource problem with real bugs in the failures-by-code figure (14.3). Accepting reprocess while a run is queued or running: rejected, two runs would race on one document.
+- Letting owners and admins retrieve failed or archived documents: rejected, it contradicts ACL-4 and DOC-11.
+- `404` for readable but unmanageable documents: rejected, it would tell someone looking at a document that it does not exist. Manage rights from ownership alone: rejected, a demoted account could keep sharing documents it no longer should control.
+- Leaving reprocess to Phase 3: rejected, the transition rules would have no endpoint to test in Phase 2.
+
+**Consequences.** Specification 5.2 (ACL-2), 5.4, 7.2, 7.4, 8.1 (DOC-1, DOC-7, DOC-9, DOC-10), 8.2, 8.3, 9.2 (ING-2, ING-4), 15.1, 15.2, 18, 23 and 26 were corrected. The `failure_code` check constraint lists `PROCESSING_TIMEOUT` from the start, so Phase 3 needs no migration for it.
+
+---
+
+### ADR-031: Upload, storage and download
+
+Date 2026-10-26, status accepted.
+
+**Context.** DOC-1 to DOC-9 leave open how the type is checked, how an encrypted PDF is treated, how metadata travels with the file, how a failed file deletion survives a restart, and how the SPA downloads a file and shows upload progress while the access token lives only in memory (AUTH-6). Specification 4.5 forbids holding a transaction across file I/O.
+
+**Decision.**
+
+- Content check: the file must start with `%PDF-` and PDFBox must open it. A file that needs a password to open is rejected at upload with `400` and the code `PDF_ENCRYPTED`; a file protected only by an owner password opens and is accepted. The check runs before anything is stored. Add `org.apache.pdfbox:pdfbox` 3.0.8 (released 2026-07-15, Apache-2.0, maintained by the Apache PDFBox project), pinned in `backend/pom.xml` because Spring Boot does not manage it. Spring AI 2.0.2's PDF reader depends on PDFBox 3.0.7, so Phase 3 stays on the same line. The tests generate their fixture PDFs with it (19.1).
+- Upload request: a multipart request with a `file` part and a `metadata` part in JSON (title, description, category, document date, grants), validated with Bean Validation like every other request body.
+- Order of work: check the file and compute its SHA-256 without a transaction, store it under a generated key, then insert the row, its grants and the audit entry in one short transaction. The unique constraint `(owner_id, sha256)` decides concurrent duplicates; when the insert fails, the stored file is removed. A duplicate answers `409` with the code `DUPLICATE_DOCUMENT` and the existing document's id.
+- Deletion: the transaction that deletes the rows also inserts the file's key into `storage_deletion`. After commit the file is deleted and its row removed; a scheduled task retries the rows that remain, so a failed deletion survives a restart.
+- Download: `GET /documents/{id}/content` checks access and writes the audit entry in a short transaction, then streams the file with no transaction, with `Content-Disposition: attachment` built by Spring's `ContentDisposition` from a sanitized filename, `X-Content-Type-Options: nosniff` and `Cache-Control: no-store` (a revoked grant must not be served from a cache, ACL-7). The SPA fetches it with the bearer token and saves the blob.
+- Upload progress: the SPA sends the upload with `XMLHttpRequest`, which reports upload progress; `fetch` does not. It uses the same in-memory token and the same single silent refresh as every other call.
+- `PATCH /documents/{id}` replaces title, description, category and document date together, sets `archived`, or both. Archiving and unarchiving are both recorded as `DOCUMENT_ARCHIVED` with the new value.
+- `GET /meta` also returns the upload limit, so the SPA's client-side size check (UI-4) uses the server's value.
+- nginx accepts request bodies up to 30 MB, slightly above the 25 MB file limit plus the multipart overhead, so the backend's Problem Details answer the oversized case; nginx's own `413`, for anything larger, is rewritten as Problem Details too.
+
+**Alternatives.** Accepting encrypted files and failing them in ingestion: rejected, the uploader would learn of the problem only after processing. Checking the extension or the client's content type: rejected by DOC-1. Flat form fields for metadata: rejected, grants would need an encoding of their own and validation would differ from the JSON endpoints. Deleting the file inside the transaction: rejected, a rollback cannot bring the file back. Retrying deletions from memory: rejected, a restart forgets them. A sweep that compares the volume with the table: rejected, it must guess which files belong to uploads still in progress. Signed download URLs: rejected, they add a second kind of token, and tokens in URLs end up in logs and history. A plain link to the file: impossible, a link cannot carry an in-memory token.
+
+**Consequences.** One more backend dependency to keep current. A crash between storing a file and inserting its row leaves an unreferenced file on the volume; nothing removes it yet (listed under known issues). Raising `APP_UPLOAD_MAX_FILE_SIZE` above about 29 MB also needs nginx's `client_max_body_size` raised.
+
+---
+
+### ADR-032: One member builds every phase
+
+Date 2026-10-26, status accepted as a standing exception to specification 24.1. It supersedes ADR-026, which covered Phase 1 only.
+
+**Context.** Specification 24.1 splits the work by area among the members. ADR-026 recorded that Uttkarsh built Phase 1 alone because the other members were not available. They are still not available, and the owner has decided to build every phase alone.
+
+**Decision.** Uttkarsh builds every phase: backend, security, database, screens, Docker and CI changes, and the documentation. Reviews follow ADR-028.
+
+**Alternatives.** A new exception for each phase, as ADR-026 did: rejected, it repeats one decision. Waiting for the other members: not chosen, the plan of Section 23 has no spare week.
+
+**Consequences.** Every commit is evidence of Uttkarsh's work only (27.7). If another member joins, a new record states which areas they take over from then on.

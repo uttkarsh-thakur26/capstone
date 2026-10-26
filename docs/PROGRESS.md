@@ -1,23 +1,14 @@
 # Progress
 
-Updated 2026-10-14. Format: specification Section 24.8.
+Updated 2026-10-26. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 1, authentication and roles: every exit criterion is met; the phase is not closed yet.** Built on branch `feat/auth-roles` entirely by Uttkarsh, because the other members are not available yet (ADR-026, a recorded exception to 24.1). Report: [phase-reports/phase-1.md](phase-reports/phase-1.md).
+**Phase 2, document management: in progress** on branch `feat/phase-2-documents`.
 
-Evidence (2026-10-07, last code commit `1ce5d59`): `./mvnw verify` passes with 107 tests, the frontend checks with 39 tests, a clean clone passes all of them and starts with the README quickstart, and the browser checks of exit criteria 3 and 4 passed in Chromium 152 (`docs/testing.md`, TC-1-01 to TC-1-25 and TC-1-M01 to TC-1-M07). The refresh cookie was checked by hand in Firefox 153, the demonstration browser (TC-1-M02). After the six fixes of the independent review (2026-10-14, last code commit `a3bab16`): 110 backend and 41 frontend tests pass, and the Compose stack starts with schema validation on and passes the CI sign-in script (TC-1-26, TC-1-27, TC-1-M08).
-
-To close Phase 1:
-
-1. Done: pull request [#2](https://github.com/uttkarsh-thakur26/capstone/pull/2) is open.
-2. Open: CI green on the pull request, including the new sign-in step of the stack job.
-3. Open: review under ADR-028, the standing exception to 24.2 while no teammate can review. The independent review in a fresh session found six gaps, each fixed in its own commit and listed in the pull request; the owner's review is still to be recorded there.
-4. Open: merge, then mark Phase 1 done here.
+Phase 1 is done: pull request [#2](https://github.com/uttkarsh-thakur26/capstone/pull/2) was merged into `main` on 2026-10-14 (merge commit `70b2041`) with every CI check green, 110 backend and 41 frontend tests passing. Report: [phase-reports/phase-1.md](phase-reports/phase-1.md). Decisions taken for that phase: D7 (ADR-020), D18 (ADR-021), password hashing (ADR-022), error model (ADR-023), audit log (ADR-024), specification corrections (ADR-025), one member builds the phase (ADR-026), frontend libraries (ADR-027).
 
 Suggested before the demonstration: run Appendix B step 1 by hand in Firefox (sign in as the bootstrap admin, promote a registered user to FACULTY). The screens were checked in Chromium only.
-
-Decisions taken for this phase: D7 (ADR-020), D18 (ADR-021), password hashing (ADR-022), error model (ADR-023), audit log (ADR-024), specification corrections (ADR-025), one member builds the phase (ADR-026), frontend libraries (ADR-027).
 
 Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone/pull/1) was merged into `main` on 2026-10-07 (merge commit `4b51372`). Report: [phase-reports/phase-0.md](phase-reports/phase-0.md).
 
@@ -26,8 +17,8 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 | Phase | Name | Status | Date |
 |---|---|---|---|
 | 0 | Foundation | Done. All exit criteria met, CI green, reviewed by the owner (ADR-019), merged in `4b51372` | 2026-10-07 |
-| 1 | Authentication and roles | All exit criteria met with evidence; pushed, independent review fixed; awaiting CI, the owner's review and merge | 2026-10-14 |
-| 2 | Document management | Not started | |
+| 1 | Authentication and roles | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `70b2041` | 2026-10-14 |
+| 2 | Document management | In progress | |
 | 3 | Ingestion and indexing | Not started | |
 | 4 | Retrieval and semantic search | Not started | |
 | 5 | Grounded question answering | Not started | |
@@ -56,6 +47,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 
 ## Known issues
 
+- `docs/api.md` (error codes, ADR-023) and `docs/testing.md` (test cases, 19.4) are current only to the end of Phase 1. They are caught up when the owner asks for the documents.
 - Backend tests need Docker running; without it they fail with "Could not find a valid Docker environment".
 - On JDK 25, Mockito attaches itself as an agent during tests, which the JDK warns will be refused in a future release. It happens in every backend run, although no test creates a mock, because Spring Boot's test support loads Mockito. Fix: pass Mockito as `-javaagent` in the Surefire `argLine`.
 - Ports 3000 and 5432 on `127.0.0.1` must be free for the Compose stack; a local PostgreSQL on 5432 clashes.

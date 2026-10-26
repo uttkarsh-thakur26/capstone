@@ -9,3 +9,11 @@ app:
   bootstrap-admin:
     email: admin@test.invalid
     password: test-only-admin-password
+  storage:
+    # Removed by `mvn clean` together with the rest of the build output.
+    root: target/test-files
+    # Tests call the retry themselves; a timed run in the middle of one would race with it.
+    cleanup-interval: 1h
+  upload:
+    # Small, so the oversized-file test needs no large file. The 25MB default is tested on its own.
+    max-file-size: 256KB

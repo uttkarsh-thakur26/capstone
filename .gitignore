@@ -6,6 +6,9 @@
 # Backend build output
 backend/target/
 
+# Uploaded files of the backend started on the host in development mode
+/data/
+
 # Frontend dependencies and build output
 node_modules/
 frontend/dist/

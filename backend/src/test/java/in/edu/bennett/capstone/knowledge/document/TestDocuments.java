@@ -10,6 +10,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -55,6 +56,17 @@ public final class TestDocuments {
         {"title": "%s", "grants": %s}
         """
         .formatted(title, grantsJson);
+  }
+
+  /** A request with the bearer token and, unless null, a JSON body. */
+  public static MvcTestResult send(
+      MockMvcTester mvc, Session session, HttpMethod method, String uri, String json) {
+    MockMvcTester.MockMvcRequestBuilder request =
+        mvc.method(method).uri(URI.create(uri)).header(HttpHeaders.AUTHORIZATION, session.bearer());
+    if (json != null) {
+      request.contentType(MediaType.APPLICATION_JSON).content(json);
+    }
+    return request.exchange();
   }
 
   /** A GET with the bearer token. The URI is used as written, so it must already be encoded. */

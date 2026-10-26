@@ -5,6 +5,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSourceResolvable;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -70,6 +71,21 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(AccessDeniedException.class)
   ResponseEntity<Object> handleAccessDenied(AccessDeniedException ex, WebRequest request) {
     return problem(ex, HttpStatus.FORBIDDEN, "You are not allowed to do this.", request);
+  }
+
+  /**
+   * Two requests changed the same row at the same time, and the row version let only the first
+   * succeed (DATA-3). The client reloads and tries again.
+   */
+  @ExceptionHandler(OptimisticLockingFailureException.class)
+  ResponseEntity<Object> handleConcurrentChange(
+      OptimisticLockingFailureException ex, WebRequest request) {
+    ProblemDetail problem =
+        ProblemDetail.forStatusAndDetail(
+            HttpStatus.CONFLICT,
+            "It was changed by someone else at the same time. Reload it and try again.");
+    problem.setProperty("code", "CONCURRENT_CHANGE");
+    return handleExceptionInternal(ex, problem, new HttpHeaders(), HttpStatus.CONFLICT, request);
   }
 
   /** Anything not mapped above is a bug: log it, and tell the client nothing about it. */

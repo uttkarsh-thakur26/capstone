@@ -20,10 +20,13 @@ import java.nio.file.Path;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -241,6 +244,129 @@ public class DocumentService {
         document.getOriginalFilename(),
         document.getContentType(),
         document.getSizeBytes());
+  }
+
+  /**
+   * DOC-7, DOC-11: replaces the metadata, archives or brings back a document, or both. Archiving
+   * and bringing back are both recorded as {@code DOCUMENT_ARCHIVED} with the new value.
+   */
+  @Transactional
+  public DocumentResponse update(CurrentUser user, UUID id, UpdateDocumentRequest change) {
+    DocumentMetadata after = change.metadata();
+    Document document =
+        manageable(
+            user, id, after != null ? AuditAction.DOCUMENT_UPDATED : AuditAction.DOCUMENT_ARCHIVED);
+    if (after != null) {
+      List<String> changed = changedFields(metadataOf(document), after);
+      if (!changed.isEmpty()) {
+        document.describe(after);
+        audit.record(
+            event(AuditAction.DOCUMENT_UPDATED, AuditOutcome.SUCCESS, user, id)
+                .withDetails(Map.of("changed", changed)));
+      }
+    }
+    if (change.archived() != null && change.archived() != document.isArchived()) {
+      document.setArchived(change.archived());
+      audit.record(
+          event(AuditAction.DOCUMENT_ARCHIVED, AuditOutcome.SUCCESS, user, id)
+              .withDetails(Map.of("archived", change.archived())));
+    }
+    // Writes now, so a concurrent change fails here on row_version (DATA-3) and the response
+    // carries the new updatedAt.
+    documents.flush();
+    log.info("User {} updated document {}", user.id(), id);
+    return response(document, user);
+  }
+
+  /**
+   * DOC-10: sends a {@code FAILED} or {@code INDEXED} document back for processing, with a fresh
+   * attempt counter (ADR-030). One that is {@code UPLOADED} or {@code PROCESSING} is already queued
+   * or running, so the request is refused rather than starting a second run.
+   */
+  @Transactional
+  public DocumentResponse reprocess(CurrentUser user, UUID id) {
+    Document document = manageable(user, id, AuditAction.DOCUMENT_REPROCESSED);
+    DocumentStatus from = document.getStatus();
+    if (!from.canBeReprocessed()) {
+      throw new ApiException(
+          HttpStatus.CONFLICT,
+          "INVALID_STATUS",
+          "Only a document that is indexed or failed can be processed again; this one is "
+              + from.name().toLowerCase(Locale.ROOT)
+              + ".");
+    }
+    document.reprocess();
+    audit.record(
+        event(AuditAction.DOCUMENT_REPROCESSED, AuditOutcome.SUCCESS, user, id)
+            .withDetails(Map.of("from", from.name())));
+    documents.flush();
+    log.info("User {} sent document {} back for processing", user.id(), id);
+    return response(document, user);
+  }
+
+  /**
+   * DOC-9, DATA-2: removes the document's rows in one transaction (its grants go with it through
+   * the foreign key), together with its audit entry and the record that its file must go. The file
+   * is deleted after the commit, outside the transaction; if that fails, the cleanup task retries
+   * it (ADR-031).
+   */
+  public void delete(CurrentUser user, UUID id) {
+    String storageKey =
+        transactions.execute(
+            status -> {
+              Document document = manageable(user, id, AuditAction.DOCUMENT_DELETED);
+              documents.delete(document);
+              documents.flush();
+              deletions.enqueue(document.getStorageKey());
+              audit.record(
+                  event(AuditAction.DOCUMENT_DELETED, AuditOutcome.SUCCESS, user, id)
+                      .withDetails(Map.of("title", document.getTitle())));
+              return document.getStorageKey();
+            });
+    deletions.deleteEnqueued(storageKey);
+    log.info("User {} deleted document {}", user.id(), id);
+  }
+
+  /**
+   * ACL-2 after ACL-E1: a document the user cannot read is a 404 like any missing one; one they can
+   * read but not manage is a 403, recorded as {@code ACCESS_DENIED} (ADR-030). The entry is written
+   * in its own transaction, so the refused request's rollback keeps it.
+   */
+  private Document manageable(CurrentUser user, UUID id, AuditAction attempted) {
+    Document document = readable(user, id);
+    if (!policy.canManage(document, user)) {
+      audit.recordSeparately(
+          event(AuditAction.ACCESS_DENIED, AuditOutcome.DENIED, user, id)
+              .withDetails(Map.of("attempted", attempted.name())));
+      throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "You are not allowed to do this.");
+    }
+    return document;
+  }
+
+  private static DocumentMetadata metadataOf(Document document) {
+    return new DocumentMetadata(
+        document.getTitle(),
+        document.getDescription(),
+        document.getCategory(),
+        document.getDocumentDate());
+  }
+
+  /** The names of the fields that differ, for the audit entry. Never their values. */
+  private static List<String> changedFields(DocumentMetadata before, DocumentMetadata after) {
+    List<String> changed = new ArrayList<>();
+    if (!Objects.equals(before.title(), after.title())) {
+      changed.add("title");
+    }
+    if (!Objects.equals(before.description(), after.description())) {
+      changed.add("description");
+    }
+    if (!Objects.equals(before.category(), after.category())) {
+      changed.add("category");
+    }
+    if (!Objects.equals(before.documentDate(), after.documentDate())) {
+      changed.add("documentDate");
+    }
+    return changed;
   }
 
   /**

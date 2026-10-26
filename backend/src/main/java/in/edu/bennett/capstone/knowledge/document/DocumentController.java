@@ -20,9 +20,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -79,6 +82,33 @@ class DocumentController {
   @GetMapping(path = "/api/v1/documents/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
   DocumentResponse get(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id) {
     return documents.get(user, id);
+  }
+
+  /** DOC-7, DOC-11: owner or admin (ACL-2). A reader who cannot manage it gets 403. */
+  @PatchMapping(
+      path = "/api/v1/documents/{id}",
+      consumes = MediaType.APPLICATION_JSON_VALUE,
+      produces = MediaType.APPLICATION_JSON_VALUE)
+  DocumentResponse update(
+      @AuthenticationPrincipal CurrentUser user,
+      @PathVariable UUID id,
+      @Valid @RequestBody UpdateDocumentRequest change) {
+    return documents.update(user, id, change);
+  }
+
+  /** DOC-10: back to {@code UPLOADED} from {@code FAILED} or {@code INDEXED}. */
+  @PostMapping(
+      path = "/api/v1/documents/{id}/reprocess",
+      produces = MediaType.APPLICATION_JSON_VALUE)
+  DocumentResponse reprocess(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id) {
+    return documents.reprocess(user, id);
+  }
+
+  /** DOC-9: the rows now, the stored file right after the commit. */
+  @DeleteMapping("/api/v1/documents/{id}")
+  ResponseEntity<Void> delete(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id) {
+    documents.delete(user, id);
+    return ResponseEntity.noContent().build();
   }
 
   /**

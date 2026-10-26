@@ -5,10 +5,12 @@ import in.edu.bennett.capstone.knowledge.audit.AuditEvent;
 import in.edu.bennett.capstone.knowledge.audit.AuditOutcome;
 import in.edu.bennett.capstone.knowledge.audit.AuditService;
 import in.edu.bennett.capstone.knowledge.common.ApiException;
+import in.edu.bennett.capstone.knowledge.common.PageResponse;
 import in.edu.bennett.capstone.knowledge.security.CurrentUser;
 import in.edu.bennett.capstone.knowledge.storage.FileDeletionQueue;
 import in.edu.bennett.capstone.knowledge.storage.FileStorage;
 import in.edu.bennett.capstone.knowledge.user.UserService;
+import in.edu.bennett.capstone.knowledge.user.UserSummary;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,11 +30,14 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -178,6 +183,97 @@ public class DocumentService {
     }
   }
 
+  /** Columns the document list may be sorted by: API name to entity property (SEC-7). */
+  private static final Map<String, String> SORTABLE =
+      Map.of(
+          "title", "title",
+          "category", "category",
+          "documentDate", "documentDate",
+          "status", "status",
+          "createdAt", "createdAt");
+
+  /**
+   * DOC-4: the documents the user can read, filtered, sorted and paged. One query returns the page
+   * and one counts the matches; both carry the readable predicate, so the total never counts a
+   * document the user cannot read (ACL-E2, ACL-8).
+   */
+  @Transactional(readOnly = true)
+  public PageResponse<DocumentSummaryResponse> list(
+      CurrentUser user, DocumentQuery query, int page, int size, String sort) {
+    Page<Document> found =
+        documents.findAll(
+            policy.readableBy(user).and(query.toSpecification(user.id())),
+            PageResponse.request(
+                page,
+                size,
+                sort,
+                SORTABLE,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id"))));
+    Map<UUID, UserSummary> owners = users.findSummaries(found.map(Document::getOwnerId).toSet());
+    return PageResponse.of(
+        found.map(document -> DocumentSummaryResponse.of(document, ownerName(owners, document))));
+  }
+
+  /** DOC-5: the detail of a document the user can read. */
+  @Transactional(readOnly = true)
+  public DocumentResponse get(CurrentUser user, UUID id) {
+    Document document = readable(user, id);
+    return response(document, user);
+  }
+
+  /**
+   * DOC-6: opens the file of a document the user can read and records the download. The access
+   * check runs in its own short read transaction, and no transaction is open while the file is read
+   * (4.5). The caller streams and closes the content.
+   */
+  DocumentFile download(CurrentUser user, UUID id) {
+    Document document = readable(user, id);
+    InputStream content = storage.open(document.getStorageKey());
+    try {
+      audit.record(
+          event(AuditAction.DOCUMENT_DOWNLOADED, AuditOutcome.SUCCESS, user, document.getId()));
+    } catch (RuntimeException e) {
+      closeQuietly(content);
+      throw e;
+    }
+    return new DocumentFile(
+        content,
+        document.getOriginalFilename(),
+        document.getContentType(),
+        document.getSizeBytes());
+  }
+
+  /**
+   * ACL-E1, ACL-8: the document, found with the readable predicate in the same query. A document
+   * that exists but is not readable is never loaded, so it fails exactly like a missing one: the
+   * same query, the same 404, and no audit entry (ADR-024).
+   */
+  private Document readable(CurrentUser user, UUID id) {
+    return documents
+        .findOne(
+            policy.readableBy(user).and((document, query, cb) -> cb.equal(document.get("id"), id)))
+        .orElseThrow(DocumentService::notFound);
+  }
+
+  private DocumentResponse response(Document document, CurrentUser user) {
+    String ownerName =
+        document.getOwnerId().equals(user.id())
+            ? user.displayName()
+            : ownerName(users.findSummaries(Set.of(document.getOwnerId())), document);
+    return DocumentResponse.of(document, ownerName, policy.canManage(document, user));
+  }
+
+  private static String ownerName(Map<UUID, UserSummary> owners, Document document) {
+    UserSummary owner = owners.get(document.getOwnerId());
+    // Owners cannot be deleted (ADR-030), so this is only a guard.
+    return owner == null ? "Unknown user" : owner.displayName();
+  }
+
+  static ApiException notFound() {
+    return new ApiException(
+        HttpStatus.NOT_FOUND, "NOT_FOUND", "The requested resource does not exist.");
+  }
+
   /**
    * The grants of a request, without duplicates. Every named user must exist; a grant to a missing
    * user would silently grant nothing.
@@ -258,6 +354,14 @@ public class DocumentService {
       return Files.createTempFile("upload-", ".pdf");
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    }
+  }
+
+  private static void closeQuietly(InputStream content) {
+    try {
+      content.close();
+    } catch (IOException e) {
+      log.warn("Could not close a stored file", e);
     }
   }
 

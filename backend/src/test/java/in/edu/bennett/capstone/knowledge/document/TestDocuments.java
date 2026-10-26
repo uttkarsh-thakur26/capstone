@@ -6,6 +6,7 @@ import com.jayway.jsonpath.JsonPath;
 import in.edu.bennett.capstone.knowledge.TestAccounts;
 import in.edu.bennett.capstone.knowledge.TestAccounts.Session;
 import in.edu.bennett.capstone.knowledge.TestPdfs;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.springframework.http.HttpHeaders;
@@ -56,7 +57,11 @@ public final class TestDocuments {
         .formatted(title, grantsJson);
   }
 
+  /** A GET with the bearer token. The URI is used as written, so it must already be encoded. */
   public static MvcTestResult get(MockMvcTester mvc, Session session, String uri) {
-    return mvc.get().uri(uri).header(HttpHeaders.AUTHORIZATION, session.bearer()).exchange();
+    return mvc.get()
+        .uri(URI.create(uri))
+        .header(HttpHeaders.AUTHORIZATION, session.bearer())
+        .exchange();
   }
 }

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -33,11 +34,28 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
   private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
+  /** The same code as the upload's own size check, so the client sees one code either way. */
+  private static final String FILE_TOO_LARGE = "FILE_TOO_LARGE";
+
   @ExceptionHandler(ApiException.class)
   ResponseEntity<Object> handleApiException(ApiException ex, WebRequest request) {
     ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
+    ex.properties().forEach(problem::setProperty);
     problem.setProperty("code", ex.code());
     return handleExceptionInternal(ex, problem, new HttpHeaders(), ex.status(), request);
+  }
+
+  /** A multipart request above the configured limit (DOC-1), stopped before the controller runs. */
+  @Override
+  protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+      MaxUploadSizeExceededException ex,
+      HttpHeaders headers,
+      HttpStatusCode status,
+      WebRequest request) {
+    ProblemDetail problem =
+        ProblemDetail.forStatusAndDetail(status, "The file is larger than the upload limit.");
+    problem.setProperty("code", FILE_TOO_LARGE);
+    return handleExceptionInternal(ex, problem, headers, status, request);
   }
 
   @ExceptionHandler(AuthenticationException.class)

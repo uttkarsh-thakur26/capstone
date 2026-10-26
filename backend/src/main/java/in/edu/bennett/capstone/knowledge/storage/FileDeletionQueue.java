@@ -54,8 +54,8 @@ public class FileDeletionQueue {
   }
 
   /**
-   * Deletes a file that no row points at, for example after a failed insert. If that fails, the
-   * key is recorded so the cleanup task retries it.
+   * Deletes a file that no row points at, for example after a failed insert. If that fails, the key
+   * is recorded so the cleanup task retries it.
    */
   public void deleteOrRetryLater(String key) {
     try {
@@ -68,8 +68,7 @@ public class FileDeletionQueue {
   /** The cleanup task: tries every recorded deletion again, oldest first. */
   public void retryPending() {
     List<String> keys =
-        jdbc.sql(
-                "SELECT storage_key FROM storage_deletion ORDER BY requested_at, id LIMIT :limit")
+        jdbc.sql("SELECT storage_key FROM storage_deletion ORDER BY requested_at, id LIMIT :limit")
             .param("limit", RETRY_BATCH)
             .query(String.class)
             .list();

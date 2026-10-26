@@ -28,7 +28,9 @@ class StorageConfig implements SchedulingConfigurer {
     return new LocalFileStorage(Path.of(properties.root()));
   }
 
-  /** DOC-9: failed deletions are retried every interval, the first time one interval after start. */
+  /**
+   * DOC-9: failed deletions are retried every interval, the first time one interval after start.
+   */
   @Override
   public void configureTasks(ScheduledTaskRegistrar registrar) {
     Duration interval = properties.cleanupInterval();

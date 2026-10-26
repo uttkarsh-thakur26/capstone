@@ -15,8 +15,8 @@ public enum DocumentStatus {
   FAILED;
 
   /**
-   * Every legal transition. {@code PROCESSING -> UPLOADED} is the stuck-job recovery of ING-2 and is
-   * never offered through the API; reprocess starts from {@code FAILED} or {@code INDEXED} only.
+   * Every legal transition. {@code PROCESSING -> UPLOADED} is the stuck-job recovery of ING-2 and
+   * is never offered through the API; reprocess starts from {@code FAILED} or {@code INDEXED} only.
    */
   private static final Map<DocumentStatus, Set<DocumentStatus>> NEXT =
       Map.of(

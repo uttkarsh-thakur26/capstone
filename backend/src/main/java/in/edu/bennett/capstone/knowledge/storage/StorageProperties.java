@@ -10,8 +10,8 @@ import org.springframework.validation.annotation.Validated;
 /**
  * File storage settings (specification 18, {@code app.storage}).
  *
- * @param root the directory that holds the files. Required: an empty value would otherwise mean
- *     the working directory.
+ * @param root the directory that holds the files. Required: an empty value would otherwise mean the
+ *     working directory.
  * @param cleanupInterval how often deletions that failed are tried again (DOC-9)
  */
 @Validated

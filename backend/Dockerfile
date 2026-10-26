@@ -15,6 +15,9 @@ RUN --mount=type=cache,target=/root/.m2 \
 # Runtime: JRE only, non-root user, one layer per rate of change.
 FROM eclipse-temurin:25.0.4.1_1-jre
 RUN useradd --system --no-create-home --uid 10001 app
+# The files volume is mounted here. A new named volume takes this directory's owner, so the
+# non-root user can write uploads to it (D8, ADR-029).
+RUN mkdir -p /var/lib/knowledge-platform/files && chown app /var/lib/knowledge-platform/files
 WORKDIR /application
 COPY --from=build /workspace/extracted/dependencies/ ./
 COPY --from=build /workspace/extracted/spring-boot-loader/ ./

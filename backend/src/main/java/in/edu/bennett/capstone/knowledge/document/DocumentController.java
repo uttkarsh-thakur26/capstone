@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -102,6 +103,24 @@ class DocumentController {
       produces = MediaType.APPLICATION_JSON_VALUE)
   DocumentResponse reprocess(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id) {
     return documents.reprocess(user, id);
+  }
+
+  /** DOC-8: owner and admins only (ACL-2). */
+  @GetMapping(path = "/api/v1/documents/{id}/grants", produces = MediaType.APPLICATION_JSON_VALUE)
+  GrantsResponse grants(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id) {
+    return documents.grants(user, id);
+  }
+
+  /** DOC-8: replaces the whole set; it applies to everyone's next request (ACL-7). */
+  @PutMapping(
+      path = "/api/v1/documents/{id}/grants",
+      consumes = MediaType.APPLICATION_JSON_VALUE,
+      produces = MediaType.APPLICATION_JSON_VALUE)
+  GrantsResponse replaceGrants(
+      @AuthenticationPrincipal CurrentUser user,
+      @PathVariable UUID id,
+      @Valid @RequestBody UpdateGrantsRequest request) {
+    return documents.replaceGrants(user, id, request);
   }
 
   /** DOC-9: the rows now, the stored file right after the commit. */

@@ -255,7 +255,9 @@ public class DocumentService {
     DocumentMetadata after = change.metadata();
     Document document =
         manageable(
-            user, id, after != null ? AuditAction.DOCUMENT_UPDATED : AuditAction.DOCUMENT_ARCHIVED);
+            user,
+            id,
+            (after != null ? AuditAction.DOCUMENT_UPDATED : AuditAction.DOCUMENT_ARCHIVED).name());
     if (after != null) {
       List<String> changed = changedFields(metadataOf(document), after);
       if (!changed.isEmpty()) {
@@ -285,7 +287,7 @@ public class DocumentService {
    */
   @Transactional
   public DocumentResponse reprocess(CurrentUser user, UUID id) {
-    Document document = manageable(user, id, AuditAction.DOCUMENT_REPROCESSED);
+    Document document = manageable(user, id, AuditAction.DOCUMENT_REPROCESSED.name());
     DocumentStatus from = document.getStatus();
     if (!from.canBeReprocessed()) {
       throw new ApiException(
@@ -314,7 +316,7 @@ public class DocumentService {
     String storageKey =
         transactions.execute(
             status -> {
-              Document document = manageable(user, id, AuditAction.DOCUMENT_DELETED);
+              Document document = manageable(user, id, AuditAction.DOCUMENT_DELETED.name());
               documents.delete(document);
               documents.flush();
               deletions.enqueue(document.getStorageKey());
@@ -332,12 +334,12 @@ public class DocumentService {
    * read but not manage is a 403, recorded as {@code ACCESS_DENIED} (ADR-030). The entry is written
    * in its own transaction, so the refused request's rollback keeps it.
    */
-  private Document manageable(CurrentUser user, UUID id, AuditAction attempted) {
+  private Document manageable(CurrentUser user, UUID id, String attempted) {
     Document document = readable(user, id);
     if (!policy.canManage(document, user)) {
       audit.recordSeparately(
           event(AuditAction.ACCESS_DENIED, AuditOutcome.DENIED, user, id)
-              .withDetails(Map.of("attempted", attempted.name())));
+              .withDetails(Map.of("attempted", attempted)));
       throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "You are not allowed to do this.");
     }
     return document;
@@ -393,6 +395,61 @@ public class DocumentService {
     UserSummary owner = owners.get(document.getOwnerId());
     // Owners cannot be deleted (ADR-030), so this is only a guard.
     return owner == null ? "Unknown user" : owner.displayName();
+  }
+
+  /** DOC-8: the grants of a document, for its owner and admins only (ACL-2). */
+  @Transactional(readOnly = true)
+  public GrantsResponse grants(CurrentUser user, UUID id) {
+    manageable(user, id, "GRANTS_READ");
+    return grantsResponse(
+        grants.findByDocumentId(id).stream()
+            .map(DocumentGrant::grantee)
+            .sorted(Grantee.ORDER)
+            .toList());
+  }
+
+  /**
+   * DOC-8: replaces the whole set of grants. The change applies to the next request of every user,
+   * because access is checked on every query and never cached (ACL-7). The document's row is
+   * locked, so two replacements of one document's grants run one after the other.
+   */
+  @Transactional
+  public GrantsResponse replaceGrants(CurrentUser user, UUID id, UpdateGrantsRequest request) {
+    manageable(user, id, AuditAction.GRANTS_CHANGED.name());
+    documents.lockById(id);
+    Set<Grantee> after = grantees(request.grants());
+    Set<Grantee> before =
+        grants.findByDocumentId(id).stream()
+            .map(DocumentGrant::grantee)
+            .collect(Collectors.toSet());
+    if (!before.equals(after)) {
+      grants.deleteByDocumentId(id);
+      grants.saveAllAndFlush(
+          after.stream().map(grantee -> new DocumentGrant(id, grantee, user.id())).toList());
+      audit.record(
+          event(AuditAction.GRANTS_CHANGED, AuditOutcome.SUCCESS, user, id)
+              .withDetails(Map.of("before", describe(before), "after", describe(after))));
+      log.info("User {} changed the grants of document {}", user.id(), id);
+    }
+    return grantsResponse(after.stream().sorted(Grantee.ORDER).toList());
+  }
+
+  private GrantsResponse grantsResponse(List<Grantee> grantees) {
+    Map<UUID, UserSummary> people =
+        users.findSummaries(
+            grantees.stream()
+                .filter(grantee -> grantee.type() == GranteeType.USER)
+                .map(Grantee::userId)
+                .toList());
+    return new GrantsResponse(
+        grantees.stream()
+            .map(
+                grantee ->
+                    new GrantResponse(
+                        grantee.type(),
+                        grantee.role(),
+                        grantee.userId() == null ? null : people.get(grantee.userId())))
+            .toList());
   }
 
   static ApiException notFound() {

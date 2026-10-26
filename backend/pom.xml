@@ -37,6 +37,8 @@
 		<springdoc.version>3.1.1</springdoc.version>
 		<!-- Not managed by Spring Boot. Spring Security's Argon2 encoder needs it (ADR-022). -->
 		<bouncycastle.version>1.86</bouncycastle.version>
+		<!-- Not managed by Spring Boot. Checks uploaded PDFs and generates test PDFs; Spring AI's PDF reader uses the 3.0 line too (ADR-031). -->
+		<pdfbox.version>3.0.8</pdfbox.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -81,6 +83,11 @@
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcprov-jdk18on</artifactId>
 			<version>${bouncycastle.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>${pdfbox.version}</version>
 		</dependency>
 
 		<dependency>

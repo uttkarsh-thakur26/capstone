@@ -1,25 +1,24 @@
 # Progress
 
-Updated 2026-10-26. Format: specification Section 24.8.
+Updated 2026-10-27. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 2, document management: every exit criterion is met; the phase is not closed yet.** Branch `feat/phase-2-documents`, built by Uttkarsh (ADR-032).
+**Phase 3, ingestion and indexing: every exit criterion is met; the phase is not closed yet.** Branch `feat/phase-3-ingestion`.
 
-Evidence (2026-10-26):
+Evidence (2026-10-27):
 
-- `./mvnw verify` on `49f9f9f` passes with 273 backend tests and the format check. `DocumentAccessMatrixTest` asserts all 30 cells of the 5.4 fixture (ADR-030) on detail, download and grant management, the list and its total for every user, identical 404 bodies, and a disabled user (97 cases). Breaking the role-grant condition of the readable predicate made 18 of them fail. The "Documents" tests of 19.2 are in `DocumentUploadTest`, `DocumentManagementTest`, `DocumentStatusTest`, `PdfCheckTest` and `FileDeletionQueueTest`.
-- Frontend checks on `0910d94`: 59 tests, lint, type check, build, format. `npm run gen:api` gives no difference.
-- Compose stack (`prod` profile) built from `0ad9ece`, with the commands of the new CI step: a PDF goes up through nginx and comes back byte for byte, a 26 MB upload gets the backend's 413 and a 30 MB one nginx's, both with `FILE_TOO_LARGE`.
-- Browser (Chromium in the desktop app's pane, stack rebuilt from `49f9f9f`): a faculty member uploaded a PDF with no grant; a student did not see it and got 404 on its address; the faculty member granted it to STUDENT; the student then saw it and downloaded it (`GET /content` 200, `DOCUMENT_DOWNLOADED` recorded). A second PDF shared with that student only stayed invisible to another student, with 404 on its address. The file was put into the upload form's file input by a script, because the pane cannot drive the system file picker.
+- `./mvnw verify` on the branch passes with 328 backend tests and the format check. The "Ingestion" tests of 19.2 are in `IngestionPipelineTest`, `IndexCompatibilityCheckTest`, `EmbedderTest` and `IngestionWorkerTest`; the chunker and normalizer have unit tests. Removing `FOR UPDATE SKIP LOCKED` from the claim made the two-workers test fail.
+- Frontend: 62 tests, lint, type check, build, format; `npm run gen:api` adds `TOO_MANY_CHUNKS`.
+- Real model (`qwen3-embedding:0.6b` in Ollama, dev profile): five real course PDFs reached `INDEXED` in 4.3 s (1 to 9 pages, 46 chunks, 1024 dimensions). Comparing each chunk with PDFBox's text of every page: no chunk holds text from outside its stored page range, 38 of 46 ranges are confirmed by text found on one page only, and the other 8 are table chunks whose text repeats on several pages.
+- Kill test (stuck timeout 2 min): a 400-page PDF was claimed at 10:46:33, the JVM was killed with `taskkill /F` during embedding at 10:46:41 (`PROCESSING`, 0 chunk rows), the backend restarted at 10:47:14, recovery returned it to `UPLOADED` with 1 attempt at 10:49:14, and it was `INDEXED` at 10:49:41 (454 chunks).
+- Compose stack (`prod`): the backend container reached Ollama through `host.docker.internal`; in the browser a 300-page upload went from "Processing" to "Ready, 341 passages" on its own.
 
-To close Phase 2:
+To close Phase 3: pull request, CI, the reviews of ADR-028, merge.
 
-1. Done: pull request [#3](https://github.com/uttkarsh-thakur26/capstone/pull/3) is open; CI was green on `7154dff`, including the new upload step of the stack job.
-2. Done: the independent review under ADR-028 (2026-10-27) found one gap in two parts, both fixed with a failing test first: a `PATCH` title of Unicode spaces failed in the database as a 500 (`ea9347f`), and a NUL character in document text or search input failed as a 500 (`4c7beea`). The same NUL problem in the Phase 1 account input, where registration even answered 409 `EMAIL_TAKEN`, was fixed in `c1e3459`. After the fixes, `./mvnw verify` passes with 278 tests.
-3. Open: CI green on the fixes, the owner's review recorded in the pull request, then merge.
+Decisions taken for this phase: D6 (ADR-033), D10, D12 and the Phase 3 corrections S11 to S13 (ADR-034).
 
-Decisions taken for this phase: D8, D9, D15, D16 (ADR-029), specification corrections S3, S7 to S10 (ADR-030), upload, storage and download (ADR-031), one member builds every phase (ADR-032).
+Phase 2 is done: pull request [#3](https://github.com/uttkarsh-thakur26/capstone/pull/3) was merged into `main` on 2026-10-26 (merge commit `2f16711`) with every CI check green and 278 backend tests. Decisions: D8, D9, D15, D16 (ADR-029), S3, S7 to S10 (ADR-030), ADR-031, ADR-032.
 
 Phase 1 is done: pull request [#2](https://github.com/uttkarsh-thakur26/capstone/pull/2) was merged into `main` on 2026-10-14 (merge commit `70b2041`) with every CI check green, 110 backend and 41 frontend tests passing. Report: [phase-reports/phase-1.md](phase-reports/phase-1.md). Decisions taken for that phase: D7 (ADR-020), D18 (ADR-021), password hashing (ADR-022), error model (ADR-023), audit log (ADR-024), specification corrections (ADR-025), one member builds the phase (ADR-026), frontend libraries (ADR-027).
 
@@ -33,8 +32,8 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 |---|---|---|---|
 | 0 | Foundation | Done. All exit criteria met, CI green, reviewed by the owner (ADR-019), merged in `4b51372` | 2026-10-07 |
 | 1 | Authentication and roles | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `70b2041` | 2026-10-14 |
-| 2 | Document management | All exit criteria met with evidence; awaiting pull request, CI, review and merge | 2026-10-26 |
-| 3 | Ingestion and indexing | Not started | |
+| 2 | Document management | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `2f16711` | 2026-10-26 |
+| 3 | Ingestion and indexing | All exit criteria met with evidence; awaiting pull request, CI, review and merge | 2026-10-27 |
 | 4 | Retrieval and semantic search | Not started | |
 | 5 | Grounded question answering | Not started | |
 | 6 | Conversations and citation viewer | Not started | |
@@ -55,7 +54,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 ## Open questions for the team
 
 - D1: the product name. Phase 0 uses the working description through `APP_DISPLAY_NAME`.
-- D5 and D6: provisional chat and embedding model choices, needed for the Milestone-1 proposal.
+- D5: the chat model, needed by Phase 5. D6 is decided (ADR-033).
 - Demonstration browser: Firefox on Windows, with Chrome as the fallback. Both keep the `Secure` refresh cookie on `http://localhost:3000` (checked 2026-10-07, ADR-013).
 - D21: report template and reference style. D22: how stakeholder evidence is collected. Both are due for Milestone-1.
 - Specification 27.8, to ask the guide or coordinator: the Milestone-2 date, the final evaluation date, report length, the final marks split, Milestone-1 and Milestone-2 submission details, prescribed templates, the university rule on plagiarism and responsible AI use (before the Milestone-1 submission), the Milestone 0 approval and Group ID, and whether demo time is inside the presentation slot.
@@ -72,7 +71,12 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - Expired and revoked refresh tokens stay in `refresh_token`; nothing deletes them yet. One row per sign-in and refresh, so the table grows slowly.
 - Throttling of repeated failed sign-ins (AUTH-5) is `[T2]` and not built.
 - The JavaScript bundle is 854 kB (249 kB gzipped) after Phase 2, up from 523 kB, above Vite's 500 kB advisory limit. Splitting routes into separate chunks is left for later.
-- Not built yet, by plan: documents are never processed, so every upload stays `UPLOADED` and the detail page says so. Processing, status polling (UI-4, DOC-12) and the reprocess button come with Phase 3; the reprocess endpoint exists (ADR-030).
+- Text extraction loses table layout and reads two-column pages line by line across both columns (ING-5); table rows become long runs of text.
+- After a crash (not a normal stop) a document being processed waits until its heartbeat is older than the stuck timeout, 5 minutes by default, before it is picked up again.
+- A run that hangs inside PDFBox keeps its thread and its document until the application restarts; nothing interrupts it.
+- The development backend (files in `data/files`) and the Compose backend (files on the `document-files` volume) share the database but not the files. A document uploaded in one mode and processed in the other fails with "The stored file could not be read."
+- The parallel limit (ING-12) is per backend instance; T1 runs one.
+- Spring AI 2.0.2 is built against Boot 4.1.2 and Framework 7.0.10; the project resolves 4.1.1 and 7.0.9 (VERSIONS.md).
 - A crash between storing an uploaded file and inserting its row, or in the middle of writing it (a `.part` file), leaves a file on the volume that no row points at. Nothing removes it yet (ADR-031).
 - One browser profile holds one refresh cookie, so two accounts cannot be signed in at the same time in one browser. A tab whose silent refresh returns another account ends its own session.
 - Branch protection and rulesets are not available on this private repository with the owner's GitHub plan (the API answers 403, "Upgrade to GitHub Pro"). "A red build blocks merging" (19.3) is therefore kept by convention: do not merge a pull request whose checks are not green.
@@ -93,9 +97,9 @@ Found while checking the specification before Phase 0. Each must be settled, and
 | S8 | Access matrix: the Admin and owner cells of D5 (failed) and D6 (archived) say "read", but ACL-4 makes those documents unretrievable for everyone. The fixture does not say that D5 has leftover chunks | 5.4, 5.2 ACL-4, 19.2 | Phase 2 | Resolved, ADR-030 |
 | S9 | 403 or 404 when a user can read a document but not manage it (for example Faculty A on D4), and whether a demoted owner keeps manage rights | 15.1, 5.2 ACL-2, ACL-8 | Phase 2 | Resolved, ADR-030 |
 | S10 | `POST /documents/{id}/reprocess` is a T1 endpoint that no phase builds, but the Phase 3 tests need it | 15.2, 8.1 DOC-10, 23 | Phase 2 | Resolved, ADR-030 |
-| S11 | ING-9 compares only dimensions, so a different model with the same dimension passes; the model name is configured twice; Flyway does not detect a changed dimension placeholder on an existing database | 9.2 ING-9, 18, 7.3 DATA-4 | Phase 3 | Open |
-| S12 | With the in-process ONNX model, the default chunk size of 400 tokens exceeds its 128 word-piece input, so D6 and D10 must be decided together | 3.4, 26 D6, D10, 9.2 ING-7 | Phase 3 | Open |
-| S13 | With virtual threads on, Boot's executor has no concurrency limit, so the ingestion bound (ING-12) needs a dedicated executor | 4.5, 9.2 ING-12 | Phase 3 | Open |
+| S11 | ING-9 compares only dimensions, so a different model with the same dimension passes; the model name is configured twice; Flyway does not detect a changed dimension placeholder on an existing database | 9.2 ING-9, 18, 7.3 DATA-4 | Phase 3 | Resolved, ADR-034 |
+| S12 | With the in-process ONNX model, the default chunk size of 400 tokens exceeds its 128 word-piece input, so D6 and D10 must be decided together | 3.4, 26 D6, D10, 9.2 ING-7 | Phase 3 | Resolved, ADR-033, ADR-034 |
+| S13 | With virtual threads on, Boot's executor has no concurrency limit, so the ingestion bound (ING-12) needs a dedicated executor | 4.5, 9.2 ING-12 | Phase 3 | Resolved, ADR-034 |
 | S14 | Read literally, the query-embedding model call sits inside the read-only retrieval transaction, against 4.5's rule | 4.5, 10 RET-2, RET-3 | Phase 4 | Open |
 | S15 | Creating a conversation and asking in it (`POST /conversations`, `POST /conversations/{id}/messages`) are needed by Phase 5 and by the Phase 7 harness but assigned to no phase | 15.2, 11.1, 23 | Phase 5 | Open |
 | S16 | Retries: RAG-6 allows one retry with a 60-second timeout, but Spring AI's defaults retry up to 10 times, the OpenAI module retries in its SDK, and `validateSchema()` can call the model four times | 11.4 RAG-6, 9.2 ING-8, 3.3 | Phase 5 | Open |

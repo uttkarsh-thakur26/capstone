@@ -5,6 +5,7 @@ import static in.edu.bennett.capstone.knowledge.document.AccessMatrix.Access.REA
 import static in.edu.bennett.capstone.knowledge.document.AccessMatrix.Access.READ_NOT_RETRIEVABLE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import in.edu.bennett.capstone.knowledge.FakeEmbeddingModel;
 import in.edu.bennett.capstone.knowledge.TestAccounts;
 import in.edu.bennett.capstone.knowledge.TestAccounts.Account;
 import in.edu.bennett.capstone.knowledge.TestAccounts.Session;
@@ -25,8 +26,9 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
  * <p>The test database is shared by all integration tests, so the fixture creates its own accounts
  * and puts a marker in every title; a list query scoped by {@link #marker()} sees only these six
  * documents. {@code INDEXED} and {@code FAILED} are set directly in the database, because nothing
- * processes documents yet; the archive of D6 goes through the API. D5's leftover chunks (5.4) are
- * added here once {@code document_chunk} exists (Phase 3).
+ * processes documents in these tests; the archive of D6 goes through the API. Every document gets
+ * one chunk, written directly with the fake model's vector of its text, so the retrieval tests of
+ * Phase 4 have something to exclude; D5 keeps its chunk although it failed, as 5.4 asks.
  */
 public final class AccessMatrix {
 
@@ -152,6 +154,9 @@ public final class AccessMatrix {
             "UPDATE document SET status = 'FAILED', failure_code = 'EXTRACTION_ERROR' WHERE id = :id")
         .param("id", documents.get(Doc.D5))
         .update();
+    for (Doc doc : Doc.values()) {
+      insertChunk(jdbc, documents.get(doc), "Chunk of " + doc + " " + marker);
+    }
     assertThat(
             TestDocuments.send(
                 mvc,
@@ -161,6 +166,33 @@ public final class AccessMatrix {
                 "{\"archived\": true}"))
         .hasStatusOk();
     return new AccessMatrix(marker, accounts, sessions, documents, grants);
+  }
+
+  /** One chunk on page 1, with the vector the fake embedding model gives its text. */
+  public static void insertChunk(JdbcClient jdbc, UUID documentId, String content) {
+    int dimensions =
+        jdbc.sql(
+                """
+                SELECT atttypmod FROM pg_attribute
+                WHERE attrelid = 'document_chunk'::regclass AND attname = 'embedding'
+                """)
+            .query(Integer.class)
+            .single();
+    float[] vector = FakeEmbeddingModel.vectorOf(content, dimensions);
+    StringBuilder text = new StringBuilder("[");
+    for (int i = 0; i < vector.length; i++) {
+      text.append(i == 0 ? "" : ",").append(vector[i]);
+    }
+    jdbc.sql(
+            """
+            INSERT INTO document_chunk (document_id, chunk_index, page_start, page_end, content,
+                token_count, embedding, created_at)
+            VALUES (:id, 0, 1, 1, :content, 8, CAST(:embedding AS vector), now())
+            """)
+        .param("id", documentId)
+        .param("content", content)
+        .param("embedding", text.append(']').toString())
+        .update();
   }
 
   /** Every cell, for parameterized tests. */

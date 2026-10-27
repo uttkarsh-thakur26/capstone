@@ -36,12 +36,14 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-030](#adr-030-specification-corrections-for-phase-2) | | Specification corrections for Phase 2 | Accepted | 2026-10-26 |
 | [ADR-031](#adr-031-upload-storage-and-download) | | Upload, storage and download | Accepted | 2026-10-26 |
 | [ADR-032](#adr-032-one-member-builds-every-phase) | | One member builds every phase | Accepted, standing exception to 24.1; supersedes ADR-026 | 2026-10-26 |
+| [ADR-033](#adr-033-qwen3-embedding06b-through-ollama-on-the-host-d6) | D6 | qwen3-embedding:0.6b through Ollama on the host | Accepted | 2026-10-27 |
+| [ADR-034](#adr-034-specification-corrections-and-design-choices-for-phase-3) | D10, D12 | Specification corrections and design choices for Phase 3 | Accepted | 2026-10-27 |
 
 ---
 
 ### ADR-001: Chunks live in an application-owned table (D12)
 
-Date 2026-10-05, status accepted as the specification default. The team confirms it when Phase 3 starts.
+Date 2026-10-05, status accepted as the specification default. Confirmed when Phase 3 started (ADR-034).
 
 The full record is in `docs/PROJECT_SPEC.md` Section 4.6. In short: chunks and their vectors are stored in the application's own `document_chunk` table and queried with native SQL, so the permission check runs in the same statement as the similarity search. Spring AI's `PgVectorStore` was rejected because access rules would have to be copied into each chunk's metadata.
 
@@ -577,3 +579,29 @@ Date 2026-10-26, status accepted as a standing exception to specification 24.1. 
 **Alternatives.** A new exception for each phase, as ADR-026 did: rejected, it repeats one decision. Waiting for the other members: not chosen, the plan of Section 23 has no spare week.
 
 **Consequences.** Every commit is evidence of Uttkarsh's work only (27.7). If another member joins, a new record states which areas they take over from then on.
+
+---
+
+### ADR-033: qwen3-embedding:0.6b through Ollama on the host (D6)
+
+Date 2026-10-27, accepted. `qwen3-embedding:0.6b` in Ollama on the host (GPU), 1024 dimensions, cosine distance, its instruction prefix on queries only (`app.embedding.query-prefix`), replacing the provisional `nomic-embed-text`; measured on the running model: 1024 dimensions, normalized vectors, and 1.01 to 1.36 Qwen tokens per cl100k token on five real course PDFs.
+
+---
+
+### ADR-034: Specification corrections and design choices for Phase 3
+
+Date 2026-10-27, accepted. One line per decision.
+
+- S11: the model is named once (`app.embedding.model`), and startup refuses a `document_chunk.embedding` dimension or an indexed document's model that differs from the configuration.
+- S12: settled by D6: a 400-token chunk needs at most 600 model tokens with the tokenizer margin of 1.5, within the 2,048 tokens sent to Ollama as `num_ctx` with truncation off.
+- S13: ingestion runs on its own pool of `app.ingestion.parallel-documents` threads, never on Boot's shared executor; the limit is per instance, and T1 runs one.
+- Lease: a claim sets `processing_run_id` and a heartbeat renewed every 30 s; every write of a run names its id; recovery counts the attempt; ING-2's default stuck timeout becomes 5 minutes instead of 15, safe because live runs keep their heartbeat fresh.
+- A stopping application gives its running documents back as `UPLOADED` without counting an attempt; only a crash waits for recovery.
+- A model that does not answer at startup pauses the worker until it does; a model that answers with the wrong dimension still stops startup (ING-9).
+- New failure code `TOO_MANY_CHUNKS` for ING-10's chunk limit (default 5,000).
+- Our own `OllamaEmbeddingModel` bean and request options, because Spring AI 2.0.2's properties cannot set `num_ctx` and its `embed(...)` shortcuts drop `truncate` and `num_ctx`.
+- Dependencies: Spring AI BOM 2.0.2 (latest GA) with `spring-ai-starter-model-ollama`, without its chat-memory auto-configuration, and `spring-ai-pdf-document-reader`: the model access and PDF reader that 3.1 and ING-4 name.
+- New package `ai` holds every provider-specific type (3.4); the chat model joins it in Phase 5.
+- `document_chunk` has a `bigint` id and `created_at` only, and no separate index on `document_id`, which the unique `(document_id, chunk_index)` serves.
+- `app.embedding` also holds the tokenizer margin, the query prefix and the retry settings; specification 18 was corrected.
+- D10 (custom 400/60 token chunker, cl100k) and D12 (ADR-001) are confirmed as the specification defaults.

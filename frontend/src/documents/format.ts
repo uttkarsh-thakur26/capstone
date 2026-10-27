@@ -30,3 +30,11 @@ export const STATUS_LABELS: Record<DocumentStatus, string> = {
   INDEXED: 'Ready',
   FAILED: 'Failed',
 }
+
+/** How often a page asks again while a document is queued or processed (DOC-12, UI-4). */
+export const STATUS_POLL_MS = 3000
+
+/** Whether the document's status will still change without anyone doing anything. */
+export function isInProgress(status: DocumentStatus | undefined): boolean {
+  return status === 'UPLOADED' || status === 'PROCESSING'
+}

@@ -1,4 +1,9 @@
 # Settings for automated tests (profile "test", specification 18).
+spring:
+  ai:
+    model:
+      # Tests never call a real model (19.1): FakeEmbeddingModel takes its place.
+      embedding: fake
 app:
   display-name: Test platform
   security:
@@ -17,3 +22,10 @@ app:
   upload:
     # Small, so the oversized-file test needs no large file. The 25MB default is tested on its own.
     max-file-size: 256KB
+  embedding:
+    retry:
+      delay: 1ms
+      max-delay: 5ms
+  ingestion:
+    # Tests drive the pipeline themselves; IngestionWorkerTest runs the worker.
+    enabled: false

@@ -7,6 +7,34 @@ spring:
     hibernate:
       # Flyway owns the schema; Hibernate only checks it (specification 7.1).
       ddl-auto: validate
+  flyway:
+    placeholders:
+      # The dimension of document_chunk.embedding (DATA-4). Checked against the column at startup.
+      embedding_dim: ${app.embedding.dimensions}
+  ai:
+    model:
+      embedding: ollama
+      # No chat model until Phase 5 (D5 is open).
+      chat: none
+    chat:
+      client:
+        enabled: false
+    ollama:
+      # Ollama runs on the host so it can use the GPU. Compose sets the container's address.
+      base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
+    retry:
+      # Request timeout and rate limit are worth retrying; other 4xx answers are not (ING-8).
+      on-http-codes: 408,429
+  http:
+    clients:
+      # Every RestClient, which today means Ollama. A batch of 16 chunks takes seconds on a GPU.
+      connect-timeout: 5s
+      read-timeout: 120s
+  task:
+    scheduling:
+      pool:
+        # Ingestion poll, heartbeat and recovery, and the file cleanup, never wait for each other.
+        size: 2
 
 server:
   # Tomcat reads X-Forwarded-For only from proxies on private or loopback addresses, which is where
@@ -45,6 +73,14 @@ app:
   storage:
     # Required: the directory that holds uploaded files (D8). Compose mounts a volume there.
     root: ${APP_STORAGE_ROOT:}
+  embedding:
+    # D6, ADR-033. Changing the model needs a full re-index; the application refuses to start
+    # while indexed documents come from another model (S11).
+    model: ${APP_EMBEDDING_MODEL:qwen3-embedding:0.6b}
+    dimensions: ${APP_EMBEDDING_DIMENSIONS:1024}
+  ingestion:
+    # 5 minutes without a heartbeat means the worker died (ING-2, ADR-034).
+    stuck-timeout: ${APP_INGESTION_STUCK_TIMEOUT:5m}
   upload:
     # DOC-1. nginx accepts bodies up to 30MB, so raising this above about 29MB needs nginx too.
     max-file-size: ${APP_UPLOAD_MAX_FILE_SIZE:25MB}

@@ -48,6 +48,20 @@ class DocumentAccessMatrixTest {
     matrix = AccessMatrix.build(mvc, jdbc);
   }
 
+  /** 5.4: D5 failed but keeps a leftover chunk, so retrieval must exclude it by status (ACL-4). */
+  @Test
+  void everyFixtureDocumentHasAChunkIncludingTheFailedOne() {
+    for (AccessMatrix.Doc doc : AccessMatrix.Doc.values()) {
+      assertThat(
+              jdbc.sql("SELECT count(*) FROM document_chunk WHERE document_id = :id")
+                  .param("id", matrix.id(doc))
+                  .query(Long.class)
+                  .single())
+          .as("chunks of %s", doc)
+          .isOne();
+    }
+  }
+
   Stream<Cell> cells() {
     return AccessMatrix.cells();
   }

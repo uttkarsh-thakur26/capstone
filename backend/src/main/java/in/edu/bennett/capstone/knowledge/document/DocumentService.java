@@ -32,6 +32,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
@@ -74,6 +75,7 @@ public class DocumentService {
   private final AuditService audit;
   private final UploadProperties upload;
   private final TransactionTemplate transactions;
+  private final ApplicationEventPublisher events;
 
   DocumentService(
       DocumentRepository documents,
@@ -84,7 +86,8 @@ public class DocumentService {
       UserService users,
       AuditService audit,
       UploadProperties upload,
-      PlatformTransactionManager transactionManager) {
+      PlatformTransactionManager transactionManager,
+      ApplicationEventPublisher events) {
     this.documents = documents;
     this.grants = grants;
     this.policy = policy;
@@ -94,6 +97,7 @@ public class DocumentService {
     this.audit = audit;
     this.upload = upload;
     this.transactions = new TransactionTemplate(transactionManager);
+    this.events = events;
   }
 
   UploadLimitsResponse uploadLimits() {
@@ -168,6 +172,7 @@ public class DocumentService {
                             "title", document.getTitle(),
                             "sizeBytes", document.getSizeBytes(),
                             "grants", describe(grantees))));
+            events.publishEvent(new DocumentQueued(document.getId()));
             log.info("User {} uploaded document {}", user.id(), document.getId());
             return DocumentResponse.of(document, user.displayName(), true);
           });
@@ -302,6 +307,7 @@ public class DocumentService {
         event(AuditAction.DOCUMENT_REPROCESSED, AuditOutcome.SUCCESS, user, id)
             .withDetails(Map.of("from", from.name())));
     documents.flush();
+    events.publishEvent(new DocumentQueued(id));
     log.info("User {} sent document {} back for processing", user.id(), id);
     return response(document, user);
   }

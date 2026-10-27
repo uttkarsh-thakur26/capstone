@@ -235,7 +235,11 @@ class DocumentManagementTest {
   void aDocumentThatIsQueuedOrRunningCannotBeReprocessed() {
     UUID uploaded = uploaded(mvc, ownerSession, "Queued", "[]");
     UUID processing = uploaded(mvc, ownerSession, "Running", "[]");
-    jdbc.sql("UPDATE document SET status = 'PROCESSING' WHERE id = :id")
+    jdbc.sql(
+            """
+            UPDATE document SET status = 'PROCESSING', processing_run_id = gen_random_uuid(),
+                processing_heartbeat_at = now() WHERE id = :id
+            """)
         .param("id", processing)
         .update();
 

@@ -1,6 +1,6 @@
 # Resolved versions
 
-What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`; the libraries added in Phase 1 were recorded on 2026-10-07 from branch `feat/auth-roles`, and those of Phase 2 on 2026-10-26 from branch `feat/phase-2-documents`. Update this file in the same commit as any dependency change.
+What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`; the libraries added in Phase 1 were recorded on 2026-10-07 from branch `feat/auth-roles`, those of Phase 2 on 2026-10-26 from branch `feat/phase-2-documents`, and those of Phase 3 on 2026-10-27 from branch `feat/phase-3-ingestion`. Update this file in the same commit as any dependency change.
 
 How these were collected: `./mvnw dependency:list` and `./mvnw -v` in `backend`, `npm ls --depth=0` in `frontend`, `docker image inspect --format '{{index .RepoDigests 0}}'` for images, and the tools' own `--version` output.
 
@@ -38,6 +38,9 @@ Managed by the Spring Boot 4.1.1 parent unless marked pinned.
 | Tomcat | 11.0.24 |
 | Micrometer | 1.17.1 |
 | springdoc-openapi (`springdoc-openapi-starter-webmvc-ui`), **pinned** (ADR-014) | 3.1.1 |
+| Spring AI BOM, **pinned** (ADR-034): `spring-ai-starter-model-ollama` (without `spring-ai-autoconfigure-model-chat-memory`), `spring-ai-ollama`, `spring-ai-pdf-document-reader`, `spring-ai-model`, `spring-ai-commons`, `spring-ai-retry`, `spring-ai-client-chat` and their auto-configurations. Its poms are built against Boot 4.1.2 and Framework 7.0.10; the project resolves Boot 4.1.1 and Framework 7.0.9, and every test starts the real auto-configuration on them | 2.0.2 |
+| jtokkit (cl100k token counts, ING-6), through `spring-ai-commons` | 1.1.0 |
+| Spring WebFlux and Reactor Netty (`reactor-netty-http`), through `spring-boot-starter-webclient` in the Ollama starter; Spring AI's `OllamaApi` builds a `WebClient` | 7.0.9, 1.3.7 |
 | swagger-core (jakarta), Swagger UI webjar (via springdoc) | 2.2.55, 5.32.14 |
 | JUnit Jupiter | 6.0.3 |
 | Mockito | 5.23.0 |
@@ -46,7 +49,7 @@ Managed by the Spring Boot 4.1.1 parent unless marked pinned.
 | Spotless Maven plugin, **pinned** (ADR-009) | 3.10.3 |
 | google-java-format, **pinned** (ADR-009) | 1.36.1 |
 
-Spring AI 2.0.1 is the planned line (specification 3.1) but is not on the classpath yet; the BOM is added with the first Spring AI dependency.
+Spring AI's PDF reader asks for PDFBox 3.0.7; the pinned 3.0.8 above wins.
 
 ## Frontend
 

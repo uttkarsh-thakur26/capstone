@@ -47,7 +47,7 @@ function problemWith(file: File, limits: UploadLimits | undefined) {
 /**
  * Upload for faculty and admins (DOC-1, ACL-3): a PDF, its description and who may read it. With
  * nothing shared, only the uploader and admins can read it (ACL-5). Shows the upload's progress
- * (UI-4). The new document waits as UPLOADED for the processing that Phase 3 builds (DOC-3).
+ * (UI-4). The new document is queued as UPLOADED, and its detail page follows the processing (DOC-3).
  */
 export function UploadDocumentPage() {
   const navigate = useNavigate()
@@ -116,7 +116,7 @@ export function UploadDocumentPage() {
       )
       await queryClient.invalidateQueries({ queryKey: ['documents'] })
       navigate(`/documents/${created.id}`, {
-        // The detail page says what happens next; processing (DOC-3) arrives with Phase 3.
+        // The detail page polls the status until processing ends (UI-4).
         state: { notice: 'The document was uploaded.' },
       })
     } catch (error) {

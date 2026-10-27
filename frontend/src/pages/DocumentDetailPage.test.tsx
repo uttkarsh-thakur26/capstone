@@ -45,11 +45,11 @@ describe('DocumentDetailPage', () => {
       await screen.findByRole('heading', { name: 'Examination Policy 2026' }),
     ).toBeVisible()
     expect(screen.getByText('Waiting for processing')).toBeVisible()
-    expect(screen.getByText(/Processing is not available yet/)).toBeVisible()
+    expect(screen.getByText(/Waiting in the processing queue/)).toBeVisible()
     expect(screen.getByText('exam-policy.pdf, 240 KB, 12 pages')).toBeVisible()
     expect(screen.getByText('Fatima Faculty')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Download' })).toBeVisible()
-    for (const name of ['Edit details', 'Archive', 'Delete']) {
+    for (const name of ['Edit details', 'Reprocess', 'Archive', 'Delete']) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
     }
     expect(
@@ -91,6 +91,78 @@ describe('DocumentDetailPage', () => {
     expect(
       await screen.findByText('Processing failed: The PDF has no text layer.'),
     ).toBeVisible()
+  })
+
+  it('asks again while the document is processed and stops once it is indexed', async () => {
+    let calls = 0
+    const server = api('FACULTY', {
+      [`GET ${DOC_PATH}`]: () => {
+        calls += 1
+        return json(
+          calls === 1
+            ? documentDetail({ status: 'PROCESSING' })
+            : documentDetail({
+                status: 'INDEXED',
+                chunkCount: 31,
+                indexedAt: '2026-10-27T10:00:00Z',
+              }),
+        )
+      },
+    })
+
+    renderApp(`/documents/${DOC_ID}`)
+
+    expect(await screen.findByText(/Being processed/)).toBeVisible()
+    expect(
+      await screen.findByText(
+        'The document is processed and used for search and answers.',
+        {},
+        { timeout: 5000 },
+      ),
+    ).toBeVisible()
+    expect(screen.getByText(/^31 passages, indexed/)).toBeVisible()
+    const asked = server.to('GET', DOC_PATH).length
+    await new Promise((resolve) => setTimeout(resolve, 3500))
+    expect(server.to('GET', DOC_PATH)).toHaveLength(asked)
+  }, 15_000)
+
+  it('sends a failed document back for processing', async () => {
+    const server = api('FACULTY', {
+      [`GET ${DOC_PATH}`]: () =>
+        json(
+          documentDetail({
+            status: 'FAILED',
+            failureCode: 'EMBEDDING_ERROR',
+            failureMessage: 'The embedding service failed.',
+          }),
+        ),
+      [`POST ${DOC_PATH}/reprocess`]: () => json(documentDetail()),
+    })
+    const { user } = renderApp(`/documents/${DOC_ID}`)
+
+    await user.click(await screen.findByRole('button', { name: 'Reprocess' }))
+
+    expect(
+      await screen.findByText('The document is queued for processing again.'),
+    ).toBeVisible()
+    expect(server.to('POST', `${DOC_PATH}/reprocess`)).toHaveLength(1)
+    expect(screen.getByText('Waiting for processing')).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Reprocess' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('says so when the document cannot be queued again', async () => {
+    api('FACULTY', {
+      [`GET ${DOC_PATH}`]: () => json(documentDetail({ status: 'INDEXED' })),
+      [`POST ${DOC_PATH}/reprocess`]: () =>
+        problem(409, 'INVALID_STATUS', 'This one is processing.'),
+    })
+    const { user } = renderApp(`/documents/${DOC_ID}`)
+
+    await user.click(await screen.findByRole('button', { name: 'Reprocess' }))
+
+    expect(await screen.findByText('This one is processing.')).toBeVisible()
   })
 
   it('lets the owner change the sharing and saves the whole set', async () => {

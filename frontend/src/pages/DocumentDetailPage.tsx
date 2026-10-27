@@ -13,7 +13,13 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { messageOf } from '../components/formErrors'
 import { downloadDocument } from '../documents/download'
 import { EditDocumentDialog } from '../documents/EditDocumentDialog'
-import { formatBytes, formatDate, formatDateTime } from '../documents/format'
+import {
+  formatBytes,
+  formatDate,
+  formatDateTime,
+  isInProgress,
+  STATUS_POLL_MS,
+} from '../documents/format'
 import { GrantsEditor } from '../documents/GrantsEditor'
 import { fromGrants, toGrantRequests, type Sharing } from '../documents/sharing'
 import { ArchivedBadge, StatusBadge } from '../documents/StatusBadge'
@@ -39,6 +45,9 @@ export function DocumentDetailPage() {
     queryKey: ['document', id],
     queryFn: ({ signal }) =>
       api<DocumentResponse>(`/api/v1/documents/${id}`, { signal }),
+    // DOC-12, UI-4: ask again while processing is still to come, then stop.
+    refetchInterval: (query) =>
+      isInProgress(query.state.data?.status) ? STATUS_POLL_MS : false,
   })
 
   if (document.isPending) {
@@ -96,6 +105,15 @@ export function DocumentDetailPage() {
           {doc.pageCount != null &&
             `, ${doc.pageCount} ${doc.pageCount === 1 ? 'page' : 'pages'}`}
         </Field>
+        <Field label="Search index">
+          {doc.status === 'INDEXED' && doc.chunkCount != null
+            ? `${doc.chunkCount} ${doc.chunkCount === 1 ? 'passage' : 'passages'}${
+                doc.indexedAt
+                  ? `, indexed ${formatDateTime(doc.indexedAt)}`
+                  : ''
+              }`
+            : '—'}
+        </Field>
         <Field label="Uploaded by">{doc.owner.displayName}</Field>
         <Field label="Uploaded">{formatDateTime(doc.createdAt)}</Field>
         <Field label="Last changed">{formatDateTime(doc.updatedAt)}</Field>
@@ -132,11 +150,15 @@ function StatusExplanation({ document }: { document: DocumentResponse }) {
     )
   }
   return (
-    <p className="text-sm text-slate-700 dark:text-slate-300">
+    <p
+      className="text-sm text-slate-700 dark:text-slate-300"
+      role="status"
+      aria-live="polite"
+    >
       {document.status === 'UPLOADED' &&
-        // Phase 3 builds the processing and replaces this sentence with live status polling.
-        'Processing is not available yet, so the document waits here. It can already be downloaded and shared.'}
-      {document.status === 'PROCESSING' && 'The document is being processed.'}
+        'Waiting in the processing queue. This page updates by itself.'}
+      {document.status === 'PROCESSING' &&
+        'Being processed: its text is read, split into passages and indexed. This page updates by itself.'}
       {document.status === 'INDEXED' &&
         !document.archived &&
         'The document is processed and used for search and answers.'}
@@ -191,6 +213,26 @@ function Actions({
       }),
   })
 
+  // DOC-10: back into the queue; it leaves search until it is indexed again.
+  const reprocess = useMutation({
+    mutationFn: () =>
+      api<DocumentResponse>(`/api/v1/documents/${document.id}/reprocess`, {
+        method: 'POST',
+      }),
+    onSuccess: (updated) => {
+      onChanged(updated)
+      onNotice({
+        tone: 'success',
+        text: 'The document is queued for processing again.',
+      })
+    },
+    onError: (error) =>
+      onNotice({
+        tone: 'error',
+        text: messageOf(error, 'The document could not be queued. Try again.'),
+      }),
+  })
+
   const remove = useMutation({
     mutationFn: () =>
       api<void>(`/api/v1/documents/${document.id}`, { method: 'DELETE' }),
@@ -227,6 +269,18 @@ function Actions({
           <Button variant="secondary" onPress={() => setEditing(true)}>
             Edit details
           </Button>
+          {(document.status === 'INDEXED' || document.status === 'FAILED') && (
+            <Button
+              variant="secondary"
+              isDisabled={reprocess.isPending}
+              onPress={() => {
+                onNotice(null)
+                reprocess.mutate()
+              }}
+            >
+              {reprocess.isPending ? 'Queuing…' : 'Reprocess'}
+            </Button>
+          )}
           <Button
             variant="secondary"
             isDisabled={archive.isPending}

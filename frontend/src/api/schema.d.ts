@@ -335,7 +335,7 @@ export interface components {
             /** @enum {string} */
             status: "UPLOADED" | "PROCESSING" | "INDEXED" | "FAILED";
             /** @enum {string} */
-            failureCode?: "UNSUPPORTED_TYPE" | "EMPTY" | "ENCRYPTED" | "NO_TEXT_LAYER" | "TOO_MANY_PAGES" | "EXTRACTION_ERROR" | "EMBEDDING_ERROR" | "PROCESSING_TIMEOUT" | "INTERNAL";
+            failureCode?: "UNSUPPORTED_TYPE" | "EMPTY" | "ENCRYPTED" | "NO_TEXT_LAYER" | "TOO_MANY_PAGES" | "TOO_MANY_CHUNKS" | "EXTRACTION_ERROR" | "EMBEDDING_ERROR" | "PROCESSING_TIMEOUT" | "INTERNAL";
             /** @description Why processing failed, in words a user can read. */
             failureMessage?: string;
             archived: boolean;

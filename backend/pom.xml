@@ -39,7 +39,20 @@
 		<bouncycastle.version>1.86</bouncycastle.version>
 		<!-- Not managed by Spring Boot. Checks uploaded PDFs and generates test PDFs; Spring AI's PDF reader uses the 3.0 line too (ADR-031). -->
 		<pdfbox.version>3.0.8</pdfbox.version>
+		<!-- Latest GA of the 2.0 line (specification 3.1). Its PDF reader brings PDFBox 3.0.7; the pin above wins. -->
+		<spring-ai.version>2.0.2</spring-ai.version>
 	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.ai</groupId>
+				<artifactId>spring-ai-bom</artifactId>
+				<version>${spring-ai.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -88,6 +101,23 @@
 			<groupId>org.apache.pdfbox</groupId>
 			<artifactId>pdfbox</artifactId>
 			<version>${pdfbox.version}</version>
+		</dependency>
+		<dependency>
+			<!-- The embedding model through Ollama (D6, ADR-033). -->
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-starter-model-ollama</artifactId>
+			<exclusions>
+				<!-- Conversations are stored in our own tables (Phase 6), never in Spring AI's chat memory. -->
+				<exclusion>
+					<groupId>org.springframework.ai</groupId>
+					<artifactId>spring-ai-autoconfigure-model-chat-memory</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<!-- Page-by-page PDF text extraction (ING-4). -->
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-pdf-document-reader</artifactId>
 		</dependency>
 
 		<dependency>

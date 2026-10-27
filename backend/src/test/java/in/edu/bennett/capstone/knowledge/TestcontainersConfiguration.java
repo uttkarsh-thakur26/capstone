@@ -3,10 +3,13 @@ package in.edu.bennett.capstone.knowledge;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+// Every context that starts the database also gets the fake models, never a real one (19.1).
 @TestConfiguration(proxyBeanMethods = false)
+@Import(FakeModelsConfiguration.class)
 public class TestcontainersConfiguration {
 
   /**

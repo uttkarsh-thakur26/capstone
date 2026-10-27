@@ -20,7 +20,13 @@ import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
 import { Checkbox } from '../components/Checkbox'
 import { messageOf } from '../components/formErrors'
-import { formatBytes, formatDateTime, STATUS_LABELS } from '../documents/format'
+import {
+  formatBytes,
+  formatDateTime,
+  isInProgress,
+  STATUS_LABELS,
+  STATUS_POLL_MS,
+} from '../documents/format'
 import { ArchivedBadge, StatusBadge } from '../documents/StatusBadge'
 
 const PAGE_SIZE = 20
@@ -73,6 +79,11 @@ export function DocumentsPage() {
     queryFn: ({ signal }) =>
       api<DocumentPage>(listPath(filters, page), { signal }),
     placeholderData: keepPreviousData,
+    // DOC-12: while a listed document is still queued or processed, ask again.
+    refetchInterval: (query) =>
+      query.state.data?.items.some((item) => isInProgress(item.status))
+        ? STATUS_POLL_MS
+        : false,
   })
 
   if (state.status !== 'authenticated') return null

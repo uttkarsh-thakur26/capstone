@@ -8,7 +8,7 @@ Updated 2026-10-27. Format: specification Section 24.8.
 
 Evidence (2026-10-27):
 
-- `./mvnw verify` on the branch passes with 327 backend tests and the format check. The "Ingestion" tests of 19.2 are in `IngestionPipelineTest`, `IndexCompatibilityCheckTest`, `EmbedderTest` and `IngestionWorkerTest`; the chunker and normalizer have unit tests. Removing `FOR UPDATE SKIP LOCKED` from the claim made the two-workers test fail.
+- `./mvnw verify` on the branch passes with 328 backend tests and the format check. The "Ingestion" tests of 19.2 are in `IngestionPipelineTest`, `IndexCompatibilityCheckTest`, `EmbedderTest` and `IngestionWorkerTest`; the chunker and normalizer have unit tests. Removing `FOR UPDATE SKIP LOCKED` from the claim made the two-workers test fail.
 - Frontend: 62 tests, lint, type check, build, format; `npm run gen:api` adds `TOO_MANY_CHUNKS`.
 - Real model (`qwen3-embedding:0.6b` in Ollama, dev profile): five real course PDFs reached `INDEXED` in 4.3 s (1 to 9 pages, 46 chunks, 1024 dimensions). Comparing each chunk with PDFBox's text of every page: no chunk holds text from outside its stored page range, 38 of 46 ranges are confirmed by text found on one page only, and the other 8 are table chunks whose text repeats on several pages.
 - Kill test (stuck timeout 2 min): a 400-page PDF was claimed at 10:46:33, the JVM was killed with `taskkill /F` during embedding at 10:46:41 (`PROCESSING`, 0 chunk rows), the backend restarted at 10:47:14, recovery returned it to `UPLOADED` with 1 attempt at 10:49:14, and it was `INDEXED` at 10:49:41 (454 chunks).

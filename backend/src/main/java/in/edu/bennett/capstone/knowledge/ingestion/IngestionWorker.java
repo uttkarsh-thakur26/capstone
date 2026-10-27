@@ -189,16 +189,21 @@ class IngestionWorker implements SmartLifecycle {
     }
   }
 
-  /** Refreshes the runs' heartbeats; a run the database no longer recognises stops. */
+  /**
+   * Refreshes the runs' heartbeats; a run the database no longer recognises stops. Only the runs
+   * that were sent are judged: one claimed by the other scheduler thread meanwhile is not in the
+   * answer, yet holds its lease.
+   */
   void heartbeat() {
     try {
-      Set<UUID> current = processing.heartbeat(Set.copyOf(active.keySet()));
-      active.forEach(
-          (runId, control) -> {
-            if (!current.contains(runId)) {
-              control.lose();
-            }
-          });
+      Set<UUID> sent = Set.copyOf(active.keySet());
+      Set<UUID> current = processing.heartbeat(sent);
+      for (UUID runId : sent) {
+        RunControl control = active.get(runId);
+        if (control != null && !current.contains(runId)) {
+          control.lose();
+        }
+      }
     } catch (RuntimeException e) {
       log.warn("Heartbeat of running documents failed: {}", e.toString());
     }

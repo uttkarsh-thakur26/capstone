@@ -4,7 +4,7 @@ Updated 2026-10-27. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 3, ingestion and indexing: every exit criterion is met; the phase is not closed yet.** Branch `feat/phase-3-ingestion`.
+**Phase 3, ingestion and indexing, is done.** Pull request [#4](https://github.com/uttkarsh-thakur26/capstone/pull/4) was merged into `main` on 2026-10-27 (merge commit `177bb34`) with every CI check green. Next: Phase 4, retrieval and semantic search.
 
 Evidence (2026-10-27):
 
@@ -14,7 +14,7 @@ Evidence (2026-10-27):
 - Kill test (stuck timeout 2 min): a 400-page PDF was claimed at 10:46:33, the JVM was killed with `taskkill /F` during embedding at 10:46:41 (`PROCESSING`, 0 chunk rows), the backend restarted at 10:47:14, recovery returned it to `UPLOADED` with 1 attempt at 10:49:14, and it was `INDEXED` at 10:49:41 (454 chunks).
 - Compose stack (`prod`): the backend container reached Ollama through `host.docker.internal`; in the browser a 300-page upload went from "Processing" to "Ready, 341 passages" on its own.
 
-To close Phase 3: pull request, CI, the reviews of ADR-028, merge.
+Reviews (ADR-028), listed in the pull request: the plan review found that Spring AI's `embed(...)` shortcuts drop `truncate` and `num_ctx` (fixed before the first commit); the owner review found that a finished run did not take the next queued document (fixed in `a9c1757`); the independent review found that a run claimed during a heartbeat was taken for a lost one (fixed in `bdfb5f7`, test first) and raised one point that was not a defect.
 
 Decisions taken for this phase: D6 (ADR-033), D10, D12 and the Phase 3 corrections S11 to S13 (ADR-034).
 
@@ -33,7 +33,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 | 0 | Foundation | Done. All exit criteria met, CI green, reviewed by the owner (ADR-019), merged in `4b51372` | 2026-10-07 |
 | 1 | Authentication and roles | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `70b2041` | 2026-10-14 |
 | 2 | Document management | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `2f16711` | 2026-10-26 |
-| 3 | Ingestion and indexing | All exit criteria met with evidence; awaiting pull request, CI, review and merge | 2026-10-27 |
+| 3 | Ingestion and indexing | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `177bb34` | 2026-10-27 |
 | 4 | Retrieval and semantic search | Not started | |
 | 5 | Grounded question answering | Not started | |
 | 6 | Conversations and citation viewer | Not started | |

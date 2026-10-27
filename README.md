@@ -4,11 +4,17 @@ Working description. The product name is not decided yet (D1 in `docs/PROJECT_SP
 
 Users upload PDFs, the system indexes them, and people search and ask questions in natural language. Answers are built only from documents the asking user is allowed to read, they cite the pages they come from, and the system says so when the documents do not contain the answer. Final-year capstone project (CSET400C).
 
-**Status:** Phase 1 (authentication and roles) is built: registration, sign-in that survives a reload, a shell that adapts to the user's role, sign-out, and an admin screen for roles and accounts, with an audit log behind them. Documents, search and questions come in later phases. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
+**Status:** Phases 0 to 3 are built: accounts and roles, document upload and sharing, and ingestion, which reads each PDF page by page, splits it into chunks and indexes them with an embedding model. Search and questions come in later phases. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
 ## Quickstart
 
-Needs Docker Desktop (or Docker Engine) with Docker Compose v2 or later. Nothing else.
+Needs Docker Desktop (or Docker Engine) with Docker Compose v2 or later, and [Ollama](https://ollama.com) running on the same machine with the embedding model pulled once:
+
+```bash
+ollama pull qwen3-embedding:0.6b
+```
+
+Ollama runs outside Compose so it can use the GPU; the backend container reaches it at `http://host.docker.internal:11434`. Without Ollama the stack still starts, and uploaded documents wait as "Waiting for processing" until the model answers.
 
 ```bash
 git clone <repository-url>

@@ -40,6 +40,14 @@ services:
       APP_STORAGE_ROOT: /var/lib/knowledge-platform/files
       # nginx accepts request bodies up to 30MB, so keep this below about 29MB (ADR-031).
       APP_UPLOAD_MAX_FILE_SIZE: ${APP_UPLOAD_MAX_FILE_SIZE:-25MB}
+      # Ollama runs on the host so it can use the GPU (D6, ADR-033). Without it the backend still
+      # starts; documents wait as UPLOADED until the model answers (ADR-034).
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL_FROM_CONTAINER:-http://host.docker.internal:11434}
+      APP_EMBEDDING_MODEL: ${APP_EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+      APP_EMBEDDING_DIMENSIONS: ${APP_EMBEDDING_DIMENSIONS:-1024}
+    extra_hosts:
+      # Docker Desktop provides host.docker.internal; on Linux this line does.
+      - "host.docker.internal:host-gateway"
     volumes:
       - document-files:/var/lib/knowledge-platform/files
     depends_on:

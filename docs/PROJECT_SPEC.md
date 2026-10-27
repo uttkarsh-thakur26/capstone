@@ -239,6 +239,7 @@ Spring Boot application (modular monolith)
    document      metadata, grants, lifecycle, download
    storage       FileStorage interface, local implementation
    ingestion     worker: extract -> normalize -> chunk -> embed -> index
+   ai            model access: embedding (and chat from Phase 5) providers (ADR-034)
    retrieval     keyword, semantic and hybrid chunk search
    assistant     prompts, grounded answers, citations, summaries, comparison
    conversation  conversations, messages, stored citations
@@ -399,13 +400,13 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`, unless th
 
 **refresh_token**: `user_id` (cascade), `token_hash` (unique), `family_id` (shared by every token rotated from one sign-in; ADR-020), `expires_at`, `revoked_at`.
 
-**document**: `owner_id` (to `app_user`, restrict on delete: users are never deleted, AUTH-11), `title`, `description`, `category`, `original_filename`, `content_type`, `size_bytes`, `sha256`, `storage_key`, `status` (UPLOADED, PROCESSING, INDEXED, FAILED), `failure_code`, `failure_message`, `page_count`, `chunk_count`, `document_date` (optional date the content takes effect), `archived`, `supersedes_document_id` (optional self-reference `[T3]`), `processing_attempts`, `processing_started_at`, `indexed_at`, `embedding_model`, `embedding_dim`, `row_version` (optimistic locking). One document per owner and content: unique on `(owner_id, sha256)` (DOC-2).
+**document**: `owner_id` (to `app_user`, restrict on delete: users are never deleted, AUTH-11), `title`, `description`, `category`, `original_filename`, `content_type`, `size_bytes`, `sha256`, `storage_key`, `status` (UPLOADED, PROCESSING, INDEXED, FAILED), `failure_code`, `failure_message`, `page_count`, `chunk_count`, `document_date` (optional date the content takes effect), `archived`, `supersedes_document_id` (optional self-reference `[T3]`), `processing_attempts`, `processing_started_at`, `processing_run_id` and `processing_heartbeat_at` (the lease of a run, ADR-034), `indexed_at`, `embedding_model`, `embedding_dim`, `row_version` (optimistic locking). One document per owner and content: unique on `(owner_id, sha256)` (DOC-2).
 
 **document_grant**: `document_id` (cascade), `grantee_type` (ROLE, USER), `grantee_role` (nullable), `grantee_user_id` (nullable, cascade), `created_by` (set null). A check constraint ensures exactly one grantee column matches the type. One grant per document and grantee, enforced by a unique constraint with `NULLS NOT DISTINCT`. Grants are replaced as a set and never changed, so the table has `created_at` and no `updated_at` (ADR-030).
 
 **storage_deletion**: stored files still to be deleted (DOC-9). `id` is a `bigint` identity. Columns: `storage_key` (unique), `requested_at`, `attempts`, `last_attempt_at`. Written through `JdbcClient`; a row is removed once its file is gone (ADR-031).
 
-**document_chunk**: `document_id` (cascade), `chunk_index`, `page_start`, `page_end`, `section` (nullable), `content`, `token_count`, `embedding vector(N)` (not null), `content_tsv` (generated `tsvector` of `content`, added by a migration in Phase 7). Unique on `(document_id, chunk_index)`.
+**document_chunk** (`bigint` identity id and `created_at` only: chunks are replaced as a set, never updated; ADR-034): `document_id` (cascade), `chunk_index`, `page_start`, `page_end`, `section` (nullable), `content`, `token_count`, `embedding vector(N)` (not null), `content_tsv` (generated `tsvector` of `content`, added by a migration in Phase 7). Unique on `(document_id, chunk_index)`.
 
 **conversation**: `user_id` (cascade), `title`.
 
@@ -428,7 +429,7 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`, unless th
 
 ### 7.4 Indexes
 
-Unique: `app_user(email)`, `refresh_token(token_hash)`, `document(owner_id, sha256)`, `document_grant(document_id, grantee_type, grantee_role, grantee_user_id)`, `storage_deletion(storage_key)`, `document_chunk(document_id, chunk_index)`. The two unique indexes on `document` and `document_grant` also serve the lookups by `owner_id` and by `document_id`, so those get no index of their own. Lookup: `refresh_token(user_id)`, `refresh_token(family_id)`, `audit_log(actor_user_id)`, `document(status)`, `document_grant(grantee_user_id)`, `document_chunk(document_id)`, `conversation(user_id, updated_at)`, `message(conversation_id, created_at)`, `audit_log(occurred_at)`, `query_log(created_at)`. Full-text (Phase 7): GIN on `document_chunk(content_tsv)`. Vector: none at first, HNSW later if measured need exists (RET-3).
+Unique: `app_user(email)`, `refresh_token(token_hash)`, `document(owner_id, sha256)`, `document_grant(document_id, grantee_type, grantee_role, grantee_user_id)`, `storage_deletion(storage_key)`, `document_chunk(document_id, chunk_index)`. The unique indexes on `document`, `document_grant` and `document_chunk` also serve the lookups by `owner_id` and by `document_id`, so those get no index of their own (ADR-034). Lookup: `refresh_token(user_id)`, `refresh_token(family_id)`, `audit_log(actor_user_id)`, `document(status)`, `document_grant(grantee_user_id)`, `conversation(user_id, updated_at)`, `message(conversation_id, created_at)`, `audit_log(occurred_at)`, `query_log(created_at)`. Full-text (Phase 7): GIN on `document_chunk(content_tsv)`. Vector: none at first, HNSW later if measured need exists (RET-3).
 
 ---
 
@@ -463,7 +464,7 @@ No other transition is legal. `PROCESSING -> UPLOADED` is taken only by the reco
 
 ### 8.3 Failure codes
 
-`UNSUPPORTED_TYPE`, `EMPTY`, `ENCRYPTED`, `NO_TEXT_LAYER`, `TOO_MANY_PAGES`, `EXTRACTION_ERROR`, `EMBEDDING_ERROR`, `PROCESSING_TIMEOUT`, `INTERNAL`. Each has a user-readable message. Internal details go to the log, not to the response.
+`UNSUPPORTED_TYPE`, `EMPTY`, `ENCRYPTED`, `NO_TEXT_LAYER`, `TOO_MANY_PAGES`, `TOO_MANY_CHUNKS` (ADR-034), `EXTRACTION_ERROR`, `EMBEDDING_ERROR`, `PROCESSING_TIMEOUT`, `INTERNAL`. Each has a user-readable message. Internal details go to the log, not to the response.
 
 Upload already rejects empty, non-PDF and password-protected files (DOC-1), so `EMPTY`, `UNSUPPORTED_TYPE` and `ENCRYPTED` occur in ingestion only when the stored file no longer passes the same check. `PROCESSING_TIMEOUT` is set when stuck-job recovery runs out of attempts (ING-2, ADR-030).
 
@@ -487,7 +488,7 @@ file validated and stored, row is UPLOADED
 ### 9.2 Requirements
 
 - **ING-1 Durable queue without new infrastructure.** The `document` table is the queue. A scheduled worker claims work atomically (`SELECT ... FOR UPDATE SKIP LOCKED`, or one `UPDATE ... RETURNING`), so jobs survive a restart and two workers never take the same document. An after-commit event may wake the worker right after an upload.
-- **ING-2 Crash recovery.** A document that stays `PROCESSING` beyond a timeout (default 15 minutes) returns to `UPLOADED` with its attempt counter increased. After the maximum number of attempts (default 3) it becomes `FAILED` with `PROCESSING_TIMEOUT`. Reprocess resets the counter (DOC-10).
+- **ING-2 Crash recovery.** A running run refreshes a heartbeat every 30 seconds. A document whose heartbeat is older than a timeout (default 5 minutes, ADR-034) returns to `UPLOADED` with its attempt counter increased. A stopping application gives its running documents back without counting an attempt. After the maximum number of attempts (default 3) it becomes `FAILED` with `PROCESSING_TIMEOUT`. Reprocess resets the counter (DOC-10).
 - **ING-3 Atomic index.** Old chunks are replaced and the status becomes `INDEXED` in one transaction. A document is never `INDEXED` with a partial or mixed set of chunks. After a failed run the status is `FAILED`, so whatever chunk rows remain are not retrievable.
 - **ING-4 Extraction.** PDF through Spring AI's `PagePdfDocumentReader`, one unit per page, keeping page numbers. A password-protected file fails with `ENCRYPTED` (upload rejects these, so this is a re-check of the stored file; its test puts the file into storage directly, ADR-031). If extraction yields almost no text (average below a configurable number of characters per page), the file is probably scanned and fails with `NO_TEXT_LAYER`. OCR is T3.
 - **ING-5 Normalization.** Join words hyphenated across line breaks, collapse whitespace, and drop lines that repeat as headers or footers on most pages. Never alter numbers, dates, clause numbers or casing. Table layout is lost in text extraction. Record that as a known limitation.
@@ -788,8 +789,8 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 | `app.registration` | Allowed email domains (none) |
 | `app.bootstrap-admin` | Email, password and display name of the first admin (AUTH-3). Email and password are required while no admin exists |
 | `app.upload` | Maximum file size (25 MB). Not a setting: the allowed types, because PDF is the only one the code can check (D9, ADR-029) |
-| `app.ingestion` | Chunk size (400 tokens), overlap (60), embedding batch size, parallel documents (2), stuck timeout (15 min), maximum attempts (3), maximum pages (500), minimum characters per page |
-| `app.embedding` | Model name, dimension, maximum input tokens |
+| `app.ingestion` | Worker on (yes), chunk size (400 tokens), overlap (60), embedding batch size (16), parallel documents (2), poll interval (10 s), heartbeat interval (30 s), recovery interval (1 min), stuck timeout (5 min, ADR-034), maximum attempts (3), maximum pages (500), maximum chunks (5,000), minimum characters per page (20), shutdown wait (20 s) |
+| `app.embedding` | Model name, dimension (both required, D6, ADR-033), maximum input tokens (2,048, sent as `num_ctx`), tokenizer margin (1.5), query prefix, retries (3, from 1 s doubling to 10 s) |
 | `app.retrieval` | `k` (6), similarity floor, mode |
 | `app.assistant` | Temperature (0.1), maximum output tokens, context token budget, history turns (3), timeout (60 s), abstention message |
 | `app.storage` | Root path |
@@ -1316,13 +1317,13 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | D3 | Build tool | Maven with wrapper | Phase 0 | Accepted (ADR-002) |
 | D4 | Java version | 25, or 21 if the team's machines require it | Phase 0 | Accepted: Java 25 (ADR-003) |
 | D5 | Chat model and provider | None. See Section 3.4 | A provisional choice for the Milestone-1 proposal. Final in Phase 5 | Open |
-| D6 | Embedding model and dimension | None. Fixes the vector column | A provisional choice for the Milestone-1 proposal. Final in Phase 3 | Open |
+| D6 | Embedding model and dimension | None. Fixes the vector column | A provisional choice for the Milestone-1 proposal. Final in Phase 3 | Accepted: `qwen3-embedding:0.6b` through Ollama, 1024 dimensions (ADR-033) |
 | D7 | Token strategy | JWT access token plus rotating refresh cookie. A simpler variant (access token only, 60 minutes, sign in again) is allowed if recorded | Phase 1 | Accepted: the default, with logout by cookie and revocation on reuse (ADR-020) |
 | D8 | File storage | Local volume | Phase 2 | Accepted (ADR-029) |
 | D9 | File formats | PDF only | Phase 2 | Accepted (ADR-029) |
-| D10 | Chunking | Custom token chunker, 400 tokens, 60 overlap | Phase 3 | Default |
+| D10 | Chunking | Custom token chunker, 400 tokens, 60 overlap | Phase 3 | Accepted: the default (ADR-034) |
 | D11 | Vector index | Exact search first | Phase 4 | Default |
-| D12 | Chunk storage design | Application-owned table (ADR-001) | Phase 3 | Default |
+| D12 | Chunk storage design | Application-owned table (ADR-001) | Phase 3 | Accepted: the default (ADR-001, ADR-034) |
 | D13 | Corpus and answer language | English | Phase 5 | Default |
 | D14 | Store question text for analytics | Off | Phase 9 | Default |
 | D15 | Admin reach | Admins read all documents, but not other users' conversations | Phase 2 | Accepted (ADR-029) |

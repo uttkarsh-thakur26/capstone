@@ -33,6 +33,7 @@ class IngestionWorkerHeartbeatTest {
   private final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
   private final CountDownLatch finish = new CountDownLatch(1);
   private final AtomicReference<RunControl> started = new AtomicReference<>();
+  private final CountDownLatch running = new CountDownLatch(1);
 
   @AfterEach
   void stop() {
@@ -42,7 +43,7 @@ class IngestionWorkerHeartbeatTest {
   }
 
   @Test
-  void aRunClaimedDuringAHeartbeatKeepsRunning() {
+  void aRunClaimedDuringAHeartbeatKeepsRunning() throws InterruptedException {
     scheduler.initialize();
     executor.setCorePoolSize(2);
     executor.initialize();
@@ -77,7 +78,10 @@ class IngestionWorkerHeartbeatTest {
 
     worker.heartbeat();
 
-    assertThat(started.get()).as("the run claimed during the heartbeat").isNotNull();
+    // The run starts on an executor thread; wait until it has.
+    assertThat(running.await(5, TimeUnit.SECONDS))
+        .as("the run claimed during the heartbeat")
+        .isTrue();
     assertThat(started.get().stopRequested()).isFalse();
   }
 
@@ -108,6 +112,7 @@ class IngestionWorkerHeartbeatTest {
     @Override
     Outcome process(ProcessingRun run, RunControl control) {
       started.set(control);
+      running.countDown();
       try {
         finish.await(5, TimeUnit.SECONDS);
       } catch (InterruptedException e) {

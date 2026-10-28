@@ -406,4 +406,31 @@ describe('DocumentDetailPage', () => {
       server.to('GET', `/api/v1/documents/${otherId}/content`),
     ).toHaveLength(0)
   })
+
+  it('releases the file from memory when the viewer is left', async () => {
+    api('STUDENT', {
+      [`GET ${DOC_PATH}`]: () => json(documentDetail({ canManage: false })),
+      [`GET ${DOC_PATH}/content`]: () =>
+        new Response(new Blob(['%PDF-1.7']), {
+          headers: { 'Content-Type': 'application/pdf' },
+        }),
+    })
+    const revokeObjectURL = vi.fn()
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, {
+        createObjectURL: vi.fn(() => 'blob:document'),
+        revokeObjectURL,
+      }),
+    )
+    const { router } = renderApp(`/documents/${DOC_ID}?page=2`)
+    await screen.findByTitle('Examination Policy 2026, page 2')
+    expect(revokeObjectURL).not.toHaveBeenCalled()
+
+    await router.navigate('/search')
+
+    await vi.waitFor(() =>
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:document'),
+    )
+  })
 })

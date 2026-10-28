@@ -406,7 +406,7 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`, unless th
 
 **storage_deletion**: stored files still to be deleted (DOC-9). `id` is a `bigint` identity. Columns: `storage_key` (unique), `requested_at`, `attempts`, `last_attempt_at`. Written through `JdbcClient`; a row is removed once its file is gone (ADR-031).
 
-**document_chunk** (`bigint` identity id and `created_at` only: chunks are replaced as a set, never updated; ADR-034): `document_id` (cascade), `chunk_index`, `page_start`, `page_end`, `section` (nullable), `content`, `token_count`, `embedding vector(N)` (not null), `content_tsv` (generated `tsvector` of `content`, added by a migration in Phase 7). Unique on `(document_id, chunk_index)`.
+**document_chunk** (`bigint` identity id and `created_at` only: chunks are replaced as a set, never updated; ADR-034): `document_id` (cascade), `chunk_index`, `page_start`, `page_end`, `section` (nullable), `content`, `token_count`, `embedding vector(N)` (not null), `content_tsv` (stored generated `tsvector` of `content`, added by a migration in Phase 4, ADR-035). Unique on `(document_id, chunk_index)`.
 
 **conversation**: `user_id` (cascade), `title`.
 
@@ -429,7 +429,7 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`, unless th
 
 ### 7.4 Indexes
 
-Unique: `app_user(email)`, `refresh_token(token_hash)`, `document(owner_id, sha256)`, `document_grant(document_id, grantee_type, grantee_role, grantee_user_id)`, `storage_deletion(storage_key)`, `document_chunk(document_id, chunk_index)`. The unique indexes on `document`, `document_grant` and `document_chunk` also serve the lookups by `owner_id` and by `document_id`, so those get no index of their own (ADR-034). Lookup: `refresh_token(user_id)`, `refresh_token(family_id)`, `audit_log(actor_user_id)`, `document(status)`, `document_grant(grantee_user_id)`, `conversation(user_id, updated_at)`, `message(conversation_id, created_at)`, `audit_log(occurred_at)`, `query_log(created_at)`. Full-text (Phase 7): GIN on `document_chunk(content_tsv)`. Vector: none at first, HNSW later if measured need exists (RET-3).
+Unique: `app_user(email)`, `refresh_token(token_hash)`, `document(owner_id, sha256)`, `document_grant(document_id, grantee_type, grantee_role, grantee_user_id)`, `storage_deletion(storage_key)`, `document_chunk(document_id, chunk_index)`. The unique indexes on `document`, `document_grant` and `document_chunk` also serve the lookups by `owner_id` and by `document_id`, so those get no index of their own (ADR-034). Lookup: `refresh_token(user_id)`, `refresh_token(family_id)`, `audit_log(actor_user_id)`, `document(status)`, `document_grant(grantee_user_id)`, `conversation(user_id, updated_at)`, `message(conversation_id, created_at)`, `audit_log(occurred_at)`, `query_log(created_at)`. Full-text (Phase 4, ADR-035): GIN on `document_chunk(content_tsv)`. Vector: none at first, HNSW later if measured need exists (RET-3).
 
 ---
 
@@ -510,7 +510,7 @@ One `ChunkSearch` component offers keyword, semantic and hybrid search. Every me
 - **RET-2 Semantic search.** The query is embedded with the same model as the index. Rank by cosine distance (`<=>`). Report similarity as `1 - distance`.
 - **RET-3 Exact first (D11).** T1 uses exact search with no vector index. It has perfect recall, cannot be starved by the permission filter, and is fast enough for a capstone-sized corpus. Add an HNSW index (`vector_cosine_ops`) only when measurements show a need, together with `SET LOCAL hnsw.iterative_scan = strict_order` inside the read transaction. Then report recall and latency of approximate versus exact search in the evaluation.
 - **RET-4 Complete results.** When at least `k` retrievable chunks exist, search returns `k` results, however selective the permission filter is.
-- **RET-5 Keyword search** (Phase 7). PostgreSQL full-text search on `content_tsv` with `websearch_to_tsquery`, ranked with `ts_rank_cd`. This is the baseline for the evaluation, so it belongs to T1. Text search configuration follows the corpus language (D13).
+- **RET-5 Keyword search** (Phase 4, ADR-035). PostgreSQL full-text search on `content_tsv` with `websearch_to_tsquery`, ranked with `ts_rank_cd`. This is the baseline for the evaluation, so it belongs to T1. Text search configuration follows the corpus language (D13).
 - **RET-6 Hybrid search** `[T2]`. Reciprocal Rank Fusion of the keyword and semantic rankings (constant 60), each already permission-filtered.
 - **RET-7 Result shape.** Chunk snippet, document id and title, page range and score. Nothing from a document the user cannot retrieve.
 - **RET-8 Scope filter.** When the caller passes document ids, every id is checked against ACL-1 first. An unreadable id produces `404`. It is never silently dropped. A readable id that is archived or not indexed is accepted and contributes no chunks.
@@ -696,7 +696,7 @@ Users by role. Documents by status. Uploads over time. Ingestion failures by cod
 | `GET /admin/audit` `[T2]` | ADMIN | Audit entries |
 | `GET /admin/analytics` `[T2]` | ADMIN | Aggregated metrics |
 
-Asking a question always happens inside a conversation. There is no second, separate "ask" endpoint. The search `mode` accepts `SEMANTIC` from Phase 4, `KEYWORD` from Phase 7 and `HYBRID` from Phase 8 `[T2]`. `/actuator/health` is public. Other actuator endpoints follow SEC-12.
+Asking a question always happens inside a conversation. There is no second, separate "ask" endpoint. The search `mode` accepts `SEMANTIC` and `KEYWORD` from Phase 4 (ADR-035) and `HYBRID` from Phase 8 `[T2]`. `/actuator/health` is public. Other actuator endpoints follow SEC-12.
 
 ### 15.3 Answer response
 
@@ -824,7 +824,7 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 
 **Ingestion.** Page numbers of chunks match the fixture. Deleting an indexed document removes its chunks. Encrypted file gives `ENCRYPTED`. Image-only file gives `NO_TEXT_LAYER`. An embedding failure gives `FAILED` and reprocess then succeeds. A document being reprocessed is not retrievable, and it is never `INDEXED` with a partial set of chunks. A stuck `PROCESSING` document is recovered. Two workers never claim the same document. A dimension mismatch stops startup. A chunk size above the embedding limit stops startup.
 
-**Retrieval.** A known query returns the expected chunk in the top `k`. A chunk from an unreadable document is never returned, even when it is the best match. Failed and archived documents are excluded. Removing a grant removes results on the next request. With a very selective permission filter, `k` results still come back (RET-4). An unreadable id in the scope filter gives `404`. The same exclusions hold in keyword mode from Phase 7 and in hybrid mode from Phase 8.
+**Retrieval.** A known query returns the expected chunk in the top `k`. A chunk from an unreadable document is never returned, even when it is the best match. Failed and archived documents are excluded. Removing a grant removes results on the next request. With a very selective permission filter, `k` results still come back (RET-4). An unreadable id in the scope filter gives `404`. The same exclusions hold in keyword mode from Phase 4 (ADR-035) and in hybrid mode from Phase 8.
 
 **Question answering.** Prompt capture: the text sent to the fake chat model contains no chunk from an unreadable document. Below the similarity floor, the outcome is insufficient evidence and the chat model is invoked zero times. `answerable=false` gives insufficient evidence. Invalid citation numbers are dropped. A factual answer with no valid citation becomes insufficient evidence. Citation title and pages match the database. Malformed model output is handled. A provider timeout returns `503` and stores an `ERROR` outcome.
 
@@ -1052,14 +1052,14 @@ Exit criteria:
 
 ### Phase 4: Retrieval and semantic search
 
-Read: Sections 4.6, 5.3, 10. Needs: D11.
+Read: Sections 4.6, 5.3, 10. Needs: D11, and D13 for keyword search.
 
-Build: semantic search with the retrievable predicate in SQL, search endpoint, search screen.
+Build: semantic search with the retrievable predicate in SQL, and keyword search (RET-5) with the same predicate, moved here from Phase 7 (ADR-035); the `content_tsv` migration and index; the search endpoint; the search screen with its mode selector.
 
 Exit criteria:
 
-- [ ] The access matrix passes for semantic search.
-- [ ] All "Retrieval" tests in Section 19.2 that apply to semantic search pass.
+- [ ] The access matrix passes for semantic and keyword search.
+- [ ] All "Retrieval" tests in Section 19.2 pass in both modes.
 - [ ] A paraphrased query finds the right passage in a sample document.
 
 Do not start Phase 5 until retrieval is correct. Answer quality cannot exceed retrieval quality.
@@ -1094,11 +1094,11 @@ Exit criteria:
 
 Read: Sections 10 (RET-5), 19.4, 20, 21. Needs: Phases 4 and 5, plus the corpus and the development part of the question set (Section 20.6).
 
-Build: the `content_tsv` migration and index, keyword search mode with the same retrievable predicate, the mode selector on the search screen, the evaluation harness, a first calibration of the similarity floor (RAG-8), the first results report, and the test-case table.
+Build: the evaluation harness, a first calibration of the similarity floor (RAG-8), the first results report, and the test-case table.
 
 Exit criteria:
 
-- [ ] The access matrix and the "Retrieval" exclusions in Section 19.2 pass for keyword search.
+- [ ] The access matrix and the "Retrieval" exclusions in Section 19.2 still pass for keyword search, which Phase 4 built (ADR-035).
 - [ ] The harness runs with one command against a running stack and writes raw results, a summary and the configuration used.
 - [ ] The first run in Section 20.6 is complete and stored under `docs/evaluation/<date>/`, with keyword and semantic retrieval compared.
 - [ ] The leak count is 0.
@@ -1322,9 +1322,9 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | D8 | File storage | Local volume | Phase 2 | Accepted (ADR-029) |
 | D9 | File formats | PDF only | Phase 2 | Accepted (ADR-029) |
 | D10 | Chunking | Custom token chunker, 400 tokens, 60 overlap | Phase 3 | Accepted: the default (ADR-034) |
-| D11 | Vector index | Exact search first | Phase 4 | Default |
+| D11 | Vector index | Exact search first | Phase 4 | Accepted: the default (ADR-035) |
 | D12 | Chunk storage design | Application-owned table (ADR-001) | Phase 3 | Accepted: the default (ADR-001, ADR-034) |
-| D13 | Corpus and answer language | English | Phase 5 | Default |
+| D13 | Corpus and answer language | English | Phase 5 | Accepted: the default, taken in Phase 4 for keyword search (ADR-035) |
 | D14 | Store question text for analytics | Off | Phase 9 | Default |
 | D15 | Admin reach | Admins read all documents, but not other users' conversations | Phase 2 | Accepted (ADR-029) |
 | D16 | Student uploads | Not allowed | Phase 2 | Accepted (ADR-029) |

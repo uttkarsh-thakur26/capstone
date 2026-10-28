@@ -27,6 +27,12 @@ export type UpdateGrantsRequest = Schemas['UpdateGrantsRequest']
 export type UserSummary = Schemas['UserSummary']
 export type UserSummaryPage = Schemas['PageResponseUserSummary']
 
+export type SearchRequest = Schemas['SearchRequest']
+export type SearchMode = SearchRequest['mode']
+export type SearchResponse = Schemas['SearchResponse']
+export type SearchResult = Schemas['SearchResult']
+export type SearchHighlight = Schemas['Highlight']
+
 export const ROLES: readonly Role[] = ['ADMIN', 'FACULTY', 'STUDENT']
 
 /** The roles a document can be shared with; admins read every document anyway (D15). */

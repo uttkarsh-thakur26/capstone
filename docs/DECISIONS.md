@@ -38,6 +38,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-032](#adr-032-one-member-builds-every-phase) | | One member builds every phase | Accepted, standing exception to 24.1; supersedes ADR-026 | 2026-10-26 |
 | [ADR-033](#adr-033-qwen3-embedding06b-through-ollama-on-the-host-d6) | D6 | qwen3-embedding:0.6b through Ollama on the host | Accepted | 2026-10-27 |
 | [ADR-034](#adr-034-specification-corrections-and-design-choices-for-phase-3) | D10, D12 | Specification corrections and design choices for Phase 3 | Accepted | 2026-10-27 |
+| [ADR-035](#adr-035-search-in-phase-4-semantic-and-keyword-d11-d13) | D11, D13 | Search in Phase 4: semantic and keyword | Accepted | 2026-10-28 |
 
 ---
 
@@ -605,3 +606,21 @@ Date 2026-10-27, accepted. One line per decision.
 - `document_chunk` has a `bigint` id and `created_at` only, and no separate index on `document_id`, which the unique `(document_id, chunk_index)` serves.
 - `app.embedding` also holds the tokenizer margin, the query prefix and the retry settings; specification 18 was corrected.
 - D10 (custom 400/60 token chunker, cl100k) and D12 (ADR-001) are confirmed as the specification defaults.
+
+---
+
+### ADR-035: Search in Phase 4: semantic and keyword (D11, D13)
+
+Date 2026-10-28, accepted. One line per decision.
+
+- D11: exact search, no vector index. Every chunk the user may retrieve is compared with the query, so a selective permission filter can never leave fewer than `k` results (RET-4); an HNSW index filters after its scan.
+- D13: English, the default, taken now because keyword search needs a text-search configuration (`to_tsvector('english', ...)`, `websearch_to_tsquery('english', ...)`).
+- Scope: keyword search (RET-5) and the mode selector move from Phase 7 to Phase 4; Phase 7 keeps the evaluation harness, the floor calibration and the first report. Specification 7.2, 7.4, 10, 15.2, 19.2, 23 and 26 were corrected.
+- S14: search checks the scope ids in a short read transaction, then embeds the query with no transaction, then runs one search statement in a read transaction; a grant removed in between still applies, because the statement checks access again.
+- `content_tsv` is a `STORED` generated column with a GIN index; PostgreSQL 18 makes generated columns virtual by default, and a virtual column cannot be indexed.
+- The retrievable predicate for native SQL is written once, in `SqlChunkSearch`, the one class that holds the retrieval SQL (4.3, ACL-E3).
+- The similarity floor is not applied to search; search shows the top `k` with their scores. The floor and the default mode join `app.retrieval` in Phase 5, where the evidence gate uses them.
+- `POST /search` answers `{ mode, results }`, not the paged list envelope, because it returns the top `k` (at most 50), not pages.
+- A result carries the whole chunk; keyword results add the positions of the matched words, which `ts_headline` marks with two control characters that the normalizer removes from every chunk; no markup reaches the client (UI-6).
+- A failing embedding model answers `503 MODEL_UNAVAILABLE`; keyword search keeps working without the model.
+- Viewer: `/documents/:id?page=N` shows the PDF in the browser's own viewer, fetched with the token and opened at `#page=N`, with Download as the fallback; pdf.js was not added, and Phase 6 may revisit it for the citation viewer.

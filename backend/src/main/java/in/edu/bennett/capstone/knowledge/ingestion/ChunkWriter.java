@@ -1,5 +1,6 @@
 package in.edu.bennett.capstone.knowledge.ingestion;
 
+import in.edu.bennett.capstone.knowledge.common.PgVector;
 import in.edu.bennett.capstone.knowledge.ingestion.Chunker.Chunk;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -14,9 +15,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Writes {@code document_chunk}, which only ingestion writes (4.3). Vectors are sent as pgvector's
- * text form through a bound parameter, never concatenated into SQL (SEC-7), so no extra JDBC type
- * library is needed.
+ * Writes {@code document_chunk}, which only ingestion writes (4.3). Vectors are sent in pgvector's
+ * text form through a bound parameter ({@link PgVector}).
  */
 @Component
 class ChunkWriter {
@@ -57,7 +57,7 @@ class ChunkWriter {
             statement.setInt(4, chunk.pageEnd());
             statement.setString(5, chunk.content());
             statement.setInt(6, chunk.tokenCount());
-            statement.setString(7, vectorText(embedded.embedding()));
+            statement.setString(7, PgVector.text(embedded.embedding()));
             statement.setTimestamp(8, now);
           }
 
@@ -66,17 +66,5 @@ class ChunkWriter {
             return chunks.size();
           }
         });
-  }
-
-  /** pgvector's text form, for example {@code [0.1,-0.25,3.0E-5]}. */
-  static String vectorText(float[] vector) {
-    StringBuilder text = new StringBuilder(vector.length * 12).append('[');
-    for (int i = 0; i < vector.length; i++) {
-      if (i > 0) {
-        text.append(',');
-      }
-      text.append(vector[i]);
-    }
-    return text.append(']').toString();
   }
 }

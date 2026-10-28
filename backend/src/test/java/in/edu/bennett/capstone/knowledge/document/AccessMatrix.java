@@ -9,6 +9,7 @@ import in.edu.bennett.capstone.knowledge.FakeEmbeddingModel;
 import in.edu.bennett.capstone.knowledge.TestAccounts;
 import in.edu.bennett.capstone.knowledge.TestAccounts.Account;
 import in.edu.bennett.capstone.knowledge.TestAccounts.Session;
+import in.edu.bennett.capstone.knowledge.common.PgVector;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -155,7 +156,7 @@ public final class AccessMatrix {
         .param("id", documents.get(Doc.D5))
         .update();
     for (Doc doc : Doc.values()) {
-      insertChunk(jdbc, documents.get(doc), "Chunk of " + doc + " " + marker);
+      insertChunk(jdbc, documents.get(doc), chunkText(doc, marker));
     }
     assertThat(
             TestDocuments.send(
@@ -170,6 +171,12 @@ public final class AccessMatrix {
 
   /** One chunk on page 1, with the vector the fake embedding model gives its text. */
   public static void insertChunk(JdbcClient jdbc, UUID documentId, String content) {
+    insertChunk(jdbc, documentId, 0, 1, content);
+  }
+
+  /** A chunk with this index on this page, with the vector the fake model gives its text. */
+  public static void insertChunk(
+      JdbcClient jdbc, UUID documentId, int index, int page, String content) {
     int dimensions =
         jdbc.sql(
                 """
@@ -179,19 +186,17 @@ public final class AccessMatrix {
             .query(Integer.class)
             .single();
     float[] vector = FakeEmbeddingModel.vectorOf(content, dimensions);
-    StringBuilder text = new StringBuilder("[");
-    for (int i = 0; i < vector.length; i++) {
-      text.append(i == 0 ? "" : ",").append(vector[i]);
-    }
     jdbc.sql(
             """
             INSERT INTO document_chunk (document_id, chunk_index, page_start, page_end, content,
                 token_count, embedding, created_at)
-            VALUES (:id, 0, 1, 1, :content, 8, CAST(:embedding AS vector), now())
+            VALUES (:id, :index, :page, :page, :content, 8, CAST(:embedding AS vector), now())
             """)
         .param("id", documentId)
+        .param("index", index)
+        .param("page", page)
         .param("content", content)
-        .param("embedding", text.append(']').toString())
+        .param("embedding", PgVector.text(vector))
         .update();
   }
 
@@ -231,6 +236,15 @@ public final class AccessMatrix {
   /** The document's grants as the JSON array they were created with. */
   public String grantsJson(Doc doc) {
     return grants.get(doc);
+  }
+
+  /** The text of the document's one chunk: the best match for a search with this text. */
+  public String chunkText(Doc doc) {
+    return chunkText(doc, marker);
+  }
+
+  private static String chunkText(Doc doc, String marker) {
+    return "Chunk of " + doc + " " + marker;
   }
 
   /** Part of every fixture title: a list query for it returns only the six fixture documents. */

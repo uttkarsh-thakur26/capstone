@@ -222,6 +222,24 @@ public class DocumentService {
         found.map(document -> DocumentSummaryResponse.of(document, ownerName(owners, document))));
   }
 
+  /**
+   * RET-8: every id names a document the user can read, or the answer is 404, exactly as for a
+   * document that does not exist (ACL-8). One counting query with the readable predicate in its
+   * SQL; whether the documents are indexed or archived does not matter here.
+   */
+  @Transactional(readOnly = true)
+  public void requireReadable(CurrentUser user, Set<UUID> ids) {
+    if (ids.isEmpty()) {
+      return;
+    }
+    long readable =
+        documents.count(
+            policy.readableBy(user).and((document, query, cb) -> document.get("id").in(ids)));
+    if (readable != ids.size()) {
+      throw notFound();
+    }
+  }
+
   /** DOC-5: the detail of a document the user can read. */
   @Transactional(readOnly = true)
   public DocumentResponse get(CurrentUser user, UUID id) {

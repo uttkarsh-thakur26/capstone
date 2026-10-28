@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents": {
         parameters: {
             query?: never;
@@ -171,7 +187,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["search"];
+        get: operations["search_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -304,6 +320,39 @@ export interface components {
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
+        };
+        SearchRequest: {
+            query: string;
+            /** @enum {string} */
+            mode: "SEMANTIC" | "KEYWORD";
+            documentIds?: string[];
+            category?: string;
+            /** Format: int32 */
+            k?: number;
+        };
+        Highlight: {
+            /** Format: int32 */
+            start: number;
+            /** Format: int32 */
+            end: number;
+        };
+        SearchResponse: {
+            /** @enum {string} */
+            mode: "SEMANTIC" | "KEYWORD";
+            results: components["schemas"]["SearchResult"][];
+        };
+        SearchResult: {
+            /** Format: uuid */
+            documentId: string;
+            title: string;
+            /** Format: int32 */
+            pageStart: number;
+            /** Format: int32 */
+            pageEnd: number;
+            text: string;
+            highlights: components["schemas"]["Highlight"][];
+            /** Format: double */
+            score: number;
         };
         UploadDocumentRequest: {
             title: string;
@@ -578,6 +627,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
             };
             /** @description Problem Details */
             default: {
@@ -952,7 +1034,7 @@ export interface operations {
             };
         };
     };
-    search: {
+    search_1: {
         parameters: {
             query: {
                 query: string;

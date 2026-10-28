@@ -272,4 +272,97 @@ describe('DocumentDetailPage', () => {
     )
     click.mockRestore()
   })
+
+  it('opens the viewer at the page in the address, with the access token', async () => {
+    const server = api('STUDENT', {
+      [`GET ${DOC_PATH}`]: () =>
+        json(documentDetail({ canManage: false, status: 'INDEXED' })),
+      [`GET ${DOC_PATH}/content`]: () =>
+        new Response(new Blob(['%PDF-1.7']), {
+          headers: { 'Content-Type': 'application/pdf' },
+        }),
+    })
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, {
+        createObjectURL: vi.fn(() => 'blob:document'),
+        revokeObjectURL: vi.fn(),
+      }),
+    )
+
+    renderApp(`/documents/${DOC_ID}?page=3`)
+
+    expect(await screen.findByRole('heading', { name: 'Page 3' })).toBeVisible()
+    const viewer = await screen.findByTitle('Examination Policy 2026, page 3')
+    expect(viewer).toHaveAttribute('src', 'blob:document#page=3')
+    expect(
+      server.to('GET', `${DOC_PATH}/content`)[0].headers.get('Authorization'),
+    ).toBe('Bearer token-STUDENT')
+    expect(
+      screen.getByRole('link', { name: 'Search in this document' }),
+    ).toHaveAttribute('href', `/search?documentId=${DOC_ID}`)
+  })
+
+  it('loads the file only when the reader asks to view it, and keeps pages within the document', async () => {
+    const server = api('STUDENT', {
+      [`GET ${DOC_PATH}`]: () =>
+        json(
+          documentDetail({
+            canManage: false,
+            archived: true,
+            status: 'INDEXED',
+          }),
+        ),
+      [`GET ${DOC_PATH}/content`]: () =>
+        new Response(new Blob(['%PDF-1.7']), {
+          headers: { 'Content-Type': 'application/pdf' },
+        }),
+    })
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, {
+        createObjectURL: vi.fn(() => 'blob:document'),
+        revokeObjectURL: vi.fn(),
+      }),
+    )
+    const { user } = renderApp(`/documents/${DOC_ID}`)
+
+    const view = await screen.findByRole('button', {
+      name: 'View the document',
+    })
+    expect(server.to('GET', `${DOC_PATH}/content`)).toHaveLength(0)
+    // Archived: search leaves it out, so the page offers no search in it.
+    expect(
+      screen.queryByRole('link', { name: 'Search in this document' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(view)
+
+    expect(
+      await screen.findByTitle('Examination Policy 2026, page 1'),
+    ).toHaveAttribute('src', 'blob:document#page=1')
+  })
+
+  it('opens a page beyond the end at the last page', async () => {
+    api('STUDENT', {
+      [`GET ${DOC_PATH}`]: () => json(documentDetail({ canManage: false })),
+      [`GET ${DOC_PATH}/content`]: () =>
+        new Response(new Blob(['%PDF-1.7']), {
+          headers: { 'Content-Type': 'application/pdf' },
+        }),
+    })
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, {
+        createObjectURL: vi.fn(() => 'blob:document'),
+        revokeObjectURL: vi.fn(),
+      }),
+    )
+
+    renderApp(`/documents/${DOC_ID}?page=99`)
+
+    expect(
+      await screen.findByTitle('Examination Policy 2026, page 12'),
+    ).toHaveAttribute('src', 'blob:document#page=12')
+  })
 })

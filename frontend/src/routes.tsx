@@ -8,6 +8,7 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { SearchPage } from './pages/SearchPage'
 import { UploadDocumentPage } from './pages/UploadDocumentPage'
 
 /** The routes of 16.2 that exist so far. Everything except sign-in and registration needs a session. */
@@ -32,6 +33,7 @@ export const routes: RouteObject[] = [
         ),
       },
       { path: 'documents/:id', element: <DocumentDetailPage /> },
+      { path: 'search', element: <SearchPage /> },
       {
         path: 'admin/users',
         element: (

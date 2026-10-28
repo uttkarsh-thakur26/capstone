@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router'
 import { api, ApiError } from '../api/client'
 import type {
   DocumentResponse,
@@ -11,6 +17,7 @@ import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { messageOf } from '../components/formErrors'
+import { DocumentViewer } from '../documents/DocumentViewer'
 import { downloadDocument } from '../documents/download'
 import { EditDocumentDialog } from '../documents/EditDocumentDialog'
 import {
@@ -30,11 +37,13 @@ type Notice = { tone: 'success' | 'error'; text: string }
  * One document (DOC-5): its description, status and file, with the actions the user may take. A
  * document the user cannot read answers 404 like one that does not exist, so both look the same
  * here (ACL-8). Editing, sharing, archiving and deleting appear only for the owner and admins; the
- * server enforces the same rule (ACL-2, UI-2).
+ * server enforces the same rule (ACL-2, UI-2). `?page=` opens the viewer at that page, which is
+ * where a search result links to (UI-7).
  */
 export function DocumentDetailPage() {
   const { id = '' } = useParams()
   const location = useLocation()
+  const [params] = useSearchParams()
   const queryClient = useQueryClient()
   const [notice, setNotice] = useState<Notice | null>(() => {
     const text = (location.state as { notice?: string } | null)?.notice
@@ -121,10 +130,63 @@ export function DocumentDetailPage() {
 
       <Actions document={doc} onChanged={replace} onNotice={setNotice} />
 
+      <ViewerSection
+        document={doc}
+        requestedPage={pageOf(params.get('page'), doc.pageCount)}
+      />
+
       {doc.canManage && (
         <SharingSection documentId={doc.id} onNotice={setNotice} />
       )}
     </article>
+  )
+}
+
+/** A page number from the address, within the document when its length is known. */
+function pageOf(
+  value: string | null,
+  pageCount: number | undefined,
+): number | null {
+  const page = Number(value)
+  if (!value || !Number.isInteger(page) || page < 1) return null
+  return pageCount ? Math.min(page, pageCount) : page
+}
+
+function ViewerSection({
+  document,
+  requestedPage,
+}: {
+  document: DocumentResponse
+  requestedPage: number | null
+}) {
+  const [opened, setOpened] = useState(false)
+  const open = opened || requestedPage !== null
+  return (
+    <section aria-labelledby="viewer-heading" className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="viewer-heading" className="text-lg font-semibold">
+          {requestedPage === null ? 'View' : `Page ${requestedPage}`}
+        </h2>
+        {!open && (
+          <Button variant="secondary" onPress={() => setOpened(true)}>
+            View the document
+          </Button>
+        )}
+      </div>
+      {open && (
+        <>
+          <DocumentViewer
+            documentId={document.id}
+            title={document.title}
+            page={requestedPage ?? 1}
+          />
+          <p className="text-sm text-slate-700 dark:text-slate-300">
+            If the document does not appear above, your browser cannot show it
+            inside the page: use Download instead.
+          </p>
+        </>
+      )}
+    </section>
   )
 }
 
@@ -264,6 +326,14 @@ function Actions({
       >
         {download.isPending ? 'Downloading…' : 'Download'}
       </Button>
+      {document.status === 'INDEXED' && !document.archived && (
+        <Link
+          to={`/search?documentId=${document.id}`}
+          className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 outline-none hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+        >
+          Search in this document
+        </Link>
+      )}
       {document.canManage && (
         <>
           <Button variant="secondary" onPress={() => setEditing(true)}>

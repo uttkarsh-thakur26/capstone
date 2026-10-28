@@ -323,7 +323,7 @@ function ResultCard({
             : `Keyword rank ${result.score.toFixed(2)}`}
         </span>
       </div>
-      <p className="text-sm leading-relaxed whitespace-pre-line">
+      <p className="text-sm leading-relaxed whitespace-pre-line wrap-anywhere">
         {start > 0 && '… '}
         {segments(text, highlights, start, end).map((segment, i) =>
           segment.marked ? (

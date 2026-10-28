@@ -1,12 +1,23 @@
 # Progress
 
-Updated 2026-10-27. Format: specification Section 24.8.
+Updated 2026-10-28. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 3, ingestion and indexing, is done.** Pull request [#4](https://github.com/uttkarsh-thakur26/capstone/pull/4) was merged into `main` on 2026-10-27 (merge commit `177bb34`) with every CI check green. Next: Phase 4, retrieval and semantic search.
+**Phase 4, retrieval and search, is done**, merged through pull request [#6](https://github.com/uttkarsh-thakur26/capstone/pull/6) with every CI check green. Keyword search (RET-5) and the mode selector moved here from Phase 7 (ADR-035). Next: Phase 5, grounded question answering, which needs D5 (the chat model).
 
-Evidence (2026-10-27):
+Evidence (2026-10-28):
+
+- `./mvnw verify`: 479 backend tests and the format check. Access matrix on search, both modes, unscoped and scoped: `SearchAccessMatrixTest` (120 cases). The 19.2 "Retrieval" tests in both modes: `RetrievalTest`; through real ingestion: `SearchAfterIngestionTest`, which also checks that the query prefix reaches the model with queries only. Mutation checks failed the tests as expected: no archived filter, the predicate after `LIMIT`, a query without its prefix, a transaction around the model call.
+- Frontend: 81 tests, lint, type check, build, format.
+- Real model (dev profile, four course PDFs): the paraphrase "Am I allowed to keep my cell with me during the practical test?" puts the lab-exam instructions first in semantic mode (similarity 0.488) and finds nothing in keyword mode; the ISBN "9789332570948" is the only keyword result, while semantic mode ranks its passage second (0.323) behind another book list (0.336). Requests took 124 to 162 ms (semantic, with the query embedding) and 16 to 26 ms (keyword) on 9 chunks, too few for a p95.
+- Browser (Chromium only): both modes, highlights, a result opening the PDF at page 2 of 2, no horizontal scroll at 375 px.
+
+Reviews (ADR-028), listed in the pull request: the owner review found no defect; the independent review found that the viewed PDF stayed in memory after the viewer was left (fixed in `d5f8b9b`, test first).
+
+Decisions taken for this phase: D11 and D13 (ADR-035), S14 (ADR-035).
+
+Phase 3 is done: pull request [#4](https://github.com/uttkarsh-thakur26/capstone/pull/4) was merged into `main` on 2026-10-27 (merge commit `177bb34`). Evidence (2026-10-27):
 
 - `./mvnw verify` on the branch passes with 328 backend tests and the format check. The "Ingestion" tests of 19.2 are in `IngestionPipelineTest`, `IndexCompatibilityCheckTest`, `EmbedderTest` and `IngestionWorkerTest`; the chunker and normalizer have unit tests. Removing `FOR UPDATE SKIP LOCKED` from the claim made the two-workers test fail.
 - Frontend: 62 tests, lint, type check, build, format; `npm run gen:api` adds `TOO_MANY_CHUNKS`.
@@ -34,10 +45,10 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 | 1 | Authentication and roles | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `70b2041` | 2026-10-14 |
 | 2 | Document management | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `2f16711` | 2026-10-26 |
 | 3 | Ingestion and indexing | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `177bb34` | 2026-10-27 |
-| 4 | Retrieval and semantic search | Not started | |
+| 4 | Retrieval and search (semantic and keyword) | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #6 | 2026-10-28 |
 | 5 | Grounded question answering | Not started | |
 | 6 | Conversations and citation viewer | Not started | |
-| 7 | Keyword baseline and first evaluation run | Not started | |
+| 7 | First evaluation run (keyword search moved to Phase 4, ADR-035) | Not started | |
 | 8 | Hybrid search, summarization, comparison | Not started | |
 | 9 | Administration, audit, analytics | Not started | |
 | 10 | Full evaluation and hardening | Not started | |
@@ -79,6 +90,10 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - Spring AI 2.0.2 is built against Boot 4.1.2 and Framework 7.0.10; the project resolves 4.1.1 and 7.0.9 (VERSIONS.md).
 - A crash between storing an uploaded file and inserting its row, or in the middle of writing it (a `.part` file), leaves a file on the volume that no row points at. Nothing removes it yet (ADR-031).
 - One browser profile holds one refresh cookie, so two accounts cannot be signed in at the same time in one browser. A tab whose silent refresh returns another account ends its own session.
+- Search is not logged yet: `query_log` and its latency figures arrive in Phase 9.
+- When Ollama hangs instead of refusing connections, a semantic search waits for the embedding retries and their 120 s read timeout before it answers 503.
+- Keyword search needs every word of the query. A number that text extraction split at a line break ("978- 0134686097" in a PDF) is not found when typed whole.
+- The viewer uses the browser's own PDF viewer. Checked in Chromium; check Firefox by hand. Browsers that show no PDF inside a page (most phones) need Download.
 - Branch protection and rulesets are not available on this private repository with the owner's GitHub plan (the API answers 403, "Upgrade to GitHub Pro"). "A red build blocks merging" (19.3) is therefore kept by convention: do not merge a pull request whose checks are not green.
 
 ## Open specification issues
@@ -100,7 +115,7 @@ Found while checking the specification before Phase 0. Each must be settled, and
 | S11 | ING-9 compares only dimensions, so a different model with the same dimension passes; the model name is configured twice; Flyway does not detect a changed dimension placeholder on an existing database | 9.2 ING-9, 18, 7.3 DATA-4 | Phase 3 | Resolved, ADR-034 |
 | S12 | With the in-process ONNX model, the default chunk size of 400 tokens exceeds its 128 word-piece input, so D6 and D10 must be decided together | 3.4, 26 D6, D10, 9.2 ING-7 | Phase 3 | Resolved, ADR-033, ADR-034 |
 | S13 | With virtual threads on, Boot's executor has no concurrency limit, so the ingestion bound (ING-12) needs a dedicated executor | 4.5, 9.2 ING-12 | Phase 3 | Resolved, ADR-034 |
-| S14 | Read literally, the query-embedding model call sits inside the read-only retrieval transaction, against 4.5's rule | 4.5, 10 RET-2, RET-3 | Phase 4 | Open |
+| S14 | Read literally, the query-embedding model call sits inside the read-only retrieval transaction, against 4.5's rule | 4.5, 10 RET-2, RET-3 | Phase 4 | Resolved, ADR-035 |
 | S15 | Creating a conversation and asking in it (`POST /conversations`, `POST /conversations/{id}/messages`) are needed by Phase 5 and by the Phase 7 harness but assigned to no phase | 15.2, 11.1, 23 | Phase 5 | Open |
 | S16 | Retries: RAG-6 allows one retry with a 60-second timeout, but Spring AI's defaults retry up to 10 times, the OpenAI module retries in its SDK, and `validateSchema()` can call the model four times | 11.4 RAG-6, 9.2 ING-8, 3.3 | Phase 5 | Open |
 | S17 | RAG-6 sets an explicit low temperature, but OpenAI's default chat model in Spring AI 2.0.1 rejects `temperature`; D5 must account for it | 11.4 RAG-6, 26 D5, 3.3 | Phase 5 | Open |

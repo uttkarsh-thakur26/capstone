@@ -365,4 +365,45 @@ describe('DocumentDetailPage', () => {
       await screen.findByTitle('Examination Policy 2026, page 12'),
     ).toHaveAttribute('src', 'blob:document#page=12')
   })
+
+  it('closes the viewer when another document is opened', async () => {
+    const otherId = '0199a1b2-0000-7000-8000-00000000d0c2'
+    const server = api('STUDENT', {
+      [`GET ${DOC_PATH}`]: () => json(documentDetail({ canManage: false })),
+      [`GET ${DOC_PATH}/content`]: () =>
+        new Response(new Blob(['%PDF-1.7']), {
+          headers: { 'Content-Type': 'application/pdf' },
+        }),
+      [`GET /api/v1/documents/${otherId}`]: () =>
+        json(
+          documentDetail({
+            id: otherId,
+            title: 'Hostel Rules',
+            canManage: false,
+          }),
+        ),
+    })
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, {
+        createObjectURL: vi.fn(() => 'blob:document'),
+        revokeObjectURL: vi.fn(),
+      }),
+    )
+    const { router } = renderApp(`/documents/${DOC_ID}?page=2`)
+    await screen.findByTitle('Examination Policy 2026, page 2')
+
+    await router.navigate(`/documents/${otherId}`)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Hostel Rules' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'View the document' }),
+    ).toBeVisible()
+    expect(screen.queryByTitle(/page/)).not.toBeInTheDocument()
+    expect(
+      server.to('GET', `/api/v1/documents/${otherId}/content`),
+    ).toHaveLength(0)
+  })
 })

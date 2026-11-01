@@ -172,7 +172,7 @@ These were checked against official sources on 2026-10-05 and extended on 2026-1
 
 - Artifact names: `spring-ai-starter-model-<provider>`, `spring-ai-rag`, `spring-ai-vector-store-advisor` (renamed from `spring-ai-advisors-vector-store`), `spring-ai-pdf-document-reader`, `spring-ai-tika-document-reader`. `spring-ai-starter-vector-store-pgvector` exists but is not used (ADR-001).
 - Options objects are immutable and created with builders. `ChatClient` `options(...)` takes a builder. Configuration properties no longer contain `.options`, for example `spring.ai.openai.embedding.model`.
-- Spring AI no longer sets a default temperature for most providers; the Google GenAI and Mistral options still default to 0.7. Set it explicitly. OpenAI's default chat model in 2.0.1 is `gpt-5-mini`, and GPT-5 models reject `temperature` and `max-tokens`, which matters for D5 and RAG-6.
+- Spring AI no longer sets a default temperature for most providers; the Google GenAI and Mistral options still default to 0.7. Set it explicitly. OpenAI's default chat model in 2.0.1 is `gpt-5-mini`, and GPT-5 models reject `temperature` and `max-tokens`, which matters for D5 and RAG-6. The chosen `gpt-6-luna` accepts `temperature` with reasoning effort `none`, and its output limit is `max-completion-tokens` (ADR-036, ADR-037).
 - `.entity(...)` structured output works with `.call()` only, not with streaming. `validateSchema()` re-calls the model up to three more times, so up to four calls in total. To change that, register a `StructuredOutputValidationAdvisor` with `maxRepeatAttempts(n)`.
 - Memory advisors need an explicit conversation id. `PromptChatMemoryAdvisor` was removed.
 - `ChatClient` auto-registers a `ToolCallingAdvisor` on every call. RAG-7 sets `spring.ai.chat.client.tool-calling.enabled=false` and keeps `spring.ai.tools.resolution.fallback.enabled` at its default of false.
@@ -288,7 +288,7 @@ Each of these sits behind an interface so it can change without touching callers
 3. Page range and section are real columns, which citations and the viewer need.
 4. Keyword, semantic and hybrid search share one table and one permission predicate.
 
-**What Spring AI is still used for.** Model access (`EmbeddingModel`, `ChatClient`), PDF reading, the RAG building blocks (a custom `DocumentRetriever`, query transformers, post-processors), structured output and evaluators.
+**What Spring AI is still used for.** Model access (`EmbeddingModel`, `ChatModel`), PDF reading, the RAG building blocks (query transformers, post-processors), structured output and evaluators. The assistant calls retrieval itself instead of through a `DocumentRetriever`, because the evidence gate must sit between retrieval and generation (ADR-037).
 
 **Rejected alternative.** `PgVectorStore` with metadata filter expressions. Simpler to start, acceptable only if every grant change rewrites chunk metadata in the same transaction.
 
@@ -791,8 +791,8 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 | `app.upload` | Maximum file size (25 MB). Not a setting: the allowed types, because PDF is the only one the code can check (D9, ADR-029) |
 | `app.ingestion` | Worker on (yes), chunk size (400 tokens), overlap (60), embedding batch size (16), parallel documents (2), poll interval (10 s), heartbeat interval (30 s), recovery interval (1 min), stuck timeout (5 min, ADR-034), maximum attempts (3), maximum pages (500), maximum chunks (5,000), minimum characters per page (20), shutdown wait (20 s) |
 | `app.embedding` | Model name, dimension (both required, D6, ADR-033), maximum input tokens (2,048, sent as `num_ctx`), tokenizer margin (1.5), query prefix, retries (3, from 1 s doubling to 10 s) |
-| `app.retrieval` | `k` (6), similarity floor, mode |
-| `app.assistant` | Temperature (0.1), maximum output tokens, context token budget, history turns (3), timeout (60 s), abstention message |
+| `app.retrieval` | `k` (6), similarity floor (0.30, provisional until Phase 7; ADR-037). The mode joins with hybrid search in Phase 8 |
+| `app.assistant` | Context token budget (4,000), history turns (3), abstention message, snippet length (300). Temperature (0.1), maximum output tokens, timeout (60 s), retries and reasoning effort differ by provider, so they are the chat provider's own properties under `spring.ai.*` (ADR-037) |
 | `app.storage` | Root path |
 | `app.analytics` | Store question text (off) |
 
@@ -1068,7 +1068,7 @@ Do not start Phase 5 until retrieval is correct. Answer quality cannot exceed re
 
 Read: Sections 4.5, 11. Needs: D5, D13.
 
-Build: prompt resources, context assembly, evidence gate, structured generation, citation validation, persistence.
+Build: prompt resources, context assembly, evidence gate, structured generation, citation validation, persistence, and the endpoints that create a conversation and ask in it (S15, ADR-037).
 
 Exit criteria:
 
@@ -1316,7 +1316,7 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | D2 | Maven group, artifact and base package | None. A neutral technical identifier, not a brand | Phase 0 | Resolved: `in.edu.bennett.capstone`, `knowledge-platform`, `in.edu.bennett.capstone.knowledge` (ADR-006) |
 | D3 | Build tool | Maven with wrapper | Phase 0 | Accepted (ADR-002) |
 | D4 | Java version | 25, or 21 if the team's machines require it | Phase 0 | Accepted: Java 25 (ADR-003) |
-| D5 | Chat model and provider | None. See Section 3.4 | A provisional choice for the Milestone-1 proposal. Final in Phase 5 | Open |
+| D5 | Chat model and provider | None. See Section 3.4 | A provisional choice for the Milestone-1 proposal. Final in Phase 5 | Accepted: `gpt-6-luna` through OpenAI's Chat Completions API (ADR-036) |
 | D6 | Embedding model and dimension | None. Fixes the vector column | A provisional choice for the Milestone-1 proposal. Final in Phase 3 | Accepted: `qwen3-embedding:0.6b` through Ollama, 1024 dimensions (ADR-033) |
 | D7 | Token strategy | JWT access token plus rotating refresh cookie. A simpler variant (access token only, 60 minutes, sign in again) is allowed if recorded | Phase 1 | Accepted: the default, with logout by cookie and revocation on reuse (ADR-020) |
 | D8 | File storage | Local volume | Phase 2 | Accepted (ADR-029) |

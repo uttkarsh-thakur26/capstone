@@ -37,6 +37,8 @@ spring:
         model: ${OPENAI_CHAT_MODEL:gpt-6-luna}
         # Reasoning tokens are billed as output; answers come from the sources, not from reasoning.
         reasoning-effort: ${OPENAI_REASONING_EFFORT:none}
+        # RAG-6. gpt-6-luna accepts it with reasoning effort none (checked 2026-11-01, S17).
+        temperature: 0.1
         # Answers are short (11.3); the cap keeps a runaway answer cheap.
         max-completion-tokens: 2048
         # Questions and answers are not kept by the provider for its own tools.

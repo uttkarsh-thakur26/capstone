@@ -45,6 +45,12 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL_FROM_CONTAINER:-http://host.docker.internal:11434}
       APP_EMBEDDING_MODEL: ${APP_EMBEDDING_MODEL:-qwen3-embedding:0.6b}
       APP_EMBEDDING_DIMENSIONS: ${APP_EMBEDDING_DIMENSIONS:-1024}
+      # The chat model (D5, ADR-036). With the openai provider the backend needs the key to start;
+      # `none` runs everything except answering questions.
+      CHAT_PROVIDER: ${CHAT_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-6-luna}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-none}
     extra_hosts:
       # Docker Desktop provides host.docker.internal; on Linux this line does.
       - "host.docker.internal:host-gateway"

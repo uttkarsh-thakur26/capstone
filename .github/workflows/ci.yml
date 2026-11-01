@@ -71,11 +71,13 @@ jobs:
       - uses: actions/checkout@v7
 
       # .env.example's signing key and admin password are invalid on purpose; CI generates both.
+      # CI has no model key, so the stack runs without a chat model.
       - name: Environment from .env.example
         run: |
           cp .env.example .env
           sed -i "s|^APP_SECURITY_JWT_SECRET=.*|APP_SECURITY_JWT_SECRET=$(openssl rand -base64 32)|" .env
           sed -i "s/^APP_BOOTSTRAP_ADMIN_PASSWORD=.*/APP_BOOTSTRAP_ADMIN_PASSWORD=$(openssl rand -hex 16)/" .env
+          sed -i "s/^CHAT_PROVIDER=.*/CHAT_PROVIDER=none/" .env
 
       - run: docker compose up --build -d --wait
       - run: curl -fsS http://localhost:3000/api/v1/meta

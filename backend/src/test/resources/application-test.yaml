@@ -2,8 +2,9 @@
 spring:
   ai:
     model:
-      # Tests never call a real model (19.1): FakeEmbeddingModel takes its place.
+      # Tests never call a real model (19.1): FakeEmbeddingModel and FakeChatModel take their place.
       embedding: fake
+      chat: fake
 app:
   display-name: Test platform
   security:

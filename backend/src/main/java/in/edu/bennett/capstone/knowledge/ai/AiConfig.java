@@ -5,15 +5,17 @@ import org.springframework.ai.embedding.EmbeddingOptions;
 import org.springframework.ai.ollama.OllamaEmbeddingModel;
 import org.springframework.ai.ollama.api.OllamaApi;
 import org.springframework.ai.ollama.api.OllamaEmbeddingOptions;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Model access (specification 3.4): the only place that knows the provider. Phase 5 adds the chat
- * model here.
+ * Model access (specification 3.4): the only place that knows the provider. The chat model is
+ * Spring AI's own bean for {@code spring.ai.model.chat}, configured by properties (D5, ADR-036).
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(EmbeddingProperties.class)
@@ -57,5 +59,25 @@ class AiConfig {
         .truncate(false)
         .numCtx(properties.maxInputTokens())
         .build();
+  }
+
+  /**
+   * Stops startup when OpenAI is the chat provider and no key is set (specification 18). Spring AI
+   * would otherwise send requests without a key, and the mistake would show only when someone asks
+   * a question.
+   */
+  @Bean
+  @ConditionalOnProperty(
+      name = "spring.ai.model.chat",
+      havingValue = "openai",
+      matchIfMissing = true)
+  InitializingBean openAiApiKeyCheck(@Value("${spring.ai.openai.api-key:}") String apiKey) {
+    return () -> {
+      if (apiKey.isBlank()) {
+        throw new IllegalStateException(
+            "The chat provider is openai but OPENAI_API_KEY is not set. Set the key, or set"
+                + " CHAT_PROVIDER=none to run without answering questions (D5)");
+      }
+    };
   }
 }

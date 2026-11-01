@@ -14,11 +14,33 @@ spring:
   ai:
     model:
       embedding: ollama
-      # No chat model until Phase 5 (D5 is open).
-      chat: none
+      # D5, ADR-036. `none` runs the application without a chat model: everything works except
+      # asking, which answers 503.
+      chat: ${CHAT_PROVIDER:openai}
+      # The OpenAI starter switches these on unless told otherwise; the application uses none.
+      image: none
+      audio:
+        speech: none
+        transcription: none
+      moderation: none
     chat:
       client:
+        # The assistant calls the ChatModel itself, so no advisor can add tools or retries (RAG-7).
         enabled: false
+    openai:
+      # Required while the provider is openai; never logged (SEC-10).
+      api-key: ${OPENAI_API_KEY:}
+      # RAG-6: one retry of a transient failure, in the SDK only (S16), and 60 s per attempt.
+      max-retries: 1
+      timeout: 60s
+      chat:
+        model: ${OPENAI_CHAT_MODEL:gpt-6-luna}
+        # Reasoning tokens are billed as output; answers come from the sources, not from reasoning.
+        reasoning-effort: ${OPENAI_REASONING_EFFORT:none}
+        # Answers are short (11.3); the cap keeps a runaway answer cheap.
+        max-completion-tokens: 2048
+        # Questions and answers are not kept by the provider for its own tools.
+        store: false
     ollama:
       # Ollama runs on the host so it can use the GPU. Compose sets the container's address.
       base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
@@ -46,6 +68,11 @@ management:
     web:
       exposure:
         include: health
+
+logging:
+  level:
+    # It logs the whole prompt, document text included, when a response has no choice (SEC-10).
+    org.springframework.ai.openai.OpenAiChatModel: error
 
 # The OpenAPI document and Swagger UI exist only in the dev profile (AUTH-8, ADR-014).
 springdoc:

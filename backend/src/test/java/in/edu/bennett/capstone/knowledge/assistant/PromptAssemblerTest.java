@@ -75,7 +75,8 @@ class PromptAssemblerTest {
             chunk("Two", null, 2, 2, words),
             chunk("Three", null, 3, 3, "short"));
 
-    // About 320 tokens each: the first fits 400, the second would not, and the third is never tried.
+    // About 320 tokens each: the first fits 400, the second would not, and the third is never
+    // tried.
     AssembledPrompt prompt = new PromptAssembler(tokens, 400).assemble(chunks, "q");
 
     assertThat(prompt.sources()).extracting(RetrievedChunk::title).containsExactly("One");

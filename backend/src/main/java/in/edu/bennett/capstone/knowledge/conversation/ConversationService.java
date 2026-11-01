@@ -96,13 +96,17 @@ public class ConversationService {
     try {
       answer = assistant.answer(user, question, request.documentIds());
     } catch (AnswerFailedException e) {
-      UUID messageId =
-          store(
-              user,
-              conversationId,
-              question,
-              new Answer(AnswerOutcome.ERROR, ERROR_TEXT, List.of(), e.trace()));
-      logAnswer(user, conversationId, messageId, AnswerOutcome.ERROR, e.trace(), e.getMessage());
+      UUID messageId = null;
+      try {
+        messageId =
+            store(
+                user,
+                conversationId,
+                question,
+                new Answer(AnswerOutcome.ERROR, ERROR_TEXT, List.of(), e.trace()));
+      } finally {
+        logAnswer(user, conversationId, messageId, AnswerOutcome.ERROR, e.trace(), e.getMessage());
+      }
       throw new ApiException(
           HttpStatus.SERVICE_UNAVAILABLE,
           "MODEL_UNAVAILABLE",

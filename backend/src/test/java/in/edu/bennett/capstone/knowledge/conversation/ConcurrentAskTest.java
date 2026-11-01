@@ -20,7 +20,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
@@ -99,5 +101,34 @@ class ConcurrentAskTest {
         .containsExactly("USER", "ASSISTANT", "USER", "ASSISTANT");
     assertThat(rows.get(0).get("content")).isEqualTo("fast " + chunk);
     assertThat(rows.get(2).get("content")).isEqualTo("slow " + chunk);
+  }
+
+  /**
+   * A conversation deleted while the model fails cannot keep the failed answer: the client gets 404
+   * and nothing is stored, but the failure itself is still logged.
+   */
+  @Test
+  void aFailureInADeletedConversationIsStillLogged(CapturedOutput output) throws Exception {
+    UUID conversation = TestConversations.create(mvc, student);
+    CountDownLatch started = chat.holdNext(release, () -> "not JSON");
+    CompletableFuture<MvcTestResult> asked =
+        CompletableFuture.supplyAsync(
+            () -> TestConversations.ask(mvc, student, conversation, chunk, null));
+    assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
+
+    jdbc.sql("DELETE FROM conversation WHERE id = :id").param("id", conversation).update();
+    release.countDown();
+
+    assertThat(asked.get(10, TimeUnit.SECONDS)).hasStatus(HttpStatus.NOT_FOUND);
+    assertThat(
+            jdbc.sql("SELECT count(*) FROM message WHERE conversation_id = :id")
+                .param("id", conversation)
+                .query(Long.class)
+                .single())
+        .isZero();
+    assertThat(output.getAll())
+        .contains(
+            "conversation=" + conversation + " message=null outcome=ERROR",
+            "failure=\"The chat model's output is malformed\"");
   }
 }

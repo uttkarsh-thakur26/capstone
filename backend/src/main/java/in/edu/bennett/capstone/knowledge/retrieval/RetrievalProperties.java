@@ -17,10 +17,12 @@ import org.springframework.validation.annotation.Validated;
  *     a question retrieves
  * @param similarityFloor the evidence gate (11.1 step 5): when the best chunk for a question is
  *     less similar than this, the answer is insufficient evidence and the chat model is not called.
- *     It belongs to the embedding model: provisional until the calibration of Phase 7 (RAG-8)
+ *     It belongs to the embedding model: 0.30 is provisional for qwen3-embedding:0.6b, between the
+ *     off-topic questions measured (at most 0.282) and the relevant ones (at least 0.336), until
+ *     the calibration of Phase 7 (RAG-8, ADR-037)
  */
 @Validated
 @ConfigurationProperties("app.retrieval")
 public record RetrievalProperties(
     @DefaultValue("6") @Min(1) @Max(SearchRequest.MAX_K) int k,
-    @DefaultValue("0.35") @DecimalMin("-1.0") @DecimalMax("1.0") double similarityFloor) {}
+    @DefaultValue("0.30") @DecimalMin("-1.0") @DecimalMax("1.0") double similarityFloor) {}

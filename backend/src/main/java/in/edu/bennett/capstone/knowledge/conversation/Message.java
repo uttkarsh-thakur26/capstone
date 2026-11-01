@@ -14,8 +14,8 @@ import org.hibernate.annotations.UuidGenerator;
 
 /**
  * A question or an answer in a conversation (table {@code message}, specification 7.2). Messages
- * are never changed. The time is when the question was asked or the answer was given, so a question
- * always sorts before its answer.
+ * are never changed. A question and its answer are stored together once the answer is known, with
+ * times that place the question directly before its answer ({@code ConversationService}).
  */
 @Entity
 @Table(name = "message")

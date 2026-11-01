@@ -84,14 +84,14 @@ public class ConversationService {
    *       with the {@code AI_QUERY} audit entry.
    * </ol>
    *
-   * A failed answer is stored with the {@code ERROR} outcome and answers 503 (RAG-6).
+   * A failed answer is stored with the {@code ERROR} outcome and answers 503 (RAG-6). The failure
+   * is logged even when it cannot be stored, for example because the conversation was deleted.
    */
   public AnswerResponse ask(CurrentUser user, UUID conversationId, AskRequest request) {
     String question = request.question().strip();
     reads.executeWithoutResult(
         status ->
             conversations.findByIdAndUserId(conversationId, user.id()).orElseThrow(this::notFound));
-    Instant askedAt = Instant.now(clock);
     Answer answer;
     try {
       answer = assistant.answer(user, question, request.documentIds());
@@ -101,7 +101,6 @@ public class ConversationService {
               user,
               conversationId,
               question,
-              askedAt,
               new Answer(AnswerOutcome.ERROR, ERROR_TEXT, List.of(), e.trace()));
       logAnswer(user, conversationId, messageId, AnswerOutcome.ERROR, e.trace(), e.getMessage());
       throw new ApiException(
@@ -109,7 +108,7 @@ public class ConversationService {
           "MODEL_UNAVAILABLE",
           "The answer could not be produced right now. Try again later.");
     }
-    UUID messageId = store(user, conversationId, question, askedAt, answer);
+    UUID messageId = store(user, conversationId, question, answer);
     logAnswer(user, conversationId, messageId, answer.outcome(), answer.trace(), null);
     return new AnswerResponse(
         messageId,
@@ -132,20 +131,26 @@ public class ConversationService {
    * Stores the question and the answer under a lock on the conversation, so nothing is stored for a
    * conversation that was removed while the model worked.
    *
+   * <p>Both times are taken under the lock and follow the conversation's last message, the answer
+   * one microsecond after its question (the database's precision). Two questions asked at once are
+   * therefore stored one exchange after the other, and each question sorts directly before its own
+   * answer, whichever model call finished first.
+   *
    * @return the id of the stored answer
    */
-  private UUID store(
-      CurrentUser user, UUID conversationId, String question, Instant askedAt, Answer answer) {
+  private UUID store(CurrentUser user, UUID conversationId, String question, Answer answer) {
     return transactions.execute(
         status -> {
           Conversation conversation =
               conversations
                   .lockByIdAndUserId(conversationId, user.id())
                   .orElseThrow(this::notFound);
-          Instant answeredAt = Instant.now(clock);
-          if (!answeredAt.isAfter(askedAt)) {
-            answeredAt = askedAt.plus(1, ChronoUnit.MICROS);
+          Instant askedAt = Instant.now(clock).truncatedTo(ChronoUnit.MICROS);
+          Instant latest = messages.latestIn(conversationId);
+          if (latest != null && !askedAt.isAfter(latest)) {
+            askedAt = latest.plus(1, ChronoUnit.MICROS);
           }
+          Instant answeredAt = askedAt.plus(1, ChronoUnit.MICROS);
           conversation.asked(question, answeredAt);
           messages.save(Message.question(conversationId, question, askedAt));
           Message stored =

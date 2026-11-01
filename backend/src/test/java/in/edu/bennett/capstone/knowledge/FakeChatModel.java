@@ -4,6 +4,8 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -80,6 +82,32 @@ public class FakeChatModel implements ChatModel {
             throw failure.get();
           });
     }
+  }
+
+  /**
+   * The next call waits until {@code release} opens, then returns the output, or throws the
+   * exception, that {@code outcome} gives.
+   *
+   * @return a latch that opens when that call has started
+   */
+  public CountDownLatch holdNext(CountDownLatch release, Supplier<String> outcome) {
+    CountDownLatch started = new CountDownLatch(1);
+    synchronized (script) {
+      script.add(
+          () -> {
+            started.countDown();
+            try {
+              if (!release.await(30, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("A held chat call was never released");
+              }
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new IllegalStateException(e);
+            }
+            return outcome.get();
+          });
+    }
+    return started;
   }
 
   public List<Request> requests() {

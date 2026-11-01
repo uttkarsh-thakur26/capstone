@@ -4,6 +4,7 @@ import in.edu.bennett.capstone.knowledge.common.PgVector;
 import in.edu.bennett.capstone.knowledge.security.CurrentUser;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -48,8 +49,8 @@ class SqlChunkSearch implements ChunkSearch {
    */
   private static final String SEMANTIC =
       """
-      SELECT c.document_id, d.title, c.page_start, c.page_end, c.content,
-             1 - (c.embedding <=> CAST(:embedding AS vector)) AS score
+      SELECT c.document_id, d.title, d.document_date, c.chunk_index, c.page_start, c.page_end,
+             c.content, 1 - (c.embedding <=> CAST(:embedding AS vector)) AS score
       FROM document_chunk c
       JOIN document d ON d.id = c.document_id
       WHERE %s%s
@@ -65,10 +66,10 @@ class SqlChunkSearch implements ChunkSearch {
    */
   private static final String KEYWORD =
       """
-      SELECT r.document_id, r.title, r.page_start, r.page_end, r.content, r.score,
-             ts_headline('english', r.content, r.query, :headline) AS marked
-      FROM (SELECT c.id, c.document_id, d.title, c.page_start, c.page_end, c.content, q.query,
-                   ts_rank_cd(c.content_tsv, q.query) AS score
+      SELECT r.document_id, r.title, r.document_date, r.chunk_index, r.page_start, r.page_end,
+             r.content, r.score, ts_headline('english', r.content, r.query, :headline) AS marked
+      FROM (SELECT c.id, c.document_id, d.title, d.document_date, c.chunk_index, c.page_start,
+                   c.page_end, c.content, q.query, ts_rank_cd(c.content_tsv, q.query) AS score
             FROM document_chunk c
             JOIN document d ON d.id = c.document_id
             CROSS JOIN websearch_to_tsquery('english', :query) AS q (query)
@@ -138,6 +139,8 @@ class SqlChunkSearch implements ChunkSearch {
     return new ChunkHit(
         row.getObject("document_id", UUID.class),
         row.getString("title"),
+        row.getObject("document_date", LocalDate.class),
+        row.getInt("chunk_index"),
         row.getInt("page_start"),
         row.getInt("page_end"),
         row.getString("content"),
@@ -157,6 +160,8 @@ class SqlChunkSearch implements ChunkSearch {
     return new ChunkHit(
         row.getObject("document_id", UUID.class),
         row.getString("title"),
+        row.getObject("document_date", LocalDate.class),
+        row.getInt("chunk_index"),
         row.getInt("page_start"),
         row.getInt("page_end"),
         content,

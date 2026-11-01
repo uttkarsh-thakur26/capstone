@@ -39,6 +39,8 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-033](#adr-033-qwen3-embedding06b-through-ollama-on-the-host-d6) | D6 | qwen3-embedding:0.6b through Ollama on the host | Accepted | 2026-10-27 |
 | [ADR-034](#adr-034-specification-corrections-and-design-choices-for-phase-3) | D10, D12 | Specification corrections and design choices for Phase 3 | Accepted | 2026-10-27 |
 | [ADR-035](#adr-035-search-in-phase-4-semantic-and-keyword-d11-d13) | D11, D13 | Search in Phase 4: semantic and keyword | Accepted | 2026-10-28 |
+| [ADR-036](#adr-036-gpt-6-luna-through-openais-chat-completions-api-d5) | D5 | gpt-6-luna through OpenAI's Chat Completions API | Accepted | 2026-11-01 |
+| [ADR-037](#adr-037-specification-corrections-and-design-choices-for-phase-5) | | Specification corrections and design choices for Phase 5 | Accepted | 2026-11-01 |
 
 ---
 
@@ -624,3 +626,29 @@ Date 2026-10-28, accepted. One line per decision.
 - A result carries the whole chunk; keyword results add the positions of the matched words, which `ts_headline` marks with two control characters that the normalizer removes from every chunk; no markup reaches the client (UI-6).
 - A failing embedding model answers `503 MODEL_UNAVAILABLE`; keyword search keeps working without the model.
 - Viewer: `/documents/:id?page=N` shows the PDF in the browser's own viewer, fetched with the token and opened at `#page=N`, with Download as the fallback; pdf.js was not added, and Phase 6 may revisit it for the citation viewer.
+
+---
+
+### ADR-036: gpt-6-luna through OpenAI's Chat Completions API (D5)
+
+Date 2026-11-01, accepted. OpenAI `gpt-6-luna` through Spring AI's OpenAI starter (Chat Completions, OpenAI Java SDK 4.80.0), with reasoning effort `none` (reasoning tokens are billed as output), temperature 0.1, strict JSON-schema output, at most 2,048 output tokens, 60 s per attempt and one SDK retry; its context window of 1,050,000 tokens (922,000 input) leaves the largest prompt, about 7,000 tokens, far inside RAG-5; it costs $0.10 per million input tokens ($0.01 cached) and $0.50 per million output tokens; the passages an answer is built from leave the machine (SEC-13), so only public documents are asked about; one live call on 2026-11-01 confirmed the schema, the temperature and 0 reasoning tokens with effort `none`.
+
+---
+
+### ADR-037: Specification corrections and design choices for Phase 5
+
+Date 2026-11-01, accepted. One line per decision.
+
+- S15: `POST /conversations` and `POST /conversations/{id}/messages` are built in Phase 5; a conversation has no title until its first question names it (CONV-3); listing, opening, renaming and deleting stay in Phase 6.
+- S16: retries live in the OpenAI SDK only (`spring.ai.openai.max-retries=1`); the assistant calls `ChatModel` directly, not `ChatClient`, so no advisor adds tools or repeats the call to validate the schema; at most two attempts.
+- S17: `gpt-6-luna` accepts `temperature` with reasoning effort `none` (live call, 2026-11-01), so RAG-6's 0.1 is set.
+- S18: no custom `DocumentRetriever`; the assistant calls retrieval itself, because the evidence gate must sit between retrieval and generation; specification 4.6 was corrected.
+- Model settings that differ by provider (temperature, output limit, timeout, retries, reasoning effort) are the provider's Spring AI properties, not `app.assistant`; `app.assistant` holds the source token budget (4,000 cl100k tokens), the abstention message and the snippet length (300); specification 18 was corrected.
+- Structured output is requested through Spring AI's provider-neutral `StructuredOutputChatOptions`, built from the model's own options, because a request's options replace them; output must match the schema exactly and nothing is coerced.
+- Malformed output, a chat model failure and an embedding failure all answer `503 MODEL_UNAVAILABLE` and store an `ERROR` answer; insufficient evidence would wrongly say the documents hold no answer.
+- An answer from the evidence gate stores no model and no prompt version, because neither was used.
+- Question answering retrieves semantically and `app.retrieval` has no mode until hybrid search (Phase 8), because the floor is a similarity; the floor starts at 0.30 for `qwen3-embedding:0.6b`, between three off-topic questions (at most 0.282) and the relevant ones measured (at least 0.336, Phase 4's ISBN query), until Phase 7 calibrates it (RAG-8).
+- Sources are added best first while they fit the budget; titles, chunk text and the question are XML-escaped.
+- `OpenAiChatModel` logs at `ERROR` only, because at `WARN` it logs the whole prompt when a response has no choice (SEC-10).
+- The OpenAI starter's other models (embedding, image, audio, moderation) are switched off; `CHAT_PROVIDER=none` runs without a chat model, and asking then answers 503; CI's stack job runs that way.
+- Dependency: `spring-ai-starter-model-openai` from the Spring AI BOM 2.0.2, the model access that 3.4 names, without chat memory and without the SDK's older copy of springdoc's `swagger-annotations` classes.

@@ -2,8 +2,9 @@
 spring:
   ai:
     model:
-      # Tests never call a real model (19.1): FakeEmbeddingModel takes its place.
+      # Tests never call a real model (19.1): FakeEmbeddingModel and FakeChatModel take their place.
       embedding: fake
+      chat: fake
 app:
   display-name: Test platform
   security:
@@ -26,6 +27,10 @@ app:
     retry:
       delay: 1ms
       max-delay: 5ms
+  retrieval:
+    # On the fake embedding model's scale, not the real model's: tests choose questions that clear it
+    # by sharing words with a chunk, or not.
+    similarity-floor: 0.3
   ingestion:
     # Tests drive the pipeline themselves; IngestionWorkerTest runs the worker.
     enabled: false

@@ -1,13 +1,20 @@
 package in.edu.bennett.capstone.knowledge.retrieval;
 
 import in.edu.bennett.capstone.knowledge.retrieval.SearchResponse.Highlight;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** One chunk found by {@link ChunkSearch}, with the title of its document and its score. */
+/**
+ * One chunk found by {@link ChunkSearch}, with the title and date of its document and its score.
+ *
+ * @param documentDate the document's own date, null when none was given
+ */
 record ChunkHit(
     UUID documentId,
     String title,
+    LocalDate documentDate,
+    int chunkIndex,
     int pageStart,
     int pageEnd,
     String text,

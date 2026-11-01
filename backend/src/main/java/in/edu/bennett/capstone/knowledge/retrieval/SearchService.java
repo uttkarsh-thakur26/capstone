@@ -6,6 +6,7 @@ import in.edu.bennett.capstone.knowledge.common.ApiException;
 import in.edu.bennett.capstone.knowledge.document.DocumentService;
 import in.edu.bennett.capstone.knowledge.security.CurrentUser;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -66,6 +67,35 @@ public class SearchService {
                         hit.highlights(),
                         hit.score()))
             .toList());
+  }
+
+  /**
+   * Semantic retrieval for a question (11.1 step 4): the {@code app.retrieval.k} chunks closest in
+   * meaning that the user may retrieve, best first, through the same three steps as {@link
+   * #search}. Semantic only: the evidence gate compares a similarity with its floor, and only this
+   * mode reports one (hybrid joins in Phase 8).
+   *
+   * @param documentIds restrict to these documents; each must be readable, or the answer is 404
+   *     (RET-8, CONV-7). Null or empty for all
+   * @throws EmbeddingFailedException when the question cannot be embedded
+   */
+  public List<RetrievedChunk> retrieve(CurrentUser user, String question, List<UUID> documentIds) {
+    SearchScope scope = SearchScope.of(documentIds, null);
+    documents.requireReadable(user, scope.documentIds());
+    float[] vector = embedder.embedQuery(question.strip());
+    return chunks.semantic(user, vector, scope, properties.k()).stream()
+        .map(
+            hit ->
+                new RetrievedChunk(
+                    hit.documentId(),
+                    hit.title(),
+                    hit.documentDate(),
+                    hit.chunkIndex(),
+                    hit.pageStart(),
+                    hit.pageEnd(),
+                    hit.text(),
+                    hit.score()))
+        .toList();
   }
 
   /**

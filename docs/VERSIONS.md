@@ -1,6 +1,6 @@
 # Resolved versions
 
-What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`; the libraries added in Phase 1 were recorded on 2026-10-07 from branch `feat/auth-roles`, those of Phase 2 on 2026-10-26 from branch `feat/phase-2-documents`, and those of Phase 3 on 2026-10-27 from branch `feat/phase-3-ingestion`. Update this file in the same commit as any dependency change.
+What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`; the libraries added in Phase 1 were recorded on 2026-10-07 from branch `feat/auth-roles`, those of Phase 2 on 2026-10-26 from branch `feat/phase-2-documents`, those of Phase 3 on 2026-10-27 from branch `feat/phase-3-ingestion`, and those of Phase 5 on 2026-11-01 from branch `feat/phase-5-answers`. Update this file in the same commit as any dependency change.
 
 How these were collected: `./mvnw dependency:list` and `./mvnw -v` in `backend`, `npm ls --depth=0` in `frontend`, `docker image inspect --format '{{index .RepoDigests 0}}'` for images, and the tools' own `--version` output.
 
@@ -39,6 +39,11 @@ Managed by the Spring Boot 4.1.1 parent unless marked pinned.
 | Micrometer | 1.17.1 |
 | springdoc-openapi (`springdoc-openapi-starter-webmvc-ui`), **pinned** (ADR-014) | 3.1.1 |
 | Spring AI BOM, **pinned** (ADR-034): `spring-ai-starter-model-ollama` (without `spring-ai-autoconfigure-model-chat-memory`), `spring-ai-ollama`, `spring-ai-pdf-document-reader`, `spring-ai-model`, `spring-ai-commons`, `spring-ai-retry`, `spring-ai-client-chat` and their auto-configurations. Its poms are built against Boot 4.1.2 and Framework 7.0.10; the project resolves Boot 4.1.1 and Framework 7.0.9, and every test starts the real auto-configuration on them | 2.0.2 |
+| Spring AI OpenAI (`spring-ai-starter-model-openai` without `spring-ai-autoconfigure-model-chat-memory` and without `io.swagger.core.v3:swagger-annotations`; `spring-ai-openai`, `spring-ai-autoconfigure-model-openai`), from the BOM above (D5, ADR-036) | 2.0.2 |
+| OpenAI Java SDK (`com.openai:openai-java-core`), through `spring-ai-openai` | 4.80.0 |
+| OkHttp, Okio, through the OpenAI SDK | 4.12.0, 3.6.0 |
+| Kotlin standard library and reflection, through the OpenAI SDK | 2.3.21 |
+| Jackson 2 Kotlin and JDK 8 modules, through the OpenAI SDK | 2.21.5 |
 | jtokkit (cl100k token counts, ING-6), through `spring-ai-commons` | 1.1.0 |
 | Spring WebFlux and Reactor Netty (`reactor-netty-http`), through `spring-boot-starter-webclient` in the Ollama starter; Spring AI's `OllamaApi` builds a `WebClient` | 7.0.9, 1.3.7 |
 | swagger-core (jakarta), Swagger UI webjar (via springdoc) | 2.2.55, 5.32.14 |

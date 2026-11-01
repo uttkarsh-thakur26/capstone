@@ -1,10 +1,32 @@
 # Progress
 
-Updated 2026-10-28. Format: specification Section 24.8.
+Updated 2026-11-01. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 4, retrieval and search, is done**, merged through pull request [#6](https://github.com/uttkarsh-thakur26/capstone/pull/6) with every CI check green. Keyword search (RET-5) and the mode selector moved here from Phase 7 (ADR-035). Next: Phase 5, grounded question answering, which needs D5 (the chat model).
+**Phase 5, grounded question answering, is done**, merged through pull request [#7](https://github.com/uttkarsh-thakur26/capstone/pull/7) with every CI check green. D5 is `gpt-6-luna` through OpenAI (ADR-036); the other choices of the phase and S15 to S18 are in ADR-037. Next: Phase 6, conversations and the citation viewer.
+
+Evidence (2026-11-01):
+
+- `./mvnw verify`: 595 backend tests and the format check. The 19.2 "Question answering" tests: `QuestionAnsweringTest` (scripted fake chat model, prompt capture), `CitationValidatorTest`, `ModelAnswerTest`, `PromptAssemblerTest`; "Prompt injection": `PromptInjectionTest`, through real ingestion; the access matrix on asking, unscoped and scoped: `AnswerAccessMatrixTest` (60 cases). Mutation checks failed the tests as expected: no escaping, no evidence gate, no citation filter, a transaction around the model call, archived documents retrievable, every document readable.
+- Frontend: 81 tests, lint, type check, build, format; `npm run gen:api` adds the two endpoints.
+- Live run (dev profile, real `gpt-6-luna` and `qwen3-embedding:0.6b`): a FACULTY test account that can retrieve its four course PDFs and nothing else, so `Tuesday_lab_batches.pdf` never reached the model. One direct check call first: strict JSON schema, temperature 0.1 and reasoning effort `none` accepted, 0 reasoning tokens (116 in, 31 out). Then the five questions. 6 billed calls in all, $0.0013 together at $0.10 and $0.50 per million input and output tokens:
+
+| Question | Outcome | Answer | Tokens in / out | Cost |
+|---|---|---|---|---|
+| How long is the lab exam and how is the time split? | ANSWERED, [1] Lab exam instructions p. 1 | "The lab exam is 55 minutes long. Students must complete the writing part in the first 15 minutes, then perform the experiment and show the output in the next 30 – 40 minutes. [1]" | 2,119 / 64 | $0.00024 |
+| How are the 15 marks of the lab end-term exam divided? | ANSWERED, [1] Lab exam instructions p. 1 | "The 15 marks are divided into 5 marks for the write-up (Aim, Apparatus required, circuit diagram, model graph, observation table, result) and 10 marks for performing the experiment and verifying the output. [1]" | 2,298 / 69 | $0.00026 |
+| When are groups 31 to 45 evaluated? | ANSWERED, [1] Project Evaluation Schedule p. 1 | "Groups 31–45 are evaluated on Friday, 23 October 2026. [1]" | 2,263 / 41 | $0.00025 |
+| What is the deadline for project reports, and does it depend on the evaluation date? | ANSWERED, [1] Project Evaluation Schedule p. 1 | "Project reports and all project-related documents must be submitted by 12:00 noon on Friday, 9 October 2026. The deadline does not depend on the evaluation date; it applies to all groups, regardless of when they are evaluated. [1]" | 2,301 / 73 | $0.00027 |
+| What is the re-exam fee if a student misses the lab exam? (unanswerable) | INSUFFICIENT_EVIDENCE: it passed the gate (similarity 0.610) and the model answered `answerable=false` | The fixed abstention message | 2,121 / 19 | $0.00022 |
+
+  Retrieval took 124 to 144 ms, generation 1.4 to 3.2 s. The five questions scored 0.546 to 0.711 and three off-topic questions 0.162 to 0.282, so the provisional floor is 0.30 (ADR-037).
+
+Reviews (ADR-028), listed in the pull request: the build session reviewed the branch against Sections 4.5, 11 and 15.3 and the exit criteria and found no defect. The independent review (two fresh-context reviewers) found nothing in what reaches the model and two low defects in persistence: two questions asked at once in one conversation could interleave their messages (fixed in `8fe3d91`, test first), and a failed answer that could not be stored was not logged (fixed in `5731980`, test first).
+
+Decisions taken for this phase: D5 (ADR-036), S15 to S18 (ADR-037).
+
+Phase 4, retrieval and search, is done: pull request [#6](https://github.com/uttkarsh-thakur26/capstone/pull/6) was merged into `main` on 2026-10-28 (merge commit `45cb199`) with every CI check green. Keyword search (RET-5) and the mode selector moved there from Phase 7 (ADR-035).
 
 Evidence (2026-10-28):
 
@@ -46,7 +68,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 | 2 | Document management | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `2f16711` | 2026-10-26 |
 | 3 | Ingestion and indexing | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `177bb34` | 2026-10-27 |
 | 4 | Retrieval and search (semantic and keyword) | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #6 | 2026-10-28 |
-| 5 | Grounded question answering | Not started | |
+| 5 | Grounded question answering | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #7 | 2026-11-01 |
 | 6 | Conversations and citation viewer | Not started | |
 | 7 | First evaluation run (keyword search moved to Phase 4, ADR-035) | Not started | |
 | 8 | Hybrid search, summarization, comparison | Not started | |
@@ -65,7 +87,6 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 ## Open questions for the team
 
 - D1: the product name. Phase 0 uses the working description through `APP_DISPLAY_NAME`.
-- D5: the chat model, needed by Phase 5. D6 is decided (ADR-033).
 - Demonstration browser: Firefox on Windows, with Chrome as the fallback. Both keep the `Secure` refresh cookie on `http://localhost:3000` (checked 2026-10-07, ADR-013).
 - D21: report template and reference style. D22: how stakeholder evidence is collected. Both are due for Milestone-1.
 - Specification 27.8, to ask the guide or coordinator: the Milestone-2 date, the final evaluation date, report length, the final marks split, Milestone-1 and Milestone-2 submission details, prescribed templates, the university rule on plagiarism and responsible AI use (before the Milestone-1 submission), the Milestone 0 approval and Group ID, and whether demo time is inside the presentation slot.
@@ -91,6 +112,9 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - A crash between storing an uploaded file and inserting its row, or in the middle of writing it (a `.part` file), leaves a file on the volume that no row points at. Nothing removes it yet (ADR-031).
 - One browser profile holds one refresh cookie, so two accounts cannot be signed in at the same time in one browser. A tab whose silent refresh returns another account ends its own session.
 - Search is not logged yet: `query_log` and its latency figures arrive in Phase 9.
+- Asking has no rate limit yet (T2). One answer from `gpt-6-luna` costs about $0.0003, and the account has a hard spending limit.
+- In the live run the model put one `[n]` marker after a multi-sentence answer instead of after each sentence (11.3 rule 3). The citations were right; Phase 7 measures citation quality.
+- Phase 5 answers every question on its own, also inside a conversation; follow-ups and history arrive in Phase 6.
 - When Ollama hangs instead of refusing connections, a semantic search waits for the embedding retries and their 120 s read timeout before it answers 503.
 - Keyword search needs every word of the query. A number that text extraction split at a line break ("978- 0134686097" in a PDF) is not found when typed whole.
 - The viewer uses the browser's own PDF viewer. Checked in Chromium; check Firefox by hand. Browsers that show no PDF inside a page (most phones) need Download.
@@ -116,10 +140,10 @@ Found while checking the specification before Phase 0. Each must be settled, and
 | S12 | With the in-process ONNX model, the default chunk size of 400 tokens exceeds its 128 word-piece input, so D6 and D10 must be decided together | 3.4, 26 D6, D10, 9.2 ING-7 | Phase 3 | Resolved, ADR-033, ADR-034 |
 | S13 | With virtual threads on, Boot's executor has no concurrency limit, so the ingestion bound (ING-12) needs a dedicated executor | 4.5, 9.2 ING-12 | Phase 3 | Resolved, ADR-034 |
 | S14 | Read literally, the query-embedding model call sits inside the read-only retrieval transaction, against 4.5's rule | 4.5, 10 RET-2, RET-3 | Phase 4 | Resolved, ADR-035 |
-| S15 | Creating a conversation and asking in it (`POST /conversations`, `POST /conversations/{id}/messages`) are needed by Phase 5 and by the Phase 7 harness but assigned to no phase | 15.2, 11.1, 23 | Phase 5 | Open |
-| S16 | Retries: RAG-6 allows one retry with a 60-second timeout, but Spring AI's defaults retry up to 10 times, the OpenAI module retries in its SDK, and `validateSchema()` can call the model four times | 11.4 RAG-6, 9.2 ING-8, 3.3 | Phase 5 | Open |
-| S17 | RAG-6 sets an explicit low temperature, but OpenAI's default chat model in Spring AI 2.0.1 rejects `temperature`; D5 must account for it | 11.4 RAG-6, 26 D5, 3.3 | Phase 5 | Open |
-| S18 | ADR-001 mentions a custom `DocumentRetriever`, but the only Spring AI component that uses one (`RetrievalAugmentationAdvisor`) cannot implement the evidence gate | 4.6, 11.1, 3.3 | Phase 5 | Open |
+| S15 | Creating a conversation and asking in it (`POST /conversations`, `POST /conversations/{id}/messages`) are needed by Phase 5 and by the Phase 7 harness but assigned to no phase | 15.2, 11.1, 23 | Phase 5 | Resolved, ADR-037 |
+| S16 | Retries: RAG-6 allows one retry with a 60-second timeout, but Spring AI's defaults retry up to 10 times, the OpenAI module retries in its SDK, and `validateSchema()` can call the model four times | 11.4 RAG-6, 9.2 ING-8, 3.3 | Phase 5 | Resolved, ADR-037 |
+| S17 | RAG-6 sets an explicit low temperature, but OpenAI's default chat model in Spring AI 2.0.1 rejects `temperature`; D5 must account for it | 11.4 RAG-6, 26 D5, 3.3 | Phase 5 | Resolved, ADR-037 |
+| S18 | ADR-001 mentions a custom `DocumentRetriever`, but the only Spring AI component that uses one (`RetrievalAugmentationAdvisor`) cannot implement the evidence gate | 4.6, 11.1, 3.3 | Phase 5 | Resolved, ADR-037 |
 | S19 | CONV-5 filters history only on readability, so answers citing archived (superseded) documents still reach the model | 12 CONV-5, 8.1 DOC-11 | Phase 6 | Open |
 | S20 | The Playwright end-to-end path needs a running backend with fake models, and no profile for that is defined; whether Playwright runs in CI is not stated | 16.4, 19.1, 19.3 | Phase 6 | Open |
 | S21 | The rules that a question's split never changes and that questions are written before being tried cannot be checked by any test or command | 20.2, 20.5 | Phase 7 | Open |

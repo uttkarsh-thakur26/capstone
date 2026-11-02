@@ -9,7 +9,7 @@ import { pages } from './citations'
  * The cited passage beside the conversation (UI-5): its document and pages, the snippet the answer
  * was built from, and the PDF opened at the cited page in the browser's own viewer (ADR-035,
  * ADR-038). Focus moves to the panel's heading when it opens, so keyboard and screen-reader users
- * land on it.
+ * land on it, and back to the citation chip that opened it when it closes (UI-8).
  */
 export function CitationPanel({
   citation,
@@ -19,9 +19,20 @@ export function CitationPanel({
   onClose: () => void
 }) {
   const heading = useRef<HTMLHeadingElement>(null)
+  const opener = useRef<HTMLElement | null>(null)
   useEffect(() => {
+    // Still the chip that was just pressed, before focus moves into the panel.
+    if (document.activeElement instanceof HTMLElement) {
+      opener.current = document.activeElement
+    }
     heading.current?.focus()
   }, [citation.documentId, citation.ordinal])
+
+  const close = () => {
+    const returnTo = opener.current
+    onClose()
+    returnTo?.focus()
+  }
 
   const { documentId, documentTitle } = citation
   if (!citation.available || !documentId || !documentTitle) return null
@@ -45,7 +56,7 @@ export function CitationPanel({
             {pages(citation)[0].toUpperCase() + pages(citation).slice(1)}
           </p>
         </div>
-        <Button variant="secondary" onPress={onClose}>
+        <Button variant="secondary" onPress={close}>
           Close
         </Button>
       </div>

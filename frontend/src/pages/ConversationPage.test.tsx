@@ -325,6 +325,40 @@ describe('ConversationPage', () => {
     expect(screen.getByRole('button', { name: 'Ask' })).toBeVisible()
   })
 
+  it('moves focus into the panel when it opens and back to the chip when it closes (UI-8)', async () => {
+    api({
+      [`GET ${PATH}`]: () =>
+        json(detail([question('How long is the lab exam?'), answer()])),
+      [`GET /api/v1/documents/${DOC_ID}/content`]: () =>
+        new Response(new Blob(['%PDF-1.7'])),
+    })
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, {
+        createObjectURL: vi.fn(() => 'blob:document'),
+        revokeObjectURL: vi.fn(),
+      }),
+    )
+    const { user } = renderApp(`/conversations/${CONVERSATION_ID}`)
+
+    const chip = (
+      await screen.findAllByRole('button', {
+        name: 'Source 1: Lab exam instructions, page 1',
+      })
+    )[1]
+    await user.click(chip)
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Source 1: Lab exam instructions',
+      }),
+    ).toHaveFocus()
+
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(screen.queryByRole('region', { name: /Source 1/ })).toBeNull()
+    expect(chip).toHaveFocus()
+  })
+
   it('keeps the question and says why when the answer could not be produced', async () => {
     api({
       [`GET ${PATH}`]: () => json(detail([])),

@@ -91,7 +91,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["list_1"];
         put?: never;
         post: operations["create"];
         delete?: never;
@@ -194,6 +194,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["update"];
+        trace?: never;
+    };
+    "/api/v1/conversations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_1"];
+        put?: never;
+        post?: never;
+        delete: operations["delete_1"];
+        options?: never;
+        head?: never;
+        patch: operations["rename"];
         trace?: never;
     };
     "/api/v1/admin/users/{id}": {
@@ -299,7 +315,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_1"];
+        get: operations["list_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -458,14 +474,15 @@ export interface components {
         CitationResponse: {
             /** Format: int32 */
             ordinal: number;
+            available: boolean;
             /** Format: uuid */
-            documentId: string;
-            documentTitle: string;
+            documentId?: string;
+            documentTitle?: string;
             /** Format: int32 */
-            pageStart: number;
+            pageStart?: number;
             /** Format: int32 */
-            pageEnd: number;
-            snippet: string;
+            pageEnd?: number;
+            snippet?: string;
         };
         RegistrationRequest: {
             /** Format: email */
@@ -501,6 +518,9 @@ export interface components {
             /** Format: date */
             documentDate?: string;
             archived?: boolean;
+        };
+        RenameConversationRequest: {
+            title: string;
         };
         UpdateUserRequest: {
             /** @enum {string} */
@@ -568,6 +588,39 @@ export interface components {
             /** Format: int64 */
             maxFileSizeBytes: number;
             contentTypes: string[];
+        };
+        PageResponseConversationResponse: {
+            items: components["schemas"]["ConversationResponse"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        ConversationDetailResponse: {
+            /** Format: uuid */
+            id: string;
+            title?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            messages: components["schemas"]["MessageResponse"][];
+        };
+        MessageResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            role: "USER" | "ASSISTANT";
+            content: string;
+            /** @enum {string} */
+            outcome?: "ANSWERED" | "INSUFFICIENT_EVIDENCE" | "ERROR";
+            /** Format: date-time */
+            createdAt: string;
+            citations: components["schemas"]["CitationResponse"][];
         };
         PageResponseAdminUserResponse: {
             items: components["schemas"]["AdminUserResponse"][];
@@ -830,6 +883,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentResponse"];
+                };
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    list_1: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageResponseConversationResponse"];
                 };
             };
             /** @description Problem Details */
@@ -1128,6 +1213,101 @@ export interface operations {
             };
         };
     };
+    get_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationDetailResponse"];
+                };
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    delete_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    rename: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameConversationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationResponse"];
+                };
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
     update_1: {
         parameters: {
             query?: never;
@@ -1314,7 +1494,7 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    list_2: {
         parameters: {
             query?: {
                 query?: string;

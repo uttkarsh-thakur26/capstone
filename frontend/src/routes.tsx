@@ -2,6 +2,9 @@ import type { RouteObject } from 'react-router'
 import { RequireAuth } from './auth/RequireAuth'
 import { AppShell } from './layout/AppShell'
 import { AdminUsersPage } from './pages/AdminUsersPage'
+import { AssistantPage } from './pages/AssistantPage'
+import { ConversationPage } from './pages/ConversationPage'
+import { ConversationsPage } from './pages/ConversationsPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
 import { DocumentsPage } from './pages/DocumentsPage'
 import { HomePage } from './pages/HomePage'
@@ -34,6 +37,9 @@ export const routes: RouteObject[] = [
       },
       { path: 'documents/:id', element: <DocumentDetailPage /> },
       { path: 'search', element: <SearchPage /> },
+      { path: 'assistant', element: <AssistantPage /> },
+      { path: 'conversations', element: <ConversationsPage /> },
+      { path: 'conversations/:id', element: <ConversationPage /> },
       {
         path: 'admin/users',
         element: (

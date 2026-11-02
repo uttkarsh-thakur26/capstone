@@ -48,3 +48,13 @@ export const DOCUMENT_STATUSES: readonly DocumentStatus[] = [
   'INDEXED',
   'FAILED',
 ]
+
+export type ConversationResponse = Schemas['ConversationResponse']
+export type ConversationPage = Schemas['PageResponseConversationResponse']
+export type ConversationDetail = Schemas['ConversationDetailResponse']
+export type MessageResponse = Schemas['MessageResponse']
+export type CitationResponse = Schemas['CitationResponse']
+export type AskRequest = Schemas['AskRequest']
+export type AnswerResponse = Schemas['AnswerResponse']
+export type AnswerOutcome = AnswerResponse['outcome']
+export type RenameConversationRequest = Schemas['RenameConversationRequest']

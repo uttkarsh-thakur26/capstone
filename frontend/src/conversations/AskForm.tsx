@@ -23,7 +23,8 @@ export function AskForm({
     if (trimmed === '' || isPending) return
     try {
       await onAsk(trimmed)
-      setQuestion('')
+      // Only the question that was sent goes; a new draft typed meanwhile stays.
+      setQuestion((current) => (current.trim() === trimmed ? '' : current))
     } catch {
       // The page shows the error; the question stays for another try.
     }

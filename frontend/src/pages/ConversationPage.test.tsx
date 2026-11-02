@@ -263,6 +263,40 @@ describe('ConversationPage', () => {
     )
   })
 
+  it('keeps a new draft typed while the answer was on its way', async () => {
+    let release: () => void = () => {}
+    api({
+      [`GET ${PATH}`]: () => json(detail([])),
+      [`POST ${PATH}/messages`]: () =>
+        new Promise<Response>((resolve) => {
+          release = () =>
+            resolve(
+              json({
+                messageId: 'a1',
+                outcome: 'ANSWERED',
+                answer: 'The lab exam lasts 55 minutes [1].',
+                citations: [citation()],
+              }),
+            )
+        }),
+    })
+    const { user } = renderApp(`/conversations/${CONVERSATION_ID}`)
+
+    const box = await screen.findByRole('textbox', { name: 'Your question' })
+    await user.type(box, 'How long is the lab exam?{Enter}')
+    await screen.findByText('Searching your documents and writing an answer…')
+    await user.clear(box)
+    await user.type(box, 'And how are its marks divided?')
+    release()
+
+    await vi.waitFor(() =>
+      expect(
+        screen.queryByText('Searching your documents and writing an answer…'),
+      ).toBeNull(),
+    )
+    expect(box).toHaveValue('And how are its marks divided?')
+  })
+
   it('keeps the question and says why when the answer could not be produced', async () => {
     api({
       [`GET ${PATH}`]: () => json(detail([])),

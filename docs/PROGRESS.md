@@ -1,10 +1,35 @@
 # Progress
 
-Updated 2026-11-01. Format: specification Section 24.8.
+Updated 2026-11-02. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 5, grounded question answering, is done**, merged through pull request [#7](https://github.com/uttkarsh-thakur26/capstone/pull/7) with every CI check green. D5 is `gpt-6-luna` through OpenAI (ADR-036); the other choices of the phase and S15 to S18 are in ADR-037. Next: Phase 6, conversations and the citation viewer.
+**Phase 6, conversations and the citation viewer, is built** on `feat/phase-6-assistant`, pull request PR_LINK. The MVP of specification 23 is complete. Decisions: ADR-038 (S19, S20, the viewer, follow-ups). Next: Phase 7, the first evaluation run.
+
+Evidence (2026-11-02):
+
+- `./mvnw verify`: 612 backend tests and the format check. The 19.2 "Conversations" tests: `ConversationsTest` (another user's id gives 404 on all five endpoints, admins included; delete removes messages and citations; a follow-up is rewritten into a standalone query; a revoked grant and a deleted document leave the context and show as unavailable, the snapshot kept). Mutation checks failed the tests as expected: no history filter, the rewrite not used, citations always available; in the frontend, answer text rendered as HTML, and unavailable citations shown as chips.
+- Frontend: 97 tests, lint, type check, build, format. Playwright (`npx playwright test`): sign in, upload, wait until indexed, ask, open the citation, against the test application with the fake models; it passed locally in 51 s and runs in CI as a fourth job.
+- Demo steps 1 to 9 of Appendix B, in the browser pane (Chromium) on a throwaway Compose stack (`prod` profile, real `gpt-6-luna` and `qwen3-embedding:0.6b`, generated test accounts, no other documents). Stand-ins under their real titles: "Lab exam instructions" shared with all students for the examination policy, "Project Evaluation Schedule" shared with all faculty for the faculty guidelines. The upload form got its file from a script, because the pane cannot drive the system file picker.
+
+| Step | What happened |
+|---|---|
+| 1 | The admin promoted "Demo Faculty" to FACULTY on the Users page |
+| 2, 3 | The faculty member uploaded both documents with their grants; each went from Processing to Ready on screen |
+| 4 | Student: "How long is the lab exam?" gave "The lab exam will be of 55 minutes duration. [1]"; the chip opened the panel with the cited passage and the PDF at page 1 of 1 |
+| 5 | Student: "When are groups 31 to 45 evaluated?" gave "No answer found" (gate, best similarity 0.294), with no hint of the faculty document |
+| 6 | Faculty, same question: "Groups 31–45 are evaluated on Friday, 23 October 2026. [1]", Project Evaluation Schedule p. 1 |
+| 7 | Student: "What is on the canteen menu on Fridays?" gave "No answer found" (gate, 0.173) |
+| 8 | Student, follow-up in the step 4 conversation: "And how are its marks divided?" gave "The lab end term examination is of 15 marks: 5 Marks for the write up (Aim, Apparatus required, circuit diagram, model graph, observation table, result) and 10 marks for performance of the experiment and verification of output. [1]" |
+| 9 | Faculty removed the student grant; the student's repeated step 4 question gave "No answer found", and both earlier citations showed "Source no longer available" with no title or link |
+
+- The follow-up through the real model, both turns: turn 1 (step 4) one call, 796 tokens in and 34 out, $0.000097; turn 2 (step 8) the rewrite, 274 in and 21 out, and the answer, 838 in and 74 out, $0.000159 together. All live calls of Phase 6: 4, $0.00039 (steps 5, 7 and 9 never reached the model).
+
+Reviews (ADR-028): REVIEW_LINE
+
+Decisions taken for this phase: S19, S20 and the viewer (ADR-038).
+
+Phase 5, grounded question answering, is done, merged through pull request [#7](https://github.com/uttkarsh-thakur26/capstone/pull/7) with every CI check green. D5 is `gpt-6-luna` through OpenAI (ADR-036); the other choices of the phase and S15 to S18 are in ADR-037. Next: Phase 6, conversations and the citation viewer.
 
 Evidence (2026-11-01):
 
@@ -69,7 +94,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 | 3 | Ingestion and indexing | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `177bb34` | 2026-10-27 |
 | 4 | Retrieval and search (semantic and keyword) | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #6 | 2026-10-28 |
 | 5 | Grounded question answering | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #7 | 2026-11-01 |
-| 6 | Conversations and citation viewer | Not started | |
+| 6 | Conversations and citation viewer | Built, PR open; all exit criteria met, demo steps 1 to 9 run | 2026-11-02 |
 | 7 | First evaluation run (keyword search moved to Phase 4, ADR-035) | Not started | |
 | 8 | Hybrid search, summarization, comparison | Not started | |
 | 9 | Administration, audit, analytics | Not started | |
@@ -114,7 +139,9 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - Search is not logged yet: `query_log` and its latency figures arrive in Phase 9.
 - Asking has no rate limit yet (T2). One answer from `gpt-6-luna` costs about $0.0003, and the account has a hard spending limit.
 - In the live run the model put one `[n]` marker after a multi-sentence answer instead of after each sentence (11.3 rule 3). The citations were right; Phase 7 measures citation quality.
-- Phase 5 answers every question on its own, also inside a conversation; follow-ups and history arrive in Phase 6.
+- In the demo, the student's question answered only by the faculty document scored 0.294 against the student's own document, just under the floor of 0.30. Had it passed, the model would have had to abstain. Phase 7 calibrates the floor.
+- A follow-up costs two model calls (the rewrite and the answer); a first question costs one.
+- The citation viewer is the browser's own (ADR-038): the snippet is shown beside the page, not highlighted in it.
 - When Ollama hangs instead of refusing connections, a semantic search waits for the embedding retries and their 120 s read timeout before it answers 503.
 - Keyword search needs every word of the query. A number that text extraction split at a line break ("978- 0134686097" in a PDF) is not found when typed whole.
 - The viewer uses the browser's own PDF viewer. Checked in Chromium; check Firefox by hand. Browsers that show no PDF inside a page (most phones) need Download.
@@ -144,8 +171,8 @@ Found while checking the specification before Phase 0. Each must be settled, and
 | S16 | Retries: RAG-6 allows one retry with a 60-second timeout, but Spring AI's defaults retry up to 10 times, the OpenAI module retries in its SDK, and `validateSchema()` can call the model four times | 11.4 RAG-6, 9.2 ING-8, 3.3 | Phase 5 | Resolved, ADR-037 |
 | S17 | RAG-6 sets an explicit low temperature, but OpenAI's default chat model in Spring AI 2.0.1 rejects `temperature`; D5 must account for it | 11.4 RAG-6, 26 D5, 3.3 | Phase 5 | Resolved, ADR-037 |
 | S18 | ADR-001 mentions a custom `DocumentRetriever`, but the only Spring AI component that uses one (`RetrievalAugmentationAdvisor`) cannot implement the evidence gate | 4.6, 11.1, 3.3 | Phase 5 | Resolved, ADR-037 |
-| S19 | CONV-5 filters history only on readability, so answers citing archived (superseded) documents still reach the model | 12 CONV-5, 8.1 DOC-11 | Phase 6 | Open |
-| S20 | The Playwright end-to-end path needs a running backend with fake models, and no profile for that is defined; whether Playwright runs in CI is not stated | 16.4, 19.1, 19.3 | Phase 6 | Open |
+| S19 | CONV-5 filters history only on readability, so answers citing archived (superseded) documents still reach the model | 12 CONV-5, 8.1 DOC-11 | Phase 6 | Resolved, ADR-038 |
+| S20 | The Playwright end-to-end path needs a running backend with fake models, and no profile for that is defined; whether Playwright runs in CI is not stated | 16.4, 19.1, 19.3 | Phase 6 | Resolved, ADR-038 |
 | S21 | The rules that a question's split never changes and that questions are written before being tried cannot be checked by any test or command | 20.2, 20.5 | Phase 7 | Open |
 | S22 | The similarity floor is undefined in hybrid mode, where the fused score is not a similarity, and `message_citation.score` mixes three scales | 10, 11.1 step 5, 7.2 | Phase 8 | Open |
 | S23 | SUM-2 asks for "keywords" (T2), while keyword extraction is listed as T3 | 13.1 SUM-2, 2.3 | Phase 8 | Open |

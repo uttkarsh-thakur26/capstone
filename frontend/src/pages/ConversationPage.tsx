@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../api/client'
 import type { ConversationDetail } from '../api/types'
 import { Alert } from '../components/Alert'
@@ -23,6 +23,17 @@ import { MessageList, type SelectedCitation } from '../conversations/Messages'
 export function ConversationPage() {
   const { id = '' } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
+  // Why the first answer failed, when the assistant page started this conversation. Kept here and
+  // removed from the history entry, so it shows until the next question and not after a reload.
+  const [startError] = useState(
+    () => (location.state as { askError?: string } | null)?.askError,
+  )
+  useEffect(() => {
+    if (location.state) {
+      void navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [location.state, location.pathname, navigate])
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<SelectedCitation | null>(null)
 
@@ -75,7 +86,6 @@ export function ConversationPage() {
 
   const { data } = conversation
   const citation = selectedCitation(data, selected)
-  const startError = (location.state as { askError?: string } | null)?.askError
   return (
     <section className="space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -111,9 +121,7 @@ export function ConversationPage() {
               {messageOf(ask.error, 'The question could not be sent.')}
             </Alert>
           )}
-          {startError && !ask.isError && !ask.isPending && (
-            <Alert>{startError}</Alert>
-          )}
+          {startError && ask.isIdle && <Alert>{startError}</Alert>}
           <AskForm onAsk={ask.mutateAsync} isPending={ask.isPending} />
         </div>
         {citation && (

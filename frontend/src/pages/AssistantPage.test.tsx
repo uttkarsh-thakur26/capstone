@@ -1,5 +1,5 @@
 import { screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { fakeApi, json, META, problem, session } from '../test/fakeApi'
 import { renderApp } from '../test/renderApp'
 
@@ -82,5 +82,45 @@ describe('AssistantPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Something went wrong.',
     )
+  })
+
+  it('shows why the first answer failed until the next question, and not after a reload', async () => {
+    const FAILED =
+      'The answer could not be produced right now. Try again later.'
+    let asks = 0
+    fakeApi({
+      'GET /api/v1/meta': () => json(META),
+      'POST /api/v1/auth/refresh': () => json(session('STUDENT')),
+      'POST /api/v1/conversations': () =>
+        json({ ...CONVERSATION, title: undefined }, 201),
+      [`POST /api/v1/conversations/${ID}/messages`]: () => {
+        asks += 1
+        return asks === 1
+          ? problem(503, 'MODEL_UNAVAILABLE', FAILED)
+          : json({
+              messageId: 'a2',
+              outcome: 'INSUFFICIENT_EVIDENCE',
+              answer: 'Insufficient information.',
+              citations: [],
+            })
+      },
+      [`GET /api/v1/conversations/${ID}`]: () =>
+        json({ ...CONVERSATION, messages: [] }),
+    })
+    const { user, router } = renderApp('/assistant')
+
+    await user.type(
+      await screen.findByRole('textbox', { name: 'Your question' }),
+      'What is the re-exam fee?{Enter}',
+    )
+    expect(await screen.findByText(FAILED)).toBeVisible()
+    expect(router.state.location.state).toBeNull()
+
+    await user.type(
+      screen.getByRole('textbox', { name: 'Your question' }),
+      'And the fine?{Enter}',
+    )
+    await vi.waitFor(() => expect(asks).toBe(2))
+    await vi.waitFor(() => expect(screen.queryByText(FAILED)).toBeNull())
   })
 })

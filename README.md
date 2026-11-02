@@ -82,6 +82,12 @@ cd backend && ./mvnw verify
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build && npm run format:check
 ```
 
+The end-to-end test signs in, uploads a PDF, waits until it is indexed, asks a question and opens the citation in Chromium. Playwright starts the backend itself as the test application, with its own database container and the fake models, so no real model is called; ports 18080 and 5174 must be free. Install the browser once with `npx playwright install chromium`.
+
+```bash
+cd frontend && npx playwright test
+```
+
 CI also builds both images and starts the stack from `.env.example`, with a generated signing key and admin password and no chat model (`CHAT_PROVIDER=none`), with `docker compose up --build -d --wait`, then calls `/api/v1/meta` through nginx.
 
 Formatting: `./mvnw spotless:apply` in `backend`, `npm run format` in `frontend`.

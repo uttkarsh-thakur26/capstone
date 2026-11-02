@@ -1,6 +1,6 @@
 # Resolved versions
 
-What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`; the libraries added in Phase 1 were recorded on 2026-10-07 from branch `feat/auth-roles`, those of Phase 2 on 2026-10-26 from branch `feat/phase-2-documents`, those of Phase 3 on 2026-10-27 from branch `feat/phase-3-ingestion`, and those of Phase 5 on 2026-11-01 from branch `feat/phase-5-answers`. Update this file in the same commit as any dependency change.
+What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`; the libraries added in Phase 1 were recorded on 2026-10-07 from branch `feat/auth-roles`, those of Phase 2 on 2026-10-26 from branch `feat/phase-2-documents`, those of Phase 3 on 2026-10-27 from branch `feat/phase-3-ingestion`, those of Phase 5 on 2026-11-01 from branch `feat/phase-5-answers`, and those of Phase 6 on 2026-11-02 from branch `feat/phase-6-assistant`. Update this file in the same commit as any dependency change.
 
 How these were collected: `./mvnw dependency:list` and `./mvnw -v` in `backend`, `npm ls --depth=0` in `frontend`, `docker image inspect --format '{{index .RepoDigests 0}}'` for images, and the tools' own `--version` output.
 
@@ -82,6 +82,7 @@ From `frontend/package-lock.json`. Ranges in `package.json` follow the generator
 | @testing-library/react, @testing-library/dom, @testing-library/jest-dom | 16.3.3, 10.4.2, 7.0.1 | test |
 | @testing-library/user-event (ADR-027) | 14.6.7 | test |
 | openapi-typescript, with an override to the project's TypeScript (ADR-017) | 7.13.0 | type generation |
+| @playwright/test, with its Chromium build (ADR-038) | 1.64.1 | end-to-end test |
 | @types/react, @types/react-dom, @types/node | 19.3.0, 19.3.0, 24.19.1 | types |
 | globals | 17.13.0 | lint |
 

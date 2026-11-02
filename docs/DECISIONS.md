@@ -41,6 +41,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-035](#adr-035-search-in-phase-4-semantic-and-keyword-d11-d13) | D11, D13 | Search in Phase 4: semantic and keyword | Accepted | 2026-10-28 |
 | [ADR-036](#adr-036-gpt-6-luna-through-openais-chat-completions-api-d5) | D5 | gpt-6-luna through OpenAI's Chat Completions API | Accepted | 2026-11-01 |
 | [ADR-037](#adr-037-specification-corrections-and-design-choices-for-phase-5) | | Specification corrections and design choices for Phase 5 | Accepted | 2026-11-01 |
+| [ADR-038](#adr-038-conversations-follow-ups-the-viewer-and-the-end-to-end-test-phase-6) | | Conversations, follow-ups, the viewer and the end-to-end test (Phase 6) | Accepted | 2026-11-02 |
 
 ---
 
@@ -652,3 +653,19 @@ Date 2026-11-01, accepted. One line per decision.
 - `OpenAiChatModel` logs at `ERROR` only, because at `WARN` it logs the whole prompt when a response has no choice (SEC-10).
 - The OpenAI starter's other models (embedding, image, audio, moderation) are switched off; `CHAT_PROVIDER=none` runs without a chat model, and asking then answers 503; CI's stack job runs that way.
 - Dependency: `spring-ai-starter-model-openai` from the Spring AI BOM 2.0.2, the model access that 3.4 names, without chat memory and without the SDK's older copy of springdoc's `swagger-annotations` classes.
+
+---
+
+### ADR-038: Conversations, follow-ups, the viewer and the end-to-end test (Phase 6)
+
+Date 2026-11-02, accepted. One line per decision.
+
+- S19: history leaves out a whole turn, question and answer, when its answer failed or cites a document the user can no longer retrieve (deleted, no longer readable, archived or not indexed), so the model still sees only what the user may retrieve now (RAG-1); specification 12 CONV-5 was corrected.
+- A citation shows as unavailable, with no id, title, pages or snippet, when its document was deleted or the user can no longer read it (CONV-6); an archived document stays readable, so its citations stay available.
+- Follow-ups (11.1 step 3): when filtered history exists, one extra call to the chat model at temperature 0, with its own versioned prompt `condense-v1` and a one-field JSON schema, rewrites the question as a standalone search query; retrieval and the evidence gate use it, and the model answers the user's own question with the history beside it; unusable output falls back to the question as asked, and a provider failure ends the question as an error at once; the rewrite's tokens are logged on the answer's line.
+- `answer-v2` adds the history to the system prompt as reference material that is never a source; old `[n]` markers are removed from history answers, because they numbered other sources; `answer-v1` stays for the answers that name it.
+- `app.assistant` gains the history turns (3) and a history token budget (1,500 cl100k tokens); the oldest turns go first.
+- Viewer: the browser's own PDF viewer stays (ADR-035), opened at the cited page beside the conversation with the cited snippet; `react-pdf` was rejected: pdf.js adds about 1 to 2 MB to a bundle already over Vite's advisory limit and needs keeping current for its own security fixes, for in-page highlighting and phone display that the demonstration does not need; specification 3.1 and 16.1 were corrected.
+- Model output is shown as plain text split around its markers, which become citation chips; no Markdown library and no HTML (UI-6).
+- S20: the Playwright test runs the backend as the test application (`spring-boot:test-run`, profiles `test` and `e2e`): PostgreSQL in Testcontainers and the fake models, ingestion on, on port 18080, with Vite on 5174; it runs in CI as a fourth job; its PDF is generated in TypeScript, so no binary fixture is committed.
+- Dependency: `@playwright/test` 1.64.1 (development only, Microsoft, Apache-2.0, released 2026-10-14), the end-to-end tool that specification 3.1 names.

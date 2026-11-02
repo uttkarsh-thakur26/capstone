@@ -4,12 +4,12 @@ Updated 2026-11-02. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 6, conversations and the citation viewer, is built** on `feat/phase-6-assistant`, pull request PR_LINK. The MVP of specification 23 is complete. Decisions: ADR-038 (S19, S20, the viewer, follow-ups). Next: Phase 7, the first evaluation run.
+**Phase 6, conversations and the citation viewer, is done**, merged through pull request [#8](https://github.com/uttkarsh-thakur26/capstone/pull/8) with every CI check green. The MVP of specification 23 is complete. Decisions: ADR-038 (S19, S20, the viewer, follow-ups). Next: Phase 7, the first evaluation run.
 
 Evidence (2026-11-02):
 
 - `./mvnw verify`: 612 backend tests and the format check. The 19.2 "Conversations" tests: `ConversationsTest` (another user's id gives 404 on all five endpoints, admins included; delete removes messages and citations; a follow-up is rewritten into a standalone query; a revoked grant and a deleted document leave the context and show as unavailable, the snapshot kept). Mutation checks failed the tests as expected: no history filter, the rewrite not used, citations always available; in the frontend, answer text rendered as HTML, and unavailable citations shown as chips.
-- Frontend: 97 tests, lint, type check, build, format. Playwright (`npx playwright test`): sign in, upload, wait until indexed, ask, open the citation, against the test application with the fake models; it passed locally in 51 s and runs in CI as a fourth job.
+- Frontend: 102 tests, lint, type check, build, format. Playwright (`npx playwright test`): sign in, upload, wait until indexed, ask, open the citation, against the test application with the fake models; it passed locally in 51 s and runs in CI as a fourth job.
 - Demo steps 1 to 9 of Appendix B, in the browser pane (Chromium) on a throwaway Compose stack (`prod` profile, real `gpt-6-luna` and `qwen3-embedding:0.6b`, generated test accounts, no other documents). Stand-ins under their real titles: "Lab exam instructions" shared with all students for the examination policy, "Project Evaluation Schedule" shared with all faculty for the faculty guidelines. The upload form got its file from a script, because the pane cannot drive the system file picker.
 
 | Step | What happened |
@@ -25,7 +25,7 @@ Evidence (2026-11-02):
 
 - The follow-up through the real model, both turns: turn 1 (step 4) one call, 796 tokens in and 34 out, $0.000097; turn 2 (step 8) the rewrite, 274 in and 21 out, and the answer, 838 in and 74 out, $0.000159 together. All live calls of Phase 6: 4, $0.00039 (steps 5, 7 and 9 never reached the model).
 
-Reviews (ADR-028): REVIEW_LINE
+Reviews (ADR-028), listed in the pull request: the build session reviewed the branch against Sections 11.1, 12 and 16 and Appendix B and found no defect. The independent review (two fresh-context reviewers) found nothing in access control or in what reaches the model, and five defects in the screens, each fixed test first: a false empty list after deleting the last conversation of the last page (`ba88988`), the first answer's error banner staying after later answers and after a reload (`09dfb3a`), a draft typed during an answer being erased (`b757591`), a pending question carried into another conversation (`b40c754`), and focus lost when the citation panel closes (`d735ba2`).
 
 Decisions taken for this phase: S19, S20 and the viewer (ADR-038).
 
@@ -94,7 +94,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 | 3 | Ingestion and indexing | Done. All exit criteria met, CI green, reviewed under ADR-028, merged in `177bb34` | 2026-10-27 |
 | 4 | Retrieval and search (semantic and keyword) | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #6 | 2026-10-28 |
 | 5 | Grounded question answering | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #7 | 2026-11-01 |
-| 6 | Conversations and citation viewer | Built, PR open; all exit criteria met, demo steps 1 to 9 run | 2026-11-02 |
+| 6 | Conversations and citation viewer | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #8 | 2026-11-02 |
 | 7 | First evaluation run (keyword search moved to Phase 4, ADR-035) | Not started | |
 | 8 | Hybrid search, summarization, comparison | Not started | |
 | 9 | Administration, audit, analytics | Not started | |

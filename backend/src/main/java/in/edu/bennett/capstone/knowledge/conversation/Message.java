@@ -22,11 +22,6 @@ import org.hibernate.annotations.UuidGenerator;
 @Immutable
 class Message {
 
-  enum Role {
-    USER,
-    ASSISTANT
-  }
-
   @Id
   @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
   private UUID id;
@@ -36,7 +31,7 @@ class Message {
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  private Role role;
+  private MessageRole role;
 
   @Column(nullable = false)
   private String content;
@@ -55,7 +50,7 @@ class Message {
 
   private Message(
       UUID conversationId,
-      Role role,
+      MessageRole role,
       String content,
       AnswerOutcome outcome,
       String model,
@@ -71,7 +66,7 @@ class Message {
   }
 
   static Message question(UUID conversationId, String text, Instant askedAt) {
-    return new Message(conversationId, Role.USER, text, null, null, null, askedAt);
+    return new Message(conversationId, MessageRole.USER, text, null, null, null, askedAt);
   }
 
   static Message answer(
@@ -82,10 +77,26 @@ class Message {
       String promptVersion,
       Instant answeredAt) {
     return new Message(
-        conversationId, Role.ASSISTANT, text, outcome, model, promptVersion, answeredAt);
+        conversationId, MessageRole.ASSISTANT, text, outcome, model, promptVersion, answeredAt);
   }
 
   UUID getId() {
     return id;
+  }
+
+  MessageRole getRole() {
+    return role;
+  }
+
+  String getContent() {
+    return content;
+  }
+
+  AnswerOutcome getOutcome() {
+    return outcome;
+  }
+
+  Instant getCreatedAt() {
+    return createdAt;
   }
 }

@@ -66,4 +66,32 @@ class MessageCitation {
     this.snippet = citation.snippet();
     this.score = citation.score();
   }
+
+  UUID getMessageId() {
+    return messageId;
+  }
+
+  int getOrdinal() {
+    return ordinal;
+  }
+
+  UUID getDocumentId() {
+    return documentId;
+  }
+
+  String getDocumentTitle() {
+    return documentTitle;
+  }
+
+  int getPageStart() {
+    return pageStart;
+  }
+
+  int getPageEnd() {
+    return pageEnd;
+  }
+
+  String getSnippet() {
+    return snippet;
+  }
 }

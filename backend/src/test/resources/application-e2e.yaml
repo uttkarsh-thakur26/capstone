@@ -1,0 +1,14 @@
+# The backend of the Playwright test (specification 16.4; S20, ADR-038), added to the test profile:
+# `./mvnw spring-boot:test-run -Dspring-boot.run.profiles=test,e2e` starts the test application,
+# with PostgreSQL in Testcontainers and the fake models of 19.1, so no real model is ever called.
+server:
+  # Away from the development backend's 8080, so both can run at once.
+  port: 18080
+app:
+  security:
+    # The Vite server that Playwright starts for this test.
+    allowed-origins: http://localhost:5174
+  ingestion:
+    # Uploads are processed as in production, but polled often, so the test waits seconds.
+    enabled: true
+    poll-interval: 1s

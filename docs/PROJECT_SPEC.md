@@ -122,7 +122,7 @@ If time runs short, cut from the bottom: all of T3, then comparison, then analyt
 | Build | Maven with the Maven Wrapper | | D3 |
 | Backend tests | JUnit 6, Mockito, AssertJ, Spring test starters, Testcontainers 2 | Managed by Boot | |
 | Frontend | React, TypeScript, Vite | React 19, Vite 8, TypeScript 6.0.x | Take what the generator produces (TypeScript ~6.0.2 from create-vite 9.2.1). TypeScript 7.0 is not used yet: it ships no compiler API, so typescript-eslint and openapi-typescript fail on it (ADR-010) |
-| Frontend libraries | React Router, TanStack Query, React Hook Form with Zod, Tailwind CSS 4 with React Aria Components (D18, ADR-021), pdf.js through `react-pdf`, `openapi-typescript` | Current | Section 16 |
+| Frontend libraries | React Router, TanStack Query, React Hook Form with Zod, Tailwind CSS 4 with React Aria Components (D18, ADR-021), the browser's own PDF viewer (ADR-035, ADR-038), `openapi-typescript` | Current | Section 16 |
 | Frontend tests | Vitest, React Testing Library, Playwright | Current | |
 | Frontend toolchain runtime | Node.js | A supported LTS line, pinned to 24.x (ADR-012) | `.nvmrc`, `engines`, CI and the Docker build stage use the same line |
 | Packaging | Docker and Docker Compose | Current | |
@@ -585,7 +585,7 @@ The system prompt contains no secrets and no internal details, so revealing it w
 - **CONV-2 Operations.** Create, list (newest first, paginated), open with messages and citations, rename, delete (hard delete with cascade).
 - **CONV-3 Title.** Derived from the first question by truncation. No model call.
 - **CONV-4 Context strategy.** Only the last few turns (default 3), after the CONV-5 filter, are used: to condense a follow-up into a standalone search query, and as context in the generation prompt. The whole history is never sent.
-- **CONV-5 Revocation.** Before history is used as model context, each assistant message is checked: if any of its citations points to a document the user can no longer read, or to a deleted document, that message is left out.
+- **CONV-5 Revocation.** Before history is used as model context, each assistant message is checked: if any of its citations points to a document the user can no longer retrieve (no longer readable, archived or not indexed), or to a deleted document, that turn is left out, question and answer together (ADR-038).
 - **CONV-6 Display.** A citation whose document is unreadable or deleted is shown as "source no longer available" with no title and no link. The stored answer text remains visible to its author. Record this as a known limitation.
 - **CONV-7 Scope.** A question may carry document ids to restrict retrieval (RET-8).
 - **CONV-8 One store.** Conversations live in the application's own tables (Section 7.2). Spring AI's chat memory repositories are not used, so history is not stored twice and citations stay attached to messages.
@@ -726,7 +726,7 @@ For insufficient evidence: `outcome` is `INSUFFICIENT_EVIDENCE`, `answer` is the
 
 ### 16.1 Stack and structure
 
-React, TypeScript and Vite. React Router for routes. TanStack Query for server state. React Hook Form with Zod for forms. Tailwind CSS 4 with React Aria Components as the one accessible component set (D18, ADR-021). pdf.js through `react-pdf` for viewing PDFs.
+React, TypeScript and Vite. React Router for routes. TanStack Query for server state. React Hook Form with Zod for forms. Tailwind CSS 4 with React Aria Components as the one accessible component set (D18, ADR-021). PDFs are shown in the browser's own viewer, opened at the cited page, with the cited snippet beside it (ADR-035, ADR-038); `react-pdf` is not used.
 
 API types are generated from the OpenAPI document with `openapi-typescript` and regenerated whenever the API changes. No hand-written duplicates of backend DTOs.
 
@@ -792,7 +792,7 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 | `app.ingestion` | Worker on (yes), chunk size (400 tokens), overlap (60), embedding batch size (16), parallel documents (2), poll interval (10 s), heartbeat interval (30 s), recovery interval (1 min), stuck timeout (5 min, ADR-034), maximum attempts (3), maximum pages (500), maximum chunks (5,000), minimum characters per page (20), shutdown wait (20 s) |
 | `app.embedding` | Model name, dimension (both required, D6, ADR-033), maximum input tokens (2,048, sent as `num_ctx`), tokenizer margin (1.5), query prefix, retries (3, from 1 s doubling to 10 s) |
 | `app.retrieval` | `k` (6), similarity floor (0.30, provisional until Phase 7; ADR-037). The mode joins with hybrid search in Phase 8 |
-| `app.assistant` | Context token budget (4,000), history turns (3), abstention message, snippet length (300). Temperature (0.1), maximum output tokens, timeout (60 s), retries and reasoning effort differ by provider, so they are the chat provider's own properties under `spring.ai.*` (ADR-037) |
+| `app.assistant` | Context token budget (4,000), history turns (3), history token budget (1,500), abstention message, snippet length (300). Temperature (0.1), maximum output tokens, timeout (60 s), retries and reasoning effort differ by provider, so they are the chat provider's own properties under `spring.ai.*` (ADR-037) |
 | `app.storage` | Root path |
 | `app.analytics` | Store question text (off) |
 
@@ -834,7 +834,7 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 
 ### 19.3 Continuous integration
 
-On every pull request and on `main`: backend build and all tests with Testcontainers, frontend lint, type check, tests and build. A red build blocks merging. CI runs on GitHub Actions on `ubuntu-latest` runners, which provide Docker for Testcontainers (D23, ADR-008). The workflow lives in `.github/workflows/`.
+On every pull request and on `main`: backend build and all tests with Testcontainers, frontend lint, type check, tests and build, and the Playwright test of 16.4 against the test application with the fake models (ADR-038). A red build blocks merging. CI runs on GitHub Actions on `ubuntu-latest` runners, which provide Docker for Testcontainers (D23, ADR-008). The workflow lives in `.github/workflows/`.
 
 ### 19.4 Test evidence
 

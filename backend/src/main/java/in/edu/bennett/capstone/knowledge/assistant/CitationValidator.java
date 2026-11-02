@@ -34,6 +34,11 @@ final class CitationValidator {
 
   private CitationValidator() {}
 
+  /** The text with every {@code [n]} marker, and the spaces in front of it, removed. */
+  static String withoutMarkers(String text) {
+    return MARKER.matcher(text).replaceAll("").strip();
+  }
+
   /**
    * @return empty when the outcome is insufficient evidence
    */

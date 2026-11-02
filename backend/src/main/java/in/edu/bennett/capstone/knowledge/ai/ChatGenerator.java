@@ -43,11 +43,21 @@ public class ChatGenerator {
    * @throws ChatFailedException when no model is configured or the model gives no answer
    */
   public ChatResult generate(String systemPrompt, String userMessage, String outputSchema) {
+    return generate(systemPrompt, userMessage, outputSchema, null);
+  }
+
+  /**
+   * The same, at this temperature instead of the configured one.
+   *
+   * @param temperature null for the configured temperature
+   */
+  public ChatResult generate(
+      String systemPrompt, String userMessage, String outputSchema, Double temperature) {
     ChatModel model = models.getIfUnique();
     if (model == null) {
       throw new ChatFailedException("No chat model is configured (spring.ai.model.chat)");
     }
-    ChatOptions options = withSchema(model.getOptions(), outputSchema);
+    ChatOptions options = withSchema(model.getOptions(), outputSchema, temperature);
     Prompt prompt =
         new Prompt(List.of(new SystemMessage(systemPrompt), new UserMessage(userMessage)), options);
     ChatResponse response;
@@ -65,12 +75,17 @@ public class ChatGenerator {
    * The model's own default options with the schema added. A request's options replace the model's
    * defaults instead of merging with them, so they are built from those defaults.
    */
-  private static ChatOptions withSchema(ChatOptions defaults, String outputSchema) {
+  private static ChatOptions withSchema(
+      ChatOptions defaults, String outputSchema, Double temperature) {
     if (!(defaults instanceof StructuredOutputChatOptions structured)) {
       throw new ChatFailedException(
           "The configured chat model cannot be asked for structured output (RAG-9)");
     }
-    return structured.mutate().outputSchema(outputSchema).build();
+    StructuredOutputChatOptions.Builder<?> options = structured.mutate().outputSchema(outputSchema);
+    if (temperature != null) {
+      options.temperature(temperature);
+    }
+    return options.build();
   }
 
   private static ChatResult result(ChatResponse response, ChatOptions options) {

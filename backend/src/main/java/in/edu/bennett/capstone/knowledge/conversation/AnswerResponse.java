@@ -17,17 +17,4 @@ public record AnswerResponse(
     @Schema(requiredMode = RequiredMode.REQUIRED) UUID messageId,
     @Schema(requiredMode = RequiredMode.REQUIRED) AnswerOutcome outcome,
     @Schema(requiredMode = RequiredMode.REQUIRED) String answer,
-    @Schema(requiredMode = RequiredMode.REQUIRED) List<CitationResponse> citations) {
-
-  /**
-   * A cited passage. Title, pages and snippet come from the stored chunk, never from the model
-   * (RAG-3).
-   */
-  public record CitationResponse(
-      @Schema(requiredMode = RequiredMode.REQUIRED) int ordinal,
-      @Schema(requiredMode = RequiredMode.REQUIRED) UUID documentId,
-      @Schema(requiredMode = RequiredMode.REQUIRED) String documentTitle,
-      @Schema(requiredMode = RequiredMode.REQUIRED) int pageStart,
-      @Schema(requiredMode = RequiredMode.REQUIRED) int pageEnd,
-      @Schema(requiredMode = RequiredMode.REQUIRED) String snippet) {}
-}
+    @Schema(requiredMode = RequiredMode.REQUIRED) List<CitationResponse> citations) {}

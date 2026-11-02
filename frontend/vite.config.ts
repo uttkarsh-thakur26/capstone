@@ -8,10 +8,13 @@ export default defineConfig({
   server: {
     // Development mode (DEP-3): the backend runs on the host and the SPA calls it on its
     // own origin, as it does behind the web server in Compose.
-    proxy: { '/api': 'http://localhost:8080' },
+    // The Playwright test points it at its own backend (API_PROXY_TARGET, 16.4).
+    proxy: { '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:8080' },
   },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // The end-to-end test in e2e/ runs in Playwright, not here.
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 })

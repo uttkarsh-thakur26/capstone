@@ -78,6 +78,11 @@ class Conversation {
     updatedAt = at;
   }
 
+  /** CONV-2: the owner names the conversation. */
+  void rename(String newTitle) {
+    title = newTitle;
+  }
+
   static String titleOf(String question) {
     String line = question.strip().replaceAll("\\s+", " ");
     if (line.codePointCount(0, line.length()) <= TITLE_LENGTH) {

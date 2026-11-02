@@ -240,6 +240,45 @@ public class DocumentService {
     }
   }
 
+  /**
+   * CONV-6: which of these documents the user can read now, with the readable predicate in the
+   * query (ACL-E2). A deleted document is simply missing from the answer.
+   */
+  @Transactional(readOnly = true)
+  public Set<UUID> readableIds(CurrentUser user, Set<UUID> ids) {
+    if (ids.isEmpty()) {
+      return Set.of();
+    }
+    return idsOf(
+        documents.findAll(
+            policy.readableBy(user).and((document, query, cb) -> document.get("id").in(ids))));
+  }
+
+  /**
+   * CONV-5, ADR-038: which of these documents the user can retrieve now: readable, indexed and not
+   * archived (ACL-4), the same condition as the retrieval SQL's.
+   */
+  @Transactional(readOnly = true)
+  public Set<UUID> retrievableIds(CurrentUser user, Set<UUID> ids) {
+    if (ids.isEmpty()) {
+      return Set.of();
+    }
+    return idsOf(
+        documents.findAll(
+            policy
+                .readableBy(user)
+                .and((document, query, cb) -> document.get("id").in(ids))
+                .and(
+                    (document, query, cb) ->
+                        cb.and(
+                            cb.equal(document.get("status"), DocumentStatus.INDEXED),
+                            cb.isFalse(document.get("archived"))))));
+  }
+
+  private static Set<UUID> idsOf(List<Document> found) {
+    return found.stream().map(Document::getId).collect(Collectors.toUnmodifiableSet());
+  }
+
   /** DOC-5: the detail of a document the user can read. */
   @Transactional(readOnly = true)
   public DocumentResponse get(CurrentUser user, UUID id) {

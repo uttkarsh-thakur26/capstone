@@ -40,7 +40,8 @@ public class FakeChatModel implements ChatModel {
       {"answerable": true, "answer": "The sources say so [1].", "citations": [1]}""";
 
   /** One request as the model received it. */
-  public record Request(String system, String user, String outputSchema, List<String> types) {}
+  public record Request(
+      String system, String user, String outputSchema, Double temperature, List<String> types) {}
 
   private final Deque<Supplier<String>> script = new ArrayDeque<>();
   private final List<Request> requests = new CopyOnWriteArrayList<>();
@@ -149,6 +150,7 @@ public class FakeChatModel implements ChatModel {
         system,
         user,
         schema,
+        prompt.getOptions() == null ? null : prompt.getOptions().getTemperature(),
         messages.stream().map(message -> message.getMessageType().name()).toList());
   }
 }

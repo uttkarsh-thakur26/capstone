@@ -59,6 +59,12 @@ export function ConversationsPage() {
     },
   })
 
+  // A page past the end, for example after deleting the last conversation of the last page,
+  // shows the last page that exists instead of an empty list.
+  if (list.data && list.data.totalPages > 0 && page >= list.data.totalPages) {
+    setPage(list.data.totalPages - 1)
+  }
+
   return (
     <section className="space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -82,7 +88,7 @@ export function ConversationsPage() {
           </Button>
         </div>
       )}
-      {list.data && list.data.items.length === 0 && (
+      {list.data && list.data.totalItems === 0 && (
         <p className="text-slate-700 dark:text-slate-300">
           No conversations yet.{' '}
           <Link className="underline underline-offset-2" to="/assistant">

@@ -123,4 +123,44 @@ describe('ConversationsPage', () => {
     expect(await screen.findByText(/No conversations yet/)).toBeVisible()
     expect(server.to('DELETE', `/api/v1/conversations/${ID}`)).toHaveLength(1)
   })
+
+  it('goes back a page when the last conversation of the last page is deleted', async () => {
+    const all = Array.from({ length: 21 }, (_, i) =>
+      conversation({ id: `c${i}`, title: `Conversation ${i}` }),
+    )
+    api({
+      'GET /api/v1/conversations': (request) => {
+        const number = Number(request.url.searchParams.get('page'))
+        const items = all.slice(number * 20, number * 20 + 20)
+        const totalPages = Math.ceil(all.length / 20)
+        return json({
+          items,
+          page: number,
+          size: 20,
+          totalItems: all.length,
+          totalPages,
+        })
+      },
+      'DELETE /api/v1/conversations/c20': () => {
+        all.pop()
+        return noContent()
+      },
+    })
+    const { user } = renderApp('/conversations')
+
+    await user.click(await screen.findByRole('button', { name: 'Next' }))
+    await user.click(
+      await screen.findByRole('button', { name: 'Delete Conversation 20' }),
+    )
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Delete',
+      }),
+    )
+
+    expect(
+      await screen.findByRole('link', { name: 'Conversation 0' }),
+    ).toBeVisible()
+    expect(screen.queryByText(/No conversations yet/)).toBeNull()
+  })
 })

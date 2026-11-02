@@ -297,6 +297,34 @@ describe('ConversationPage', () => {
     expect(box).toHaveValue('And how are its marks divided?')
   })
 
+  it('does not show a question pending in one conversation in another', async () => {
+    const OTHER = '0199a1b2-0000-7000-8000-0000000c0002'
+    api({
+      [`GET ${PATH}`]: () => json(detail([])),
+      [`POST ${PATH}/messages`]: () => new Promise<Response>(() => {}),
+      [`GET /api/v1/conversations/${OTHER}`]: () =>
+        json({ ...detail([]), id: OTHER, title: 'Another conversation' }),
+    })
+    const { user, router } = renderApp(`/conversations/${CONVERSATION_ID}`)
+
+    await user.type(
+      await screen.findByRole('textbox', { name: 'Your question' }),
+      'How long is the lab exam?{Enter}',
+    )
+    await screen.findByText('Searching your documents and writing an answer…')
+
+    await router.navigate(`/conversations/${OTHER}`)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Another conversation' }),
+    ).toBeVisible()
+    expect(screen.queryByText('How long is the lab exam?')).toBeNull()
+    expect(
+      screen.queryByText('Searching your documents and writing an answer…'),
+    ).toBeNull()
+    expect(screen.getByRole('button', { name: 'Ask' })).toBeVisible()
+  })
+
   it('keeps the question and says why when the answer could not be produced', async () => {
     api({
       [`GET ${PATH}`]: () => json(detail([])),

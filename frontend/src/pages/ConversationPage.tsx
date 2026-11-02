@@ -19,9 +19,16 @@ import { MessageList, type SelectedCitation } from '../conversations/Messages'
 /**
  * One conversation (UI-5): its messages, the question box, and the cited passage beside them. A
  * conversation of another user answers 404 like a missing one (CONV-1).
+ *
+ * Keyed by the conversation, so moving to another one starts afresh: no pending question, error,
+ * draft or open citation of the previous conversation is carried over.
  */
 export function ConversationPage() {
   const { id = '' } = useParams()
+  return <Conversation key={id} id={id} />
+}
+
+function Conversation({ id }: { id: string }) {
   const location = useLocation()
   const navigate = useNavigate()
   // Why the first answer failed, when the assistant page started this conversation. Kept here and

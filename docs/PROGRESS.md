@@ -1,8 +1,18 @@
 # Progress
 
-Updated 2026-11-02. Format: specification Section 24.8.
+Updated 2026-11-03. Format: specification Section 24.8.
 
 ## Current phase
+
+**Design pass and demo data (between Phases 6 and 7), built on `feat/design-and-demo`, waiting for the owner's click-through before the pull request.** Decisions: ADR-039 (D1 is Pramaan).
+
+- One look on every screen: colour tokens with a light and a dark set, a System / Light / Dark switch, shared page header, cards, loading, error and empty states; a sidebar from 1024 px, a menu drawer below; no page scrolls sideways at 375 px (checked on all routes in Chromium).
+- Dashboard at `/`: quick ask, five newest readable documents, five latest conversations, an administration card for admins.
+- Every page is a lazy route. JavaScript loaded on a first visit, before → after: every page 888.1 kB (254.6 kB gzip) → sign-in 613.3 kB (195.4 kB), dashboard 505.3 kB (164.1 kB), documents 584.9 kB (191.0 kB), upload 835.6 kB (252.1 kB); the largest file is 257.8 kB, so Vite no longer warns.
+- Chat redesign after the owner's click-through: question box fixed at the bottom, "Jump to latest", answers as plain text in a 720 px column through a safe Markdown subset (no HTML), repeated markers shown once, one source chip per document and pages, the citation panel sliding over the chat, thinking dots; prompt `answer-v3` (one-line answer first, lists only for several items, one marker per paragraph or list; spec 11.3 rule 3 corrected, ADR-039).
+- `scripts/demo-data.mjs`: demo accounts, four public course PDFs and their sharing through the API (README, "Demo data").
+- Flaky frontend run (16 of 17 files once): not reproduced in 5 runs before the change; a test needing 1.17 s against the 1 s wait of `findBy` failed 1 run in 3 after the routes became lazy. Page modules now load once in the test setup and the wait is 3 s (ADR-039); 8 runs in a row then passed.
+- Checks (2026-11-03, after the chat redesign): `./mvnw verify` 613 tests and the format check (one earlier run under load failed 2, see Known issues); frontend 123 tests (new: dashboard, role navigation, menu drawer, theme, answer Markdown, merged sources), lint, type check, build, format; Playwright passed (46.8 s).
 
 **Phase 6, conversations and the citation viewer, is done**, merged through pull request [#8](https://github.com/uttkarsh-thakur26/capstone/pull/8) with every CI check green. The MVP of specification 23 is complete. Decisions: ADR-038 (S19, S20, the viewer, follow-ups). Next: Phase 7, the first evaluation run.
 
@@ -111,7 +121,6 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 
 ## Open questions for the team
 
-- D1: the product name. Phase 0 uses the working description through `APP_DISPLAY_NAME`.
 - Demonstration browser: Firefox on Windows, with Chrome as the fallback. Both keep the `Secure` refresh cookie on `http://localhost:3000` (checked 2026-10-07, ADR-013).
 - D21: report template and reference style. D22: how stakeholder evidence is collected. Both are due for Milestone-1.
 - Specification 27.8, to ask the guide or coordinator: the Milestone-2 date, the final evaluation date, report length, the final marks split, Milestone-1 and Milestone-2 submission details, prescribed templates, the university rule on plagiarism and responsible AI use (before the Milestone-1 submission), the Milestone 0 approval and Group ID, and whether demo time is inside the presentation slot.
@@ -127,7 +136,9 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - From Phase 1 the backend does not start without `APP_SECURITY_JWT_SECRET`, `APP_SECURITY_ALLOWED_ORIGINS` and, while no admin exists, `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD`. A `.env` created before Phase 1 must add them (README quickstart), or `docker compose up` and development mode stop at startup.
 - Expired and revoked refresh tokens stay in `refresh_token`; nothing deletes them yet. One row per sign-in and refresh, so the table grows slowly.
 - Throttling of repeated failed sign-ins (AUTH-5) is `[T2]` and not built.
-- The JavaScript bundle is 854 kB (249 kB gzipped) after Phase 2, up from 523 kB, above Vite's 500 kB advisory limit. Splitting routes into separate chunks is left for later.
+- The upload page still loads 835.6 kB of JavaScript on a first visit (its form, date and file-drop components); the other pages load less (ADR-039).
+- The theme choice is kept in the browser, not with the account: another browser starts at System.
+- Backend tests, flaky under load (2026-11-03): one `./mvnw verify` run with a Docker image build beside it failed `PromptInjectionTest` (top similarity 0.273, needs more than 0.30) and `RetrievalTest` (two scores of exactly 0.0). Both classes passed alone (27 of 27) and the next full run, with the machine idle, passed all 613. Likely an earlier test class's ingestion still writing chunks; not investigated yet.
 - Text extraction loses table layout and reads two-column pages line by line across both columns (ING-5); table rows become long runs of text.
 - After a crash (not a normal stop) a document being processed waits until its heartbeat is older than the stuck timeout, 5 minutes by default, before it is picked up again.
 - A run that hangs inside PDFBox keeps its thread and its document until the application restarts; nothing interrupts it.

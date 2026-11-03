@@ -188,7 +188,7 @@ class QuestionAnsweringTest {
     assertThat(storedAnswer(reply.messageId()))
         .containsEntry("outcome", "INSUFFICIENT_EVIDENCE")
         .containsEntry("model", FakeChatModel.MODEL)
-        .containsEntry("prompt_version", "answer-v2");
+        .containsEntry("prompt_version", "answer-v3");
   }
 
   /** 19.2: invalid citation numbers are dropped. */
@@ -295,7 +295,7 @@ class QuestionAnsweringTest {
         .containsEntry("outcome", "ERROR")
         .containsEntry("content", ConversationService.ERROR_TEXT)
         .containsEntry("model", FakeChatModel.MODEL)
-        .containsEntry("prompt_version", "answer-v2");
+        .containsEntry("prompt_version", "answer-v3");
     assertThat(AuditRows.forResource(jdbc, conversation.toString()))
         .singleElement()
         .satisfies(
@@ -319,7 +319,7 @@ class QuestionAnsweringTest {
     assertThat(lastAnswer(conversation))
         .containsEntry("outcome", "ERROR")
         .containsEntry("model", null)
-        .containsEntry("prompt_version", "answer-v2");
+        .containsEntry("prompt_version", "answer-v3");
     assertThat(questionCount(conversation)).isOne();
   }
 
@@ -376,7 +376,7 @@ class QuestionAnsweringTest {
         .containsEntry("content", reply.answer())
         .containsEntry("outcome", "ANSWERED")
         .containsEntry("model", FakeChatModel.MODEL)
-        .containsEntry("prompt_version", "answer-v2");
+        .containsEntry("prompt_version", "answer-v3");
     assertThat(storedCitations(reply.messageId()))
         .extracting(row -> row.get("document_id"))
         .containsExactly(id);

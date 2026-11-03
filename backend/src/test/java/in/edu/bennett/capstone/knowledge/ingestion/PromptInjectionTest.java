@@ -168,7 +168,7 @@ class PromptInjectionTest extends IngestionTestSupport {
   }
 
   private static String systemPrompt() throws IOException {
-    return new ClassPathResource("prompts/answer-v2.txt")
+    return new ClassPathResource("prompts/answer-v3.txt")
         .getContentAsString(StandardCharsets.UTF_8)
         .strip();
   }

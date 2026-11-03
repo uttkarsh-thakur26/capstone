@@ -148,7 +148,7 @@ class ConversationsTest {
     assertThat(embedding.requests())
         .containsExactly(List.of(embeddingProperties.queryPrefix() + standalone));
     FakeChatModel.Request answer = chat.requests().get(1);
-    assertThat(answer.system()).isEqualTo(prompt("answer-v2"));
+    assertThat(answer.system()).isEqualTo(prompt("answer-v3"));
     assertThat(answer.temperature()).isNull();
     assertThat(answer.user())
         .contains(standalone, "<history>", "The first rule applies.")

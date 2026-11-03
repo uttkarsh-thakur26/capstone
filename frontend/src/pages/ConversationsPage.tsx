@@ -18,8 +18,11 @@ import {
 import { Link } from 'react-router'
 import type { ConversationResponse } from '../api/types'
 import { Alert } from '../components/Alert'
-import { Button } from '../components/Button'
+import { Button, ButtonLink } from '../components/Button'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { Pager } from '../components/Pager'
+import { EmptyState, ErrorState, LoadingState } from '../components/states'
+import { PageHeader } from '../components/PageHeader'
 import { messageOf } from '../components/formErrors'
 import {
   conversationKeys,
@@ -29,6 +32,7 @@ import {
   UNTITLED,
 } from '../conversations/api'
 import { formatDateTime } from '../documents/format'
+import { FIELD, LINK, MODAL, MODAL_OVERLAY } from '../components/ui'
 
 const PAGE_SIZE = 20
 
@@ -67,39 +71,34 @@ export function ConversationsPage() {
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Conversations</h1>
-        <Link
-          to="/assistant"
-          className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-800"
-        >
-          New question
-        </Link>
-      </div>
+      <PageHeader
+        title="Conversations"
+        description="Your questions and their answers. Only you can see them."
+        actions={<ButtonLink to="/assistant">New question</ButtonLink>}
+      />
 
-      {list.isPending && <p role="status">Loading your conversations…</p>}
+      {list.isPending && (
+        <LoadingState>Loading your conversations…</LoadingState>
+      )}
       {list.isError && (
-        <div className="space-y-2">
-          <Alert>
-            {messageOf(list.error, 'Your conversations could not be loaded.')}
-          </Alert>
-          <Button variant="secondary" onPress={() => void list.refetch()}>
-            Try again
-          </Button>
-        </div>
+        <ErrorState onRetry={() => void list.refetch()}>
+          {messageOf(list.error, 'Your conversations could not be loaded.')}
+        </ErrorState>
       )}
       {list.data && list.data.totalItems === 0 && (
-        <p className="text-slate-700 dark:text-slate-300">
-          No conversations yet.{' '}
-          <Link className="underline underline-offset-2" to="/assistant">
-            Ask the assistant a question
-          </Link>
-          .
-        </p>
+        <EmptyState
+          action={
+            <ButtonLink to="/assistant" variant="secondary" size="sm">
+              Ask the assistant a question
+            </ButtonLink>
+          }
+        >
+          No conversations yet.
+        </EmptyState>
       )}
       {list.data && list.data.items.length > 0 && (
         <>
-          <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+          <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
             {list.data.items.map((conversation) => (
               <li
                 key={conversation.id}
@@ -108,24 +107,26 @@ export function ConversationsPage() {
                 <div className="min-w-0 flex-1">
                   <Link
                     to={`/conversations/${conversation.id}`}
-                    className="font-medium text-indigo-800 underline-offset-2 wrap-anywhere hover:underline dark:text-indigo-300"
+                    className={`${LINK} wrap-anywhere`}
                   >
                     {conversation.title ?? UNTITLED}
                   </Link>
-                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                  <p className="text-xs text-muted">
                     Last used {formatDateTime(conversation.updatedAt)}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <Button
-                    variant="secondary"
+                    variant="ghost"
+                    size="sm"
                     onPress={() => setRenaming(conversation)}
                     aria-label={`Rename ${conversation.title ?? UNTITLED}`}
                   >
                     Rename
                   </Button>
                   <Button
-                    variant="secondary"
+                    variant="ghost"
+                    size="sm"
                     onPress={() => setDeleting(conversation)}
                     aria-label={`Delete ${conversation.title ?? UNTITLED}`}
                   >
@@ -136,25 +137,13 @@ export function ConversationsPage() {
             ))}
           </ul>
           {list.data.totalPages > 1 && (
-            <nav aria-label="Pages" className="flex items-center gap-3">
-              <Button
-                variant="secondary"
-                isDisabled={page === 0}
-                onPress={() => setPage(page - 1)}
-              >
-                Previous
-              </Button>
-              <span className="text-sm">
-                Page {list.data.page + 1} of {list.data.totalPages}
-              </span>
-              <Button
-                variant="secondary"
-                isDisabled={page + 1 >= list.data.totalPages}
-                onPress={() => setPage(page + 1)}
-              >
-                Next
-              </Button>
-            </nav>
+            <Pager
+              page={page}
+              totalPages={list.data.totalPages}
+              onPage={setPage}
+            >
+              Page {list.data.page + 1} of {list.data.totalPages}
+            </Pager>
           )}
         </>
       )}
@@ -225,9 +214,9 @@ function RenameDialog({
       isOpen
       onOpenChange={(open) => !open && onClose()}
       isDismissable={!rename.isPending}
-      className="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
+      className={MODAL_OVERLAY}
     >
-      <Modal className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-slate-900">
+      <Modal className={MODAL}>
         <Dialog className="outline-none">
           <form onSubmit={submit} className="space-y-4">
             <Heading slot="title" className="text-lg font-semibold">
@@ -243,7 +232,7 @@ function RenameDialog({
               className="flex flex-col gap-1"
             >
               <Label className="text-sm font-medium">Title</Label>
-              <Input className="rounded-md border border-slate-400 bg-white px-3 py-2 text-slate-900 outline-none data-[focused]:outline-2 data-[focused]:outline-indigo-600 dark:border-slate-500 dark:bg-slate-900 dark:text-slate-100" />
+              <Input className={FIELD} />
               <FieldError className="text-sm text-red-700 dark:text-red-400">
                 Enter a title.
               </FieldError>

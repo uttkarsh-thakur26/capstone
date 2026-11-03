@@ -103,9 +103,9 @@ describe('ConversationPage', () => {
     const log = await screen.findByRole('log', { name: 'Conversation' })
     expect(within(log).getByText('How long is the lab exam?')).toBeVisible()
     expect(within(log).getByText(/The lab exam lasts 55 minutes/)).toBeVisible()
-    expect(
-      within(log).getByText(/Check them against the cited page/),
-    ).toBeVisible()
+    // The notice is said once, under the question box, not after every answer.
+    expect(within(log).queryByText(/Check the cited page/)).toBeNull()
+    expect(screen.getAllByText(/Check the cited page/)).toHaveLength(1)
     const chips = within(log).getAllByRole('button', {
       name: 'Source 1: Lab exam instructions, page 1',
     })
@@ -113,7 +113,7 @@ describe('ConversationPage', () => {
 
     await user.click(chips[0])
 
-    const panel = await screen.findByRole('region', {
+    const panel = await screen.findByRole('dialog', {
       name: 'Source 1: Lab exam instructions',
     })
     expect(
@@ -161,7 +161,7 @@ describe('ConversationPage', () => {
     expect(within(log).queryByText(/Lab exam instructions/)).toBeNull()
   })
 
-  it('shows insufficient evidence as a clearly different card, without sources', async () => {
+  it('shows insufficient evidence as a clearly different line, without sources', async () => {
     api({
       [`GET ${PATH}`]: () =>
         json(
@@ -181,7 +181,7 @@ describe('ConversationPage', () => {
     expect(await screen.findByText('No answer found')).toBeVisible()
     expect(screen.getByText(/Insufficient information was found/)).toBeVisible()
     expect(screen.queryByText('Sources')).toBeNull()
-    expect(screen.queryByText(/Check them against the cited page/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Sources? \d/ })).toBeNull()
   })
 
   it('renders model output as text, never as HTML (UI-6)', async () => {
@@ -205,6 +205,96 @@ describe('ConversationPage', () => {
     ).toBeVisible()
     expect(within(log).getByText('<b>Bold?</b>')).toBeVisible()
     expect(log.querySelector('img, script, b')).toBeNull()
+  })
+
+  it('shows bold labels, headings and lists as such, with HTML inside them still as text (UI-6)', async () => {
+    api({
+      [`GET ${PATH}`]: () =>
+        json(
+          detail([
+            question('What are the parts of the exam?'),
+            answer({
+              content: [
+                'The exam has two parts. [1]',
+                '',
+                '## Parts',
+                '- **Write-up:** 5 marks [1]',
+                '- **Performance:** 10 marks <b>exactly</b> [1]',
+              ].join('\n'),
+            }),
+          ]),
+        ),
+    })
+    renderApp(`/conversations/${CONVERSATION_ID}`)
+
+    const log = await screen.findByRole('log', { name: 'Conversation' })
+    expect(
+      await within(log).findByRole('heading', { name: 'Parts' }),
+    ).toBeVisible()
+    const list = within(log).getByText('Write-up:').closest('ul')!
+    const items = within(list).getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+    expect(within(items[0]).getByText('Write-up:').tagName).toBe('STRONG')
+    expect(within(items[1]).getByText(/<b>exactly<\/b>/)).toBeVisible()
+    expect(log.querySelector('b')).toBeNull()
+    // The marker repeated on every item is shown once, at the end of the list.
+    expect(
+      within(items[0]).queryByRole('button', { name: /^Source 1/ }),
+    ).toBeNull()
+    expect(
+      within(items[1]).getByRole('button', { name: /^Source 1/ }),
+    ).toBeVisible()
+  })
+
+  it('shows two passages of the same page as one source chip and both in the panel', async () => {
+    api({
+      [`GET ${PATH}`]: () =>
+        json(
+          detail([
+            question('How long is the lab exam?'),
+            answer({
+              content: 'It lasts 55 minutes [1], written part first [2].',
+              citations: [
+                citation(),
+                citation({
+                  ordinal: 2,
+                  snippet: 'Complete the writing part in the first 15 minutes.',
+                }),
+              ],
+            }),
+          ]),
+        ),
+      [`GET /api/v1/documents/${DOC_ID}/content`]: () =>
+        new Response(new Blob(['%PDF-1.7'])),
+    })
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, {
+        createObjectURL: vi.fn(() => 'blob:document'),
+        revokeObjectURL: vi.fn(),
+      }),
+    )
+    const { user } = renderApp(`/conversations/${CONVERSATION_ID}`)
+
+    const source = await screen.findByRole('button', {
+      name: 'Sources 1 and 2: Lab exam instructions, page 1',
+    })
+    expect(
+      screen.getAllByRole('button', { name: /Lab exam instructions/ }),
+    ).toHaveLength(3)
+    await user.click(source)
+
+    const panel = await screen.findByRole('dialog', {
+      name: 'Sources 1 and 2: Lab exam instructions',
+    })
+    expect(
+      within(panel).getByText('The lab exam will be of 55 minutes duration.'),
+    ).toBeVisible()
+    expect(
+      within(panel).getByText(
+        'Complete the writing part in the first 15 minutes.',
+      ),
+    ).toBeVisible()
   })
 
   it('asks, shows the question as pending, then the stored answer', async () => {
@@ -250,6 +340,9 @@ describe('ConversationPage', () => {
     expect(server.to('POST', `${PATH}/messages`)[0].body).toEqual({
       question: 'How long is the lab exam?',
     })
+    expect(screen.getByRole('textbox', { name: 'Your question' })).toHaveValue(
+      '',
+    )
     release()
 
     expect(
@@ -355,8 +448,11 @@ describe('ConversationPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Close' }))
 
-    expect(screen.queryByRole('region', { name: /Source 1/ })).toBeNull()
-    expect(chip).toHaveFocus()
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Source 1/ })).toBeNull(),
+    )
+    // React Aria hands focus back on the next animation frame.
+    await vi.waitFor(() => expect(chip).toHaveFocus())
   })
 
   it('keeps the question and says why when the answer could not be produced', async () => {

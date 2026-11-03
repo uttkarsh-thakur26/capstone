@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import type { Role } from '../api/types'
+import { Starting } from '../layout/Starting'
 import { NotAllowedPage } from '../pages/NotAllowedPage'
 import { useAuth } from './useAuth'
 
@@ -21,11 +22,7 @@ export function RequireAuth({
   const location = useLocation()
 
   if (state.status === 'loading') {
-    return (
-      <p role="status" className="p-6 text-slate-600 dark:text-slate-300">
-        Loading…
-      </p>
-    )
+    return <Starting />
   }
   if (state.status === 'anonymous') {
     return (

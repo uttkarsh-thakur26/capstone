@@ -8,6 +8,7 @@ import { Button } from '../components/Button'
 import { messageOf } from '../components/formErrors'
 import { FormTextField } from '../components/FormTextField'
 import { AuthLayout } from '../layout/AuthLayout'
+import { LINK } from '../components/ui'
 
 const schema = z.object({
   email: z
@@ -86,7 +87,7 @@ export function LoginPage() {
       </form>
       <p className="text-center text-sm">
         No account yet?{' '}
-        <Link className="underline underline-offset-2" to="/register">
+        <Link className={LINK} to="/register">
           Register
         </Link>
       </p>

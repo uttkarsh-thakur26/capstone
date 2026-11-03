@@ -1,8 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { apiBlob } from '../api/client'
-import { Alert } from '../components/Alert'
-import { Button } from '../components/Button'
+import { ErrorState, LoadingState } from '../components/states'
 import { messageOf } from '../components/formErrors'
 
 /**
@@ -28,10 +27,13 @@ export function DocumentViewer({
   documentId,
   title,
   page,
+  className = 'h-[80vh]',
 }: {
   documentId: string
   title: string
   page: number
+  /** The viewer's height. */
+  className?: string
 }) {
   const queryClient = useQueryClient()
   useEffect(() => {
@@ -62,18 +64,13 @@ export function DocumentViewer({
   })
 
   if (file.isPending) {
-    return <p role="status">Opening the document…</p>
+    return <LoadingState>Opening the document…</LoadingState>
   }
   if (file.isError) {
     return (
-      <div className="space-y-2">
-        <Alert>
-          {messageOf(file.error, 'The document could not be opened.')}
-        </Alert>
-        <Button variant="secondary" onPress={() => void file.refetch()}>
-          Try again
-        </Button>
-      </div>
+      <ErrorState onRetry={() => void file.refetch()}>
+        {messageOf(file.error, 'The document could not be opened.')}
+      </ErrorState>
     )
   }
   const src = `${file.data}#page=${page}`
@@ -82,7 +79,7 @@ export function DocumentViewer({
       key={src}
       src={src}
       title={`${title}, page ${page}`}
-      className="h-[80vh] w-full rounded-md border border-slate-300 bg-white dark:border-slate-700"
+      className={`${className} w-full rounded-md border border-line bg-white`}
     />
   )
 }

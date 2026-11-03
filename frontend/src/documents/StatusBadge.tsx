@@ -24,9 +24,7 @@ export function StatusBadge({ status }: { status: DocumentStatus }) {
 
 export function ArchivedBadge() {
   return (
-    <span
-      className={`${BADGE} bg-white text-slate-700 ring-slate-400 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-500`}
-    >
+    <span className={`${BADGE} bg-surface text-muted ring-line-strong`}>
       Archived
     </span>
   )

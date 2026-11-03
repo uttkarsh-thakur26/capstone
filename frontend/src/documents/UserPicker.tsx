@@ -11,6 +11,7 @@ import {
 } from 'react-aria-components'
 import { api } from '../api/client'
 import type { UserSummary, UserSummaryPage } from '../api/types'
+import { FIELD } from '../components/ui'
 
 /** The server needs at least this many characters (DOC-8). */
 const MIN_QUERY = 3
@@ -76,32 +77,25 @@ export function UserPicker({
       className="flex max-w-md flex-col gap-1"
     >
       <Label className="text-sm font-medium">Add a person</Label>
-      <Input className="rounded-md border border-slate-400 bg-white px-3 py-2 outline-none data-[focused]:outline-2 data-[focused]:outline-indigo-600 dark:border-slate-500 dark:bg-slate-900" />
-      <Text
-        slot="description"
-        className="text-sm text-slate-600 dark:text-slate-300"
-      >
+      <Input className={FIELD} />
+      <Text slot="description" className="text-sm text-muted">
         Type at least {MIN_QUERY} characters of a name or email.
       </Text>
-      <Popover className="w-(--trigger-width) rounded-md border border-slate-300 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-900">
+      <Popover className="w-(--trigger-width) rounded-md border border-line bg-surface shadow-lg">
         <ListBox
           className="max-h-64 overflow-auto p-1 outline-none"
           renderEmptyState={() => (
-            <p className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300">
-              {emptyText}
-            </p>
+            <p className="px-3 py-2 text-sm text-muted">{emptyText}</p>
           )}
         >
           {(person: UserSummary) => (
             <ListBoxItem
               id={person.id}
               textValue={`${person.displayName} ${person.email}`}
-              className="flex cursor-default flex-col rounded px-3 py-1.5 text-sm outline-none data-[focused]:bg-indigo-100 dark:data-[focused]:bg-indigo-950"
+              className="flex cursor-default flex-col rounded px-3 py-1.5 text-sm outline-none data-[focused]:bg-accent-soft"
             >
               <span>{person.displayName}</span>
-              <span className="text-xs text-slate-600 dark:text-slate-300">
-                {person.email}
-              </span>
+              <span className="text-xs text-muted">{person.email}</span>
             </ListBoxItem>
           )}
         </ListBox>

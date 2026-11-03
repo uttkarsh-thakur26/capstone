@@ -13,6 +13,7 @@ import {
   toMetadata,
   type MetadataForm,
 } from './metadata'
+import { MODAL_OVERLAY } from '../components/ui'
 
 /**
  * Edits title, description, category and effective date (DOC-7). The four are sent together, so a
@@ -66,9 +67,9 @@ export function EditDocumentDialog({
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       isDismissable={!saving}
-      className="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
+      className={MODAL_OVERLAY}
     >
-      <Modal className="max-h-full w-full max-w-lg overflow-auto rounded-lg bg-white p-6 shadow-xl dark:bg-slate-900">
+      <Modal className="max-h-full w-full max-w-lg overflow-auto rounded-lg border border-line bg-surface p-6 text-fg shadow-xl">
         <Dialog className="space-y-4 outline-none">
           <Heading slot="title" className="text-lg font-semibold">
             Edit details

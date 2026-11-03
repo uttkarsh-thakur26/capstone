@@ -18,7 +18,7 @@ export function Checkbox({
         <>
           <span
             aria-hidden="true"
-            className="flex h-4 w-4 items-center justify-center rounded border border-slate-500 bg-white text-white group-data-[focus-visible]:outline-2 group-data-[focus-visible]:outline-offset-2 group-data-[focus-visible]:outline-indigo-600 group-data-[selected]:border-indigo-700 group-data-[selected]:bg-indigo-700 dark:bg-slate-900"
+            className="flex h-4 w-4 items-center justify-center rounded border border-line-strong bg-surface text-white group-data-[focus-visible]:outline-2 group-data-[focus-visible]:outline-offset-2 group-data-[focus-visible]:outline-focus group-data-[selected]:border-accent group-data-[selected]:bg-accent"
           >
             {isSelected && (
               <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none">

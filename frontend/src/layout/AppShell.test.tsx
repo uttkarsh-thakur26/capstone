@@ -23,8 +23,83 @@ describe('AppShell', () => {
       within(nav).queryByRole('link', { name: 'Users' }),
     ).not.toBeInTheDocument()
     expect(
-      within(screen.getByRole('banner')).getByText('STUDENT'),
+      screen.queryByRole('link', { name: 'Upload' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(screen.getByRole('complementary')).getByText('Student'),
     ).toBeVisible()
+  })
+
+  it('offers faculty the upload, without user administration', async () => {
+    signedInAs('FACULTY')
+
+    renderApp('/')
+
+    const nav = await screen.findByRole('navigation', { name: 'Main' })
+    expect(screen.getByRole('link', { name: 'Upload' })).toHaveAttribute(
+      'href',
+      '/documents/upload',
+    )
+    expect(
+      within(nav).queryByRole('link', { name: 'Users' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('opens the menu as a dialog on small screens, closes it with Escape and returns focus', async () => {
+    signedInAs('STUDENT')
+    const { user } = renderApp('/')
+
+    const open = await screen.findByRole('button', { name: 'Open menu' })
+    await user.click(open)
+    const menu = await screen.findByRole('dialog', { name: 'Menu' })
+    expect(
+      within(menu).getByRole('link', { name: 'Conversations' }),
+    ).toBeVisible()
+
+    await user.keyboard('{Escape}')
+
+    await vi.waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Menu' }),
+      ).not.toBeInTheDocument(),
+    )
+    // React Aria hands focus back on the next animation frame.
+    await vi.waitFor(() => expect(open).toHaveFocus())
+  })
+
+  it('closes the menu when a link in it is followed', async () => {
+    signedInAs('STUDENT')
+    const { user, router } = renderApp('/')
+
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }))
+    const menu = await screen.findByRole('dialog', { name: 'Menu' })
+    await user.click(within(menu).getByRole('link', { name: 'Assistant' }))
+
+    // The page is a lazy route: the address changes once its code is loaded.
+    await vi.waitFor(() =>
+      expect(router.state.location.pathname).toBe('/assistant'),
+    )
+    await vi.waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Menu' }),
+      ).not.toBeInTheDocument(),
+    )
+  })
+
+  it('switches to the dark theme and remembers it', async () => {
+    signedInAs('STUDENT')
+    const { user } = renderApp('/')
+
+    const sidebar = await screen.findByRole('complementary')
+    await user.click(within(sidebar).getByRole('radio', { name: 'Dark' }))
+
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(window.localStorage.getItem('theme')).toBe('dark')
+
+    await user.click(within(sidebar).getByRole('radio', { name: 'System' }))
+
+    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(window.localStorage.getItem('theme')).toBeNull()
   })
 
   it('shows an admin the link to user administration', async () => {

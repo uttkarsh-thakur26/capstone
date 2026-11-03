@@ -16,5 +16,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     // The end-to-end test in e2e/ runs in Playwright, not here.
     include: ['src/**/*.test.{ts,tsx}'],
+    // The slowest tests take about 2.6 s alone and passed 5 s with a container build running
+    // beside them; 15 s keeps a busy machine from failing them (ADR-039).
+    testTimeout: 15_000,
   },
 })

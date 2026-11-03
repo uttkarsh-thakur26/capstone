@@ -14,8 +14,10 @@ import type {
   UpdateGrantsRequest,
 } from '../api/types'
 import { Alert } from '../components/Alert'
-import { Button } from '../components/Button'
+import { Button, ButtonLink } from '../components/Button'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { ErrorState, LoadingState } from '../components/states'
+import { PageHeader } from '../components/PageHeader'
 import { messageOf } from '../components/formErrors'
 import { DocumentViewer } from '../documents/DocumentViewer'
 import { downloadDocument } from '../documents/download'
@@ -30,6 +32,7 @@ import {
 import { GrantsEditor } from '../documents/GrantsEditor'
 import { fromGrants, toGrantRequests, type Sharing } from '../documents/sharing'
 import { ArchivedBadge, StatusBadge } from '../documents/StatusBadge'
+import { CARD, LINK } from '../components/ui'
 
 type Notice = { tone: 'success' | 'error'; text: string }
 
@@ -60,21 +63,16 @@ export function DocumentDetailPage() {
   })
 
   if (document.isPending) {
-    return <p role="status">Loading the document…</p>
+    return <LoadingState>Loading the document…</LoadingState>
   }
   if (document.isError) {
     if (document.error instanceof ApiError && document.error.status === 404) {
       return <DocumentNotFound />
     }
     return (
-      <div className="space-y-2">
-        <Alert>
-          {messageOf(document.error, 'The document could not be loaded.')}
-        </Alert>
-        <Button variant="secondary" onPress={() => void document.refetch()}>
-          Try again
-        </Button>
-      </div>
+      <ErrorState onRetry={() => void document.refetch()}>
+        {messageOf(document.error, 'The document could not be loaded.')}
+      </ErrorState>
     )
   }
 
@@ -86,13 +84,15 @@ export function DocumentDetailPage() {
 
   return (
     <article className="space-y-8">
-      <div className="space-y-2">
-        <p className="text-sm">
-          <Link to="/documents" className="underline-offset-2 hover:underline">
-            Documents
-          </Link>
-        </p>
-        <h1 className="text-2xl font-semibold">{doc.title}</h1>
+      <div className="space-y-3">
+        <PageHeader
+          title={doc.title}
+          above={
+            <Link to="/documents" className={LINK}>
+              Documents
+            </Link>
+          }
+        />
         <div className="flex flex-wrap gap-2">
           <StatusBadge status={doc.status} />
           {doc.archived && <ArchivedBadge />}
@@ -103,7 +103,9 @@ export function DocumentDetailPage() {
 
       <StatusExplanation document={doc} />
 
-      <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[max-content_1fr]">
+      <dl
+        className={`${CARD} grid gap-x-6 gap-y-3 p-4 text-sm sm:grid-cols-[max-content_1fr] sm:p-5`}
+      >
         <Field label="Description">{doc.description ?? '—'}</Field>
         <Field label="Category">{doc.category ?? '—'}</Field>
         <Field label="Effective date">
@@ -162,9 +164,12 @@ function ViewerSection({
   const [opened, setOpened] = useState(false)
   const open = opened || requestedPage !== null
   return (
-    <section aria-labelledby="viewer-heading" className="space-y-3">
+    <section
+      aria-labelledby="viewer-heading"
+      className={`${CARD} space-y-3 p-4 sm:p-5`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="viewer-heading" className="text-lg font-semibold">
+        <h2 id="viewer-heading" className="text-base font-semibold">
           {requestedPage === null ? 'View' : `Page ${requestedPage}`}
         </h2>
         {!open && (
@@ -180,7 +185,7 @@ function ViewerSection({
             title={document.title}
             page={requestedPage ?? 1}
           />
-          <p className="text-sm text-slate-700 dark:text-slate-300">
+          <p className="text-sm text-muted">
             If the document does not appear above, your browser cannot show it
             inside the page: use Download instead.
           </p>
@@ -193,9 +198,7 @@ function ViewerSection({
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
-      <dt className="font-medium text-slate-700 dark:text-slate-300">
-        {label}
-      </dt>
+      <dt className="font-medium text-muted">{label}</dt>
       <dd className="whitespace-pre-line">{children}</dd>
     </>
   )
@@ -212,11 +215,7 @@ function StatusExplanation({ document }: { document: DocumentResponse }) {
     )
   }
   return (
-    <p
-      className="text-sm text-slate-700 dark:text-slate-300"
-      role="status"
-      aria-live="polite"
-    >
+    <p className="text-sm text-muted" role="status" aria-live="polite">
       {document.status === 'UPLOADED' &&
         'Waiting in the processing queue. This page updates by itself.'}
       {document.status === 'PROCESSING' &&
@@ -327,12 +326,12 @@ function Actions({
         {download.isPending ? 'Downloading…' : 'Download'}
       </Button>
       {document.status === 'INDEXED' && !document.archived && (
-        <Link
+        <ButtonLink
+          variant="secondary"
           to={`/search?documentId=${document.id}`}
-          className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 outline-none hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
         >
           Search in this document
-        </Link>
+        </ButtonLink>
       )}
       {document.canManage && (
         <>
@@ -430,24 +429,22 @@ function SharingSection({
   })
 
   return (
-    <section aria-labelledby="sharing" className="space-y-4">
-      <h2 id="sharing" className="text-lg font-semibold">
+    <section
+      aria-labelledby="sharing"
+      className={`${CARD} space-y-4 p-4 sm:p-5`}
+    >
+      <h2 id="sharing" className="text-base font-semibold">
         Sharing
       </h2>
-      <p className="text-sm text-slate-700 dark:text-slate-300">
+      <p className="text-sm text-muted">
         You and the admins can always read this document. Changes apply as soon
         as they are saved.
       </p>
-      {grants.isPending && <p role="status">Loading sharing…</p>}
+      {grants.isPending && <LoadingState>Loading sharing…</LoadingState>}
       {grants.isError && (
-        <div className="space-y-2">
-          <Alert>
-            {messageOf(grants.error, 'Sharing could not be loaded.')}
-          </Alert>
-          <Button variant="secondary" onPress={() => void grants.refetch()}>
-            Try again
-          </Button>
-        </div>
+        <ErrorState onRetry={() => void grants.refetch()}>
+          {messageOf(grants.error, 'Sharing could not be loaded.')}
+        </ErrorState>
       )}
       {grants.data && (
         <>
@@ -485,10 +482,12 @@ function SharingSection({
 function DocumentNotFound() {
   return (
     <section className="mx-auto max-w-xl space-y-3 py-10">
-      <h1 className="text-2xl font-semibold">Document not found</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        Document not found
+      </h1>
       <p>There is no document at this address.</p>
       <p>
-        <Link className="underline underline-offset-2" to="/documents">
+        <Link className={LINK} to="/documents">
           Go to the documents
         </Link>
       </p>

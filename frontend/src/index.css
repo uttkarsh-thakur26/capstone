@@ -1,12 +1,95 @@
 @import 'tailwindcss';
 
+/*
+ * One set of colors for every screen (UI-9). Components use the token names below (bg-surface,
+ * text-muted, border-line, bg-accent…), never a raw color with a dark: twin, so light and dark
+ * stay in step. `dark:` follows the theme chosen in the user menu: data-theme on <html>, set by
+ * theme.ts from the saved choice or the system setting.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, sans-serif;
+  --canvas: var(--color-slate-50);
+  --surface: var(--color-white);
+  --subtle: var(--color-slate-100);
+  --line: var(--color-slate-200);
+  --line-strong: var(--color-slate-500);
+  --fg: var(--color-slate-900);
+  --muted: var(--color-slate-600);
+  --accent: var(--color-indigo-700);
+  --accent-hover: var(--color-indigo-800);
+  --accent-soft: var(--color-indigo-50);
+  --link: var(--color-indigo-700);
+  --focus: var(--color-indigo-600);
+  color-scheme: light;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   line-height: 1.5;
+}
+
+:root[data-theme='dark'] {
+  --canvas: var(--color-slate-950);
+  --surface: var(--color-slate-900);
+  --subtle: var(--color-slate-800);
+  --line: var(--color-slate-800);
+  --line-strong: var(--color-slate-500);
+  --fg: var(--color-slate-100);
+  --muted: var(--color-slate-400);
+  --accent: var(--color-indigo-600);
+  --accent-hover: var(--color-indigo-700);
+  --accent-soft: color-mix(in oklab, var(--color-indigo-500) 18%, transparent);
+  --link: var(--color-indigo-300);
+  --focus: var(--color-indigo-400);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-link: var(--link);
+  --color-focus: var(--focus);
+
+  --animate-thinking: thinking 1.2s ease-in-out infinite;
+  --animate-slide-in: slide-in 200ms ease-out;
+  --animate-fade-in: fade-in 150ms ease-out;
+
+  @keyframes thinking {
+    0%,
+    80%,
+    100% {
+      opacity: 0.25;
+      transform: translateY(0);
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(-3px);
+    }
+  }
+  @keyframes slide-in {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
 }
 
 body {
   margin: 0;
-  @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  @apply bg-canvas text-fg antialiased;
 }

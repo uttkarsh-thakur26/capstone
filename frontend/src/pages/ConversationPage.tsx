@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../api/client'
-import type { ConversationDetail } from '../api/types'
+import type { CitationResponse, ConversationDetail } from '../api/types'
 import { Alert } from '../components/Alert'
-import { Button } from '../components/Button'
+import { ErrorState, LoadingState } from '../components/states'
+import { PageHeader } from '../components/PageHeader'
 import { messageOf } from '../components/formErrors'
 import {
   askIn,
@@ -13,11 +14,14 @@ import {
   UNTITLED,
 } from '../conversations/api'
 import { AskForm } from '../conversations/AskForm'
+import { ChatLayout } from '../conversations/ChatLayout'
 import { CitationPanel } from '../conversations/CitationPanel'
+import { groupSources } from '../conversations/citations'
 import { MessageList, type SelectedCitation } from '../conversations/Messages'
+import { LINK } from '../components/ui'
 
 /**
- * One conversation (UI-5): its messages, the question box, and the cited passage beside them. A
+ * One conversation (UI-5): its messages, the question box, and the cited passage in a panel over them. A
  * conversation of another user answers 404 like a missing one (CONV-1).
  *
  * Keyed by the conversation, so moving to another one starts afresh: no pending question, error,
@@ -59,7 +63,7 @@ function Conversation({ id }: { id: string }) {
   })
 
   if (conversation.isPending) {
-    return <p role="status">Opening the conversation…</p>
+    return <LoadingState>Opening the conversation…</LoadingState>
   }
   if (conversation.isError) {
     if (
@@ -68,89 +72,87 @@ function Conversation({ id }: { id: string }) {
     ) {
       return (
         <section className="space-y-3">
-          <h1 className="text-2xl font-semibold">Conversation not found</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Conversation not found
+          </h1>
           <p>It may have been deleted.</p>
-          <Link className="underline underline-offset-2" to="/conversations">
+          <Link className={LINK} to="/conversations">
             See your conversations
           </Link>
         </section>
       )
     }
     return (
-      <div className="space-y-2">
-        <Alert>
-          {messageOf(
-            conversation.error,
-            'The conversation could not be opened.',
-          )}
-        </Alert>
-        <Button variant="secondary" onPress={() => void conversation.refetch()}>
-          Try again
-        </Button>
-      </div>
+      <ErrorState onRetry={() => void conversation.refetch()}>
+        {messageOf(conversation.error, 'The conversation could not be opened.')}
+      </ErrorState>
     )
   }
 
   const { data } = conversation
-  const citation = selectedCitation(data, selected)
+  const pending = ask.isPending ? ask.variables : undefined
   return (
-    <section className="space-y-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-2xl font-semibold wrap-anywhere">
-          {data.title ?? UNTITLED}
-        </h1>
-        <Link
-          className="text-sm underline underline-offset-2"
-          to="/conversations"
-        >
-          All conversations
-        </Link>
-      </div>
-      <div
-        className={
-          citation ? 'grid gap-6 lg:grid-cols-2 lg:items-start' : 'space-y-6'
-        }
-      >
-        <div className="space-y-6">
-          {data.messages.length === 0 && !ask.isPending && (
-            <p className="text-slate-700 dark:text-slate-300">
-              No questions yet. Ask one below.
-            </p>
-          )}
-          <MessageList
-            messages={data.messages}
-            selected={selected}
-            onSelect={setSelected}
-            pendingQuestion={ask.isPending ? ask.variables : undefined}
+    <>
+      <ChatLayout
+        messageCount={data.messages.length + (pending !== undefined ? 0.5 : 0)}
+        header={
+          <PageHeader
+            title={data.title ?? UNTITLED}
+            above={
+              <Link className={LINK} to="/conversations">
+                All conversations
+              </Link>
+            }
           />
-          {ask.isError && (
+        }
+        composer={<AskForm onAsk={ask.mutateAsync} isPending={ask.isPending} />}
+      >
+        {data.messages.length === 0 && pending === undefined && (
+          <p className="text-sm text-muted">No questions yet. Ask one below.</p>
+        )}
+        <MessageList
+          messages={data.messages}
+          selected={selected}
+          onSelect={setSelected}
+          pendingQuestion={pending}
+        />
+        {ask.isError && (
+          <div className="mt-6">
             <Alert>
               {messageOf(ask.error, 'The question could not be sent.')}
             </Alert>
-          )}
-          {startError && ask.isIdle && <Alert>{startError}</Alert>}
-          <AskForm onAsk={ask.mutateAsync} isPending={ask.isPending} />
-        </div>
-        {citation && (
-          <div className="lg:sticky lg:top-4">
-            <CitationPanel
-              citation={citation}
-              onClose={() => setSelected(null)}
-            />
           </div>
         )}
-      </div>
-    </section>
+        {startError && ask.isIdle && (
+          <div className="mt-6">
+            <Alert>{startError}</Alert>
+          </div>
+        )}
+      </ChatLayout>
+      <CitationPanel
+        citations={selectedSources(data, selected)}
+        onClose={() => setSelected(null)}
+      />
+    </>
   )
 }
 
-function selectedCitation(
+/**
+ * The passages of the chosen citation's document and pages in the same answer: the chip opens
+ * them together. A citation that is no longer available opens nothing (CONV-6).
+ */
+function selectedSources(
   data: ConversationDetail,
   selected: SelectedCitation | null,
-) {
-  if (!selected) return null
-  const citation = data.messages
-    .find((message) => message.id === selected.messageId)
-    ?.citations.find((c) => c.ordinal === selected.ordinal)
-  return citation?.available ? citation : null
+): CitationResponse[] {
+  if (!selected) return []
+  const citations =
+    data.messages.find((message) => message.id === selected.messageId)
+      ?.citations ?? []
+  const chosen = citations.find((c) => c.ordinal === selected.ordinal)
+  if (!chosen?.available) return []
+  return (
+    groupSources(citations).find((group) => group.citations.includes(chosen))
+      ?.citations ?? []
+  )
 }

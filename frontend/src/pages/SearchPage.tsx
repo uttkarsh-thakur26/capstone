@@ -17,8 +17,11 @@ import type {
 } from '../api/types'
 import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
+import { LoadingState } from '../components/states'
+import { PageHeader } from '../components/PageHeader'
 import { messageOf } from '../components/formErrors'
 import { excerptRange, segments } from '../search/excerpt'
+import { FIELD } from '../components/ui'
 
 /** The longest query the server accepts. */
 const MAX_QUERY_LENGTH = 1000
@@ -100,7 +103,10 @@ export function SearchPage() {
 
   return (
     <section className="space-y-6">
-      <h1 className="text-2xl font-semibold">Search</h1>
+      <PageHeader
+        title="Search"
+        description="Find passages in the documents you can read, by meaning or by exact words."
+      />
 
       <form role="search" onSubmit={submit} className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
@@ -115,7 +121,7 @@ export function SearchPage() {
             <Input
               maxLength={MAX_QUERY_LENGTH}
               placeholder="A question, or some words"
-              className="rounded-md border border-slate-400 bg-white px-3 py-2 outline-none data-[focused]:outline-2 data-[focused]:outline-indigo-600 dark:border-slate-500 dark:bg-slate-900"
+              className={FIELD}
             />
           </SearchField>
           <Button type="submit">Search</Button>
@@ -147,11 +153,13 @@ export function SearchPage() {
       )}
 
       {query === '' && (
-        <p className="text-slate-700 dark:text-slate-300">
+        <p className="text-muted">
           Type a question or some words, then press Search.
         </p>
       )}
-      {query !== '' && results.isPending && <p role="status">Searching…</p>}
+      {query !== '' && results.isPending && (
+        <LoadingState>Searching…</LoadingState>
+      )}
       {results.isError && (
         <SearchFailed
           error={results.error}
@@ -186,13 +194,11 @@ function ModeSelector({
       className="flex flex-col gap-2"
     >
       <Label className="text-sm font-medium">Search by</Label>
-      <div className="inline-flex w-fit rounded-md border border-slate-300 p-0.5 dark:border-slate-600">
+      <div className="inline-flex w-fit rounded-md border border-line-strong bg-surface p-0.5">
         <ModeOption value="SEMANTIC">Meaning</ModeOption>
         <ModeOption value="KEYWORD">Keywords</ModeOption>
       </div>
-      <p className="text-sm text-slate-700 dark:text-slate-300">
-        {MODE_HINTS[mode]}
-      </p>
+      <p className="text-sm text-muted">{MODE_HINTS[mode]}</p>
     </RadioGroup>
   )
 }
@@ -207,7 +213,7 @@ function ModeOption({
   return (
     <Radio
       value={value}
-      className="cursor-default rounded px-4 py-1.5 text-sm font-medium outline-none data-[focus-visible]:outline-2 data-[focus-visible]:outline-indigo-600 data-[hovered]:bg-slate-100 data-[selected]:bg-indigo-700 data-[selected]:text-white dark:data-[hovered]:bg-slate-800 dark:data-[selected]:bg-indigo-600"
+      className="cursor-default rounded px-4 py-1.5 text-sm font-medium outline-none data-[focus-visible]:outline-2 data-[focus-visible]:outline-focus data-[hovered]:bg-subtle data-[selected]:bg-accent data-[selected]:text-white"
     >
       {children}
     </Radio>
@@ -261,7 +267,7 @@ function Results({
   const count = response.results.length
   return (
     <div className="space-y-4" aria-busy={refreshing}>
-      <p role="status" className="text-sm text-slate-700 dark:text-slate-300">
+      <p role="status" className="text-sm text-muted">
         {count === 0
           ? emptyMessage(response.mode, scoped)
           : `${count} ${count === 1 ? 'passage' : 'passages'}, best match first.`}
@@ -308,15 +314,15 @@ function ResultCard({
       ? `Page ${result.pageStart}`
       : `Pages ${result.pageStart}–${result.pageEnd}`
   return (
-    <li className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+    <li className="space-y-2 rounded-lg border border-line bg-surface p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <Link
           to={`/documents/${result.documentId}?page=${result.pageStart}`}
-          className="font-medium text-indigo-800 underline-offset-2 hover:underline dark:text-indigo-300"
+          className="font-medium text-link underline-offset-2 hover:underline"
         >
           {result.title}
         </Link>
-        <span className="text-sm text-slate-700 dark:text-slate-300">
+        <span className="text-sm text-muted">
           {pages} ·{' '}
           {mode === 'SEMANTIC'
             ? `Similarity ${result.score.toFixed(2)}`

@@ -21,6 +21,8 @@ import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
 import { messageOf, showServerErrors } from '../components/formErrors'
 import { FormTextField } from '../components/FormTextField'
+import { PageHeader } from '../components/PageHeader'
+import { LINK } from '../components/ui'
 import { formatBytes } from '../documents/format'
 import {
   EMPTY_METADATA,
@@ -141,16 +143,23 @@ export function UploadDocumentPage() {
 
   return (
     <section className="max-w-2xl space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">Upload a document</h1>
-        <p className="text-sm text-slate-700 dark:text-slate-300">
-          PDF only
-          {limits.data &&
-            `, up to ${formatBytes(limits.data.maxFileSizeBytes)}`}
-          . The text must be selectable: scanned pages without a text layer
-          cannot be searched.
-        </p>
-      </div>
+      <PageHeader
+        title="Upload a document"
+        above={
+          <Link to="/documents" className={LINK}>
+            Documents
+          </Link>
+        }
+        description={
+          <>
+            PDF only
+            {limits.data &&
+              `, up to ${formatBytes(limits.data.maxFileSizeBytes)}`}
+            . The text must be selectable: scanned pages without a text layer
+            cannot be searched.
+          </>
+        }
+      />
 
       {serverError && (
         <Alert>
@@ -177,7 +186,7 @@ export function UploadDocumentPage() {
               if (item?.kind === 'file') choose(await item.getFile())
             }}
             isDisabled={uploading}
-            className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-slate-400 p-6 text-center outline-none data-[drop-target]:border-indigo-600 data-[drop-target]:bg-indigo-50 data-[focus-visible]:outline-2 data-[focus-visible]:outline-indigo-600 dark:border-slate-500 dark:data-[drop-target]:bg-indigo-950"
+            className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-line-strong bg-surface p-6 text-center outline-none data-[drop-target]:border-accent data-[drop-target]:bg-accent-soft data-[focus-visible]:outline-2 data-[focus-visible]:outline-focus"
           >
             <Text slot="label" className="text-sm">
               {file ? (
@@ -238,9 +247,9 @@ export function UploadDocumentPage() {
           />
         </div>
 
-        <fieldset className="space-y-3 rounded-lg border border-slate-300 p-4 dark:border-slate-700">
+        <fieldset className="space-y-3 rounded-lg border border-line bg-surface p-4">
           <legend className="px-1 font-medium">Share with</legend>
-          <p className="text-sm text-slate-700 dark:text-slate-300">
+          <p className="text-sm text-muted">
             Leave everything empty to keep the document to yourself and the
             admins. You can change this later.
           </p>
@@ -262,9 +271,9 @@ export function UploadDocumentPage() {
                   <Label>Uploading</Label>
                   <span>{valueText}</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                <div className="h-2 overflow-hidden rounded-full bg-subtle">
                   <div
-                    className="h-full bg-indigo-700 transition-[width]"
+                    className="h-full bg-accent transition-[width]"
                     style={{ width: `${percentage ?? 0}%` }}
                   />
                 </div>

@@ -9,6 +9,7 @@ import { Button } from '../components/Button'
 import { messageOf, showServerErrors } from '../components/formErrors'
 import { FormTextField } from '../components/FormTextField'
 import { AuthLayout } from '../layout/AuthLayout'
+import { LINK } from '../components/ui'
 
 /** The server's rules (AUTH-4), checked here first only to answer faster. */
 const schema = z.object({
@@ -99,7 +100,7 @@ export function RegisterPage() {
       </form>
       <p className="text-center text-sm">
         Already registered?{' '}
-        <Link className="underline underline-offset-2" to="/login">
+        <Link className={LINK} to="/login">
           Sign in
         </Link>
       </p>

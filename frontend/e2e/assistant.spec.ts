@@ -49,7 +49,7 @@ test('sign in, upload, wait until indexed, ask and open a citation', async ({
     .first()
   await chip.click()
 
-  const panel = page.getByRole('region', { name: `Source 1: ${title}` })
+  const panel = page.getByRole('dialog', { name: `Source 1: ${title}` })
   await expect(panel.getByText(RULE)).toBeVisible()
   await expect(panel.getByTitle(`${title}, page 1`)).toHaveAttribute(
     'src',

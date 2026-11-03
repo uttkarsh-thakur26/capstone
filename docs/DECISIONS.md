@@ -42,6 +42,7 @@ Architecture and process decisions, in the format of specification Section 24.7.
 | [ADR-036](#adr-036-gpt-6-luna-through-openais-chat-completions-api-d5) | D5 | gpt-6-luna through OpenAI's Chat Completions API | Accepted | 2026-11-01 |
 | [ADR-037](#adr-037-specification-corrections-and-design-choices-for-phase-5) | | Specification corrections and design choices for Phase 5 | Accepted | 2026-11-01 |
 | [ADR-038](#adr-038-conversations-follow-ups-the-viewer-and-the-end-to-end-test-phase-6) | | Conversations, follow-ups, the viewer and the end-to-end test (Phase 6) | Accepted | 2026-11-02 |
+| [ADR-039](#adr-039-the-name-pramaan-the-design-pass-and-demo-data-d1) | D1 | The name Pramaan, the design pass and demo data | Accepted | 2026-11-03 |
 
 ---
 
@@ -669,3 +670,25 @@ Date 2026-11-02, accepted. One line per decision.
 - Model output is shown as plain text split around its markers, which become citation chips; no Markdown library and no HTML (UI-6).
 - S20: the Playwright test runs the backend as the test application (`spring-boot:test-run`, profiles `test` and `e2e`): PostgreSQL in Testcontainers and the fake models, ingestion on, on port 18080, with Vite on 5174; it runs in CI as a fourth job; its PDF is generated in TypeScript, so no binary fixture is committed.
 - Dependency: `@playwright/test` 1.64.1 (development only, Microsoft, Apache-2.0, released 2026-10-14), the end-to-end tool that specification 3.1 names.
+
+---
+
+### ADR-039: The name Pramaan, the design pass and demo data (D1)
+
+Date 2026-11-03, accepted. One line per decision.
+
+- D1: the product is called Pramaan, with the line "Answers with proof from your documents" on the sign-in page; it is set through `APP_DISPLAY_NAME` as ADR-007 says, and the Java package and the repository keep their names.
+- One set of colors as CSS variables (canvas, surface, line, foreground, muted, accent, link, focus) with a light and a dark value, exposed to Tailwind through `@theme`; components use these names instead of raw colors with `dark:` twins.
+- Theme: System, Light or Dark in the sidebar, saved in `localStorage` (a convenience, not a setting kept on the server); `dark:` follows `data-theme` on `<html>` instead of the media query, because a media query alone cannot be switched by the user.
+- Type is the system font stack: no web font to download, which also keeps a demonstration without internet working.
+- Shared parts in `src/components`: page header, card, loading, error (with Try again) and empty states, pager, link styled as a button, and the class names of fields, links, popovers and tables (`ui.ts`); icons are a few inline SVGs drawn for this app, so no icon library is added.
+- Navigation: a sidebar from 1024 px up and a modal drawer (React Aria) below it; tables keep one markup and drop secondary columns on small screens, so nothing is rendered twice.
+- Every page, sign-in included, is a lazy route (React Router `lazy`); splitting only the libraries into a vendor chunk was rejected, because it makes no first page smaller.
+- Demo data: `scripts/demo-data.mjs` uses only the public HTTP API and Node.js 24's own `fetch`, `FormData` and `Blob`, so no dependency is added; a Spring seeding profile was rejected, because it would bypass the API path that the demonstration shows and could not read `test-files/` from inside the container.
+- Frontend tests: the page modules are loaded once in the test setup, and `findBy` and `waitFor` wait up to 3 s instead of 1 s, after the first render of a test file was measured at 1.1 to 1.2 s with every worker busy (the run that reported 16 of 17 files); each test may take 15 s instead of 5 s, after the slowest (about 2.6 s alone) went past 5 s with a container build running beside them.
+- Chat screen (owner's review of the demo stack): question box fixed at the bottom of the window, growing to about six lines, with a round send button; messages follow new answers unless the reader has scrolled up, then a "Jump to latest" button appears; questions are bubbles on the right, answers plain text in a 720 px reading column under the product's mark; "No answer found" is one muted line with an icon; the notice that answers must be checked is shown once, under the question box.
+- The citation panel is a modal panel sliding over the conversation from the right (full width on phones) instead of a second column; React Aria keeps focus inside it and returns it to the chip.
+- Answers are shown through a small Markdown subset (paragraphs, line breaks, headings, lists, bold, italics) parsed in `answerText.ts` into React elements, so no HTML is ever produced (UI-6); this replaces ADR-038's plain text. A Markdown library was rejected: the subset is about 200 lines, and a library would add raw-HTML options that must then be kept off.
+- A citation marker repeated on consecutive lines, items or sentences of one paragraph or list is shown once, at the last of them; a marker naming other sources is never dropped. Source chips under an answer are one per document and pages, and the panel shows every passage of that group.
+- `answer-v3`: a one-line direct answer first, a list or short headings only when the question asks for several items, and one marker per paragraph or list with extra markers only where a part comes from another source; specification 11.3 rule 3 ("a marker on every factual sentence") was corrected accordingly. Cost: Phase 7 can check a citation against a paragraph, not a sentence.
+- A question leaves the box when it is sent and comes back only if sending fails and nothing new was typed.

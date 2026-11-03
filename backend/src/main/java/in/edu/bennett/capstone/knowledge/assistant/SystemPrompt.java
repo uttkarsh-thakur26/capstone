@@ -15,8 +15,11 @@ import org.springframework.stereotype.Component;
 @Component
 class SystemPrompt {
 
-  /** Version 2 adds the conversation's history (Phase 6). */
-  static final String VERSION = "answer-v2";
+  /**
+   * Version 2 added the conversation's history (Phase 6); version 3 asks for a one-line answer
+   * first, lists only for several items, and one marker per paragraph or list (ADR-039).
+   */
+  static final String VERSION = "answer-v3";
 
   private final String text;
 

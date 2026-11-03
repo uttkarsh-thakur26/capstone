@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
 import { Button } from './Button'
+import { MODAL, MODAL_OVERLAY } from './ui'
 
 /**
  * A modal question with a cancel and a confirm button. React Aria keeps focus inside it, closes it
@@ -28,9 +29,9 @@ export function ConfirmDialog({
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       isDismissable={!isPending}
-      className="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4"
+      className={MODAL_OVERLAY}
     >
-      <Modal className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-slate-900">
+      <Modal className={MODAL}>
         <Dialog role="alertdialog" className="space-y-4 outline-none">
           <Heading slot="title" className="text-lg font-semibold">
             {title}

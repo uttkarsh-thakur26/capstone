@@ -49,9 +49,7 @@ export function GrantsEditor({
           People
         </p>
         {value.people.length === 0 ? (
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            No one is added by name.
-          </p>
+          <p className="text-sm text-muted">No one is added by name.</p>
         ) : (
           <ul aria-labelledby="shared-people" className="space-y-1">
             {value.people.map((person) => (
@@ -61,9 +59,7 @@ export function GrantsEditor({
               >
                 <span>
                   {person.displayName}{' '}
-                  <span className="text-slate-600 dark:text-slate-300">
-                    {person.email}
-                  </span>
+                  <span className="text-muted">{person.email}</span>
                 </span>
                 <Button
                   variant="secondary"

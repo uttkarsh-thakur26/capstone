@@ -13,10 +13,13 @@ import type {
   UpdateUserRequest,
 } from '../api/types'
 import { Alert } from '../components/Alert'
-import { Button } from '../components/Button'
 import { EnabledSwitch } from '../components/EnabledSwitch'
+import { Pager } from '../components/Pager'
+import { EmptyState, ErrorState, LoadingState } from '../components/states'
+import { PageHeader } from '../components/PageHeader'
 import { messageOf } from '../components/formErrors'
 import { RoleSelect } from '../components/RoleSelect'
+import { CARD, FIELD, LABEL, TABLE_HEAD, TABLE_ROW } from '../components/ui'
 
 const PAGE_SIZE = 20
 
@@ -87,7 +90,10 @@ export function AdminUsersPage() {
 
   return (
     <section className="space-y-6">
-      <h1 className="text-2xl font-semibold">Users</h1>
+      <PageHeader
+        title="Users"
+        description="Everyone who has an account. Registration always creates a student; change the role here."
+      />
 
       <SearchField
         value={search}
@@ -97,61 +103,56 @@ export function AdminUsersPage() {
         }}
         className="flex max-w-sm flex-col gap-1"
       >
-        <Label className="text-sm font-medium">Search by name or email</Label>
-        <Input className="rounded-md border border-slate-400 bg-white px-3 py-2 outline-none data-[focused]:outline-2 data-[focused]:outline-indigo-600 dark:border-slate-500 dark:bg-slate-900" />
+        <Label className={LABEL}>Search by name or email</Label>
+        <Input className={FIELD} />
       </SearchField>
 
       {notice && <Alert tone={notice.tone}>{notice.text}</Alert>}
 
-      {users.isPending && <p role="status">Loading users…</p>}
+      {users.isPending && <LoadingState>Loading users…</LoadingState>}
       {users.isError && (
-        <div className="space-y-2">
-          <Alert>
-            {messageOf(users.error, 'The users could not be loaded.')}
-          </Alert>
-          <Button variant="secondary" onPress={() => void users.refetch()}>
-            Try again
-          </Button>
-        </div>
+        <ErrorState onRetry={() => void users.refetch()}>
+          {messageOf(users.error, 'The users could not be loaded.')}
+        </ErrorState>
       )}
       {users.data && users.data.items.length === 0 && (
-        <p>No users match this search.</p>
+        <EmptyState>No users match this search.</EmptyState>
       )}
       {users.data && users.data.items.length > 0 && (
         <>
-          <div className="overflow-x-auto">
+          <div className={`${CARD} overflow-x-auto`}>
             <table className="w-full text-left text-sm">
               <caption className="sr-only">
                 Users, page {users.data.page + 1} of {users.data.totalPages}
               </caption>
-              <thead className="border-b border-slate-300 dark:border-slate-700">
+              <thead className={TABLE_HEAD}>
                 <tr>
-                  <th scope="col" className="py-2 pr-4">
+                  <th scope="col" className="px-4 py-3">
                     Name
                   </th>
-                  <th scope="col" className="py-2 pr-4">
-                    Email
-                  </th>
-                  <th scope="col" className="py-2 pr-4">
+                  <th scope="col" className="px-4 py-3">
                     Role
                   </th>
-                  <th scope="col" className="py-2 pr-4">
+                  <th scope="col" className="px-4 py-3">
                     Account
                   </th>
-                  <th scope="col" className="py-2">
+                  <th scope="col" className="hidden px-4 py-3 md:table-cell">
                     Last sign-in
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {users.data.items.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="border-b border-slate-200 dark:border-slate-800"
-                  >
-                    <td className="py-2 pr-4">{user.displayName}</td>
-                    <td className="py-2 pr-4">{user.email}</td>
-                    <td className="py-2 pr-4">
+                  <tr key={user.id} className={TABLE_ROW}>
+                    <td className="px-4 py-3">
+                      <span className="block font-medium">
+                        {user.displayName}
+                      </span>
+                      <span className="block text-xs text-muted wrap-anywhere">
+                        {user.email}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
                       <RoleSelect
                         label={`Role of ${user.displayName}`}
                         value={user.role}
@@ -159,7 +160,7 @@ export function AdminUsersPage() {
                         isDisabled={update.isPending}
                       />
                     </td>
-                    <td className="py-2 pr-4">
+                    <td className="px-4 py-3">
                       <EnabledSwitch
                         label={`Account of ${user.displayName} enabled`}
                         isEnabled={user.enabled}
@@ -167,32 +168,22 @@ export function AdminUsersPage() {
                         isDisabled={update.isPending}
                       />
                     </td>
-                    <td className="py-2">{formatTime(user.lastLoginAt)}</td>
+                    <td className="hidden px-4 py-3 whitespace-nowrap text-muted md:table-cell">
+                      {formatTime(user.lastLoginAt)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <nav aria-label="Pages" className="flex items-center gap-3 text-sm">
-            <Button
-              variant="secondary"
-              isDisabled={page === 0}
-              onPress={() => setPage((p) => p - 1)}
-            >
-              Previous
-            </Button>
-            <span>
-              Page {users.data.page + 1} of {Math.max(users.data.totalPages, 1)}
-              , {users.data.totalItems} users
-            </span>
-            <Button
-              variant="secondary"
-              isDisabled={page + 1 >= users.data.totalPages}
-              onPress={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </nav>
+          <Pager
+            page={page}
+            totalPages={users.data.totalPages}
+            onPage={setPage}
+          >
+            Page {users.data.page + 1} of {Math.max(users.data.totalPages, 1)},{' '}
+            {users.data.totalItems} users
+          </Pager>
         </>
       )}
     </section>

@@ -4,7 +4,7 @@ Updated 2026-11-03. Format: specification Section 24.8.
 
 ## Current phase
 
-**Design pass and demo data (between Phases 6 and 7), built on `feat/design-and-demo`, waiting for the owner's click-through before the pull request.** Decisions: ADR-039 (D1 is Pramaan).
+**The design pass and demo data (between Phases 6 and 7) are done, through pull request [#9](https://github.com/uttkarsh-thakur26/capstone/pull/9).** Decisions: ADR-039 (D1 is Pramaan). Next: Phase 7, the first evaluation run.
 
 - One look on every screen: colour tokens with a light and a dark set, a System / Light / Dark switch, shared page header, cards, loading, error and empty states; a sidebar from 1024 px, a menu drawer below; no page scrolls sideways at 375 px (checked on all routes in Chromium).
 - Dashboard at `/`: quick ask, five newest readable documents, five latest conversations, an administration card for admins.
@@ -12,7 +12,7 @@ Updated 2026-11-03. Format: specification Section 24.8.
 - Chat redesign after the owner's click-through: question box fixed at the bottom, "Jump to latest", answers as plain text in a 720 px column through a safe Markdown subset (no HTML), repeated markers shown once, one source chip per document and pages, the citation panel sliding over the chat, thinking dots; prompt `answer-v3` (one-line answer first, lists only for several items, one marker per paragraph or list; spec 11.3 rule 3 corrected, ADR-039).
 - `scripts/demo-data.mjs`: demo accounts, four public course PDFs and their sharing through the API (README, "Demo data").
 - Flaky frontend run (16 of 17 files once): not reproduced in 5 runs before the change; a test needing 1.17 s against the 1 s wait of `findBy` failed 1 run in 3 after the routes became lazy. Page modules now load once in the test setup and the wait is 3 s (ADR-039); 8 runs in a row then passed.
-- Checks (2026-11-03, after the chat redesign): `./mvnw verify` 613 tests and the format check (one earlier run under load failed 2, see Known issues); frontend 123 tests (new: dashboard, role navigation, menu drawer, theme, answer Markdown, merged sources), lint, type check, build, format; Playwright passed (46.8 s).
+- Checks (2026-11-03, after the review fixes): `./mvnw verify` 613 tests and the format check (one earlier run under load failed 2, see Known issues); frontend 125 tests (new: dashboard, role navigation, menu drawer, theme, answer Markdown, merged sources, the page-load error screen), lint, type check, build, format; Playwright passed (39.0 s).
 
 **Phase 6, conversations and the citation viewer, is done**, merged through pull request [#8](https://github.com/uttkarsh-thakur26/capstone/pull/8) with every CI check green. The MVP of specification 23 is complete. Decisions: ADR-038 (S19, S20, the viewer, follow-ups). Next: Phase 7, the first evaluation run.
 

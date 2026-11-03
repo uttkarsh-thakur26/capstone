@@ -1,6 +1,6 @@
-# AI-powered document and organizational knowledge platform
+# Pramaan
 
-Working description. The product name is not decided yet (D1 in `docs/PROJECT_SPEC.md`); the running application shows whatever `APP_DISPLAY_NAME` says.
+Answers with proof from your documents. The running application shows the name set in `APP_DISPLAY_NAME` (ADR-007, ADR-039).
 
 Users upload PDFs, the system indexes them, and people search and ask questions in natural language. Answers are built only from documents the asking user is allowed to read, they cite the pages they come from, and the system says so when the documents do not contain the answer. Final-year capstone project (CSET400C).
 
@@ -36,6 +36,16 @@ docker compose up --build
 ```
 
 Open <http://localhost:3000> and sign in with `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD`, or register: self-registration always creates a student account, and the admin can then change its role under Users. Stop with `Ctrl+C`; `docker compose down` removes the containers, and `docker compose down -v` also deletes the database volume.
+
+### Demo data
+
+With the stack running and Ollama serving the embedding model, one command creates the demo accounts (an admin, two faculty, two students, all `@example.org`), uploads four public course PDFs from `test-files/` as the two faculty members, shares them so the two students read different documents, and waits until each is indexed:
+
+```bash
+node --env-file=.env scripts/demo-data.mjs http://localhost:3000
+```
+
+It signs in as the bootstrap admin from `.env` and prints the logins at the end, with one generated password for all five accounts. It is meant for a fresh database; to run it again, set `DEMO_PASSWORD` to the password it printed. The second argument is the folder of the PDFs, `test-files` by default.
 
 The stack runs three containers: `db` (PostgreSQL 18 with pgvector), `backend` (Spring Boot, `prod` profile) and `frontend` (the built interface behind nginx, which also forwards `/api` to the backend). Only ports 3000 and 5432 are published, and only on `127.0.0.1`.
 
@@ -100,6 +110,7 @@ When an endpoint changes, run `./mvnw verify` in `backend` (it writes `backend/t
 .github/workflows/  CI
 backend/            Spring Boot application (Java 25, Maven Wrapper)
 frontend/           React, TypeScript, Vite
+scripts/            demo data loader (Node.js)
 docs/               specification, progress, decisions, versions, architecture, testing, deployment
 compose.yaml        the whole system
 .env.example        environment variables, with placeholders

@@ -1,6 +1,7 @@
 import type { RouteObject } from 'react-router'
 import { RequireAuth } from './auth/RequireAuth'
 import { AppShell } from './layout/AppShell'
+import { RouteError } from './layout/RouteError'
 import { Starting } from './layout/Starting'
 
 /*
@@ -13,6 +14,7 @@ import { Starting } from './layout/Starting'
 export const routes: RouteObject[] = [
   {
     HydrateFallback: Starting,
+    ErrorBoundary: RouteError,
     children: [
       {
         path: '/login',

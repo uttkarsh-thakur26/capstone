@@ -55,6 +55,13 @@ describe('parseAnswer', () => {
     ])
   })
 
+  it('keeps a # that ends a heading word, and drops closing hashes', () => {
+    expect(shape(parseAnswer('## Notes on C#\n\n## Units ##'))).toEqual([
+      { h: 'Notes on C#' },
+      { h: 'Units' },
+    ])
+  })
+
   it('keeps the number an ordered list starts at', () => {
     const [list] = parseAnswer('3. Third\n4. Fourth')
     expect(list).toMatchObject({ kind: 'list', ordered: true, start: 3 })

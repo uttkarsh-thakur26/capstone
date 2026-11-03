@@ -19,7 +19,7 @@ export type Block =
   | { kind: 'heading'; content: Inline[] }
   | { kind: 'list'; ordered: boolean; start: number; items: Inline[][] }
 
-const HEADING = /^\s{0,3}#{1,6}\s+(.*?)\s*#*$/
+const HEADING = /^\s{0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$/
 const BULLET = /^\s*[-*•]\s+(.*)$/
 const NUMBERED = /^\s*(\d{1,3})[.)]\s+(.*)$/
 const WORD = /[\p{L}\p{N}]/u

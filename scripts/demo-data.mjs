@@ -127,6 +127,8 @@ async function main() {
 
   const given = process.env.DEMO_PASSWORD
   const password = given ?? `Pramaan-demo-${randomBytes(4).toString('hex')}`
+  // Printed before any account exists, so a run that stops halfway can be repeated with it.
+  if (!given) console.log(`Password for all demo accounts: ${password}`)
   const adminToken = await signIn(adminEmail, adminPassword).catch((error) =>
     fail(`The bootstrap admin could not sign in: ${error.message}`),
   )
@@ -173,7 +175,12 @@ async function main() {
   const tokens = {}
   const uploaded = []
   for (const document of DOCUMENTS) {
-    tokens[document.owner] ??= await signIn(ACCOUNTS[document.owner].email, password)
+    tokens[document.owner] ??= await signIn(ACCOUNTS[document.owner].email, password).catch(
+      (error) =>
+        fail(
+          `${ACCOUNTS[document.owner].email} could not sign in (${error.message}). Is DEMO_PASSWORD right?`,
+        ),
+    )
     const token = tokens[document.owner]
     const grants = document.grants.map((grant) =>
       grant.type === 'ROLE'

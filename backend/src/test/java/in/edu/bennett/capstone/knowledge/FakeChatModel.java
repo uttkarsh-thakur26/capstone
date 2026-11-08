@@ -8,6 +8,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.MessageType;
@@ -57,12 +59,13 @@ public class FakeChatModel implements ChatModel {
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
       callsInTransaction.incrementAndGet();
     }
-    requests.add(request(prompt));
+    Request request = request(prompt);
+    requests.add(request);
     Supplier<String> next;
     synchronized (script) {
       next = script.poll();
     }
-    String output = next == null ? DEFAULT_ANSWER : next.get();
+    String output = next == null ? defaultFor(request) : next.get();
     return new ChatResponse(
         List.of(new Generation(new AssistantMessage(output))),
         ChatResponseMetadata.builder().model(MODEL).usage(new DefaultUsage(1200, 80)).build());
@@ -129,6 +132,67 @@ public class FakeChatModel implements ChatModel {
     }
     requests.clear();
     callsInTransaction.set(0);
+  }
+
+  /**
+   * With nothing scripted, an output that fits the schema asked for: an answer from source 1, a
+   * summary citing the first passage or marker the prompt holds, or one difference quoting the
+   * first words of the first candidate's passages. Those defaults let the end-to-end test run each
+   * feature without scripting.
+   */
+  private static String defaultFor(Request request) {
+    String schema = request.outputSchema() == null ? "" : request.outputSchema();
+    String user = request.user() == null ? "" : request.user();
+    if (schema.contains("\"keyPoints\"")) {
+      Matcher number = SUMMARY_SOURCE.matcher(user);
+      String n =
+          number.find() ? (number.group(1) != null ? number.group(1) : number.group(2)) : "1";
+      return """
+          {"overview": "The document sets out its rules [%1$s].",
+           "keyPoints": ["It states what readers must do [%1$s]."], "rules": [], "dates": []}"""
+          .formatted(n);
+    }
+    if (schema.contains("\"differences\"")) {
+      String left = firstWords(CANDIDATE_LEFT.matcher(user));
+      String right = firstWords(CANDIDATE_RIGHT.matcher(user));
+      if (left == null && right == null) {
+        return "{\"differences\": []}";
+      }
+      String category = left == null ? "ADDED" : right == null ? "REMOVED" : "OTHER";
+      return """
+          {"differences": [{"candidate": 1, "category": "%s", "leftQuote": "%s",
+            "rightQuote": "%s", "explanation": "The two passages say different things."}]}"""
+          .formatted(category, left == null ? "" : left, right == null ? "" : right);
+    }
+    return DEFAULT_ANSWER;
+  }
+
+  /** The first passage number of a map call, or the first marker of a reduce call. */
+  private static final Pattern SUMMARY_SOURCE = Pattern.compile("<passage n=\"(\\d+)\"|\\[(\\d+)]");
+
+  private static final Pattern CANDIDATE_LEFT =
+      Pattern.compile("<candidate n=\"1\">\n(?:<left pages=\"[^\"]*\">\n([^<]*)\n</left>)?");
+
+  private static final Pattern CANDIDATE_RIGHT =
+      Pattern.compile(
+          "<candidate n=\"1\">\n(?:<left[^>]*>\n[^<]*\n</left>\n)?<right pages=\"[^\"]*\">\n([^<]*)\n</right>");
+
+  /** The first four words of the matched passage, unescaped, or null when there is none. */
+  private static String firstWords(Matcher passage) {
+    if (!passage.find() || passage.group(1) == null) {
+      return null;
+    }
+    String text =
+        passage
+            .group(1)
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&amp;", "&");
+    String[] words = text.strip().split("\\s+");
+    return String.join(" ", java.util.Arrays.copyOf(words, Math.min(4, words.length)))
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"");
   }
 
   private static Request request(Prompt prompt) {

@@ -26,13 +26,25 @@ import { FIELD } from '../components/ui'
 /** The longest query the server accepts. */
 const MAX_QUERY_LENGTH = 1000
 
-/** How each mode appears in the address, so a search can be shared and Back works. */
-const MODE_PARAMS: Record<SearchMode, string> = {
+/**
+ * How each mode appears in the address, so a search can be shared and Back works. Best match, the
+ * default, has no parameter.
+ */
+const MODE_PARAMS: Record<SearchMode, string | null> = {
+  HYBRID: null,
   SEMANTIC: 'meaning',
   KEYWORD: 'keywords',
 }
 
+function modeOf(param: string | null): SearchMode {
+  if (param === MODE_PARAMS.SEMANTIC) return 'SEMANTIC'
+  if (param === MODE_PARAMS.KEYWORD) return 'KEYWORD'
+  return 'HYBRID'
+}
+
 const MODE_HINTS: Record<SearchMode, string> = {
+  HYBRID:
+    'Ranks passages by meaning and by your words together. A good first choice for most searches.',
   SEMANTIC:
     'Finds passages about the same idea, even when they use other words.',
   KEYWORD:
@@ -47,8 +59,7 @@ const MODE_HINTS: Record<SearchMode, string> = {
 export function SearchPage() {
   const [params, setParams] = useSearchParams()
   const query = (params.get('q') ?? '').trim()
-  const mode: SearchMode =
-    params.get('mode') === MODE_PARAMS.KEYWORD ? 'KEYWORD' : 'SEMANTIC'
+  const mode = modeOf(params.get('mode'))
   const documentId = params.get('documentId')
 
   const [draft, setDraft] = useState(query)
@@ -105,7 +116,7 @@ export function SearchPage() {
     <section className="space-y-6">
       <PageHeader
         title="Search"
-        description="Find passages in the documents you can read, by meaning or by exact words."
+        description="Find passages in the documents you can read, by meaning, by exact words, or both."
       />
 
       <form role="search" onSubmit={submit} className="space-y-4">
@@ -128,9 +139,7 @@ export function SearchPage() {
         </div>
         <ModeSelector
           mode={mode}
-          onChange={(next) =>
-            change({ mode: next === 'KEYWORD' ? MODE_PARAMS.KEYWORD : null })
-          }
+          onChange={(next) => change({ mode: MODE_PARAMS[next] })}
         />
       </form>
 
@@ -195,6 +204,7 @@ function ModeSelector({
     >
       <Label className="text-sm font-medium">Search by</Label>
       <div className="inline-flex w-fit rounded-md border border-line-strong bg-surface p-0.5">
+        <ModeOption value="HYBRID">Best match</ModeOption>
         <ModeOption value="SEMANTIC">Meaning</ModeOption>
         <ModeOption value="KEYWORD">Keywords</ModeOption>
       </div>
@@ -296,6 +306,16 @@ function emptyMessage(mode: SearchMode, scoped: boolean): string {
     : 'No passages found. None of the documents you can read has been processed yet.'
 }
 
+/**
+ * The score shown with a result. A fused score is a rank, not a measure anyone can read, so a best
+ * match result shows its similarity instead.
+ */
+function scoreLabel(result: SearchResult, mode: SearchMode): string {
+  if (mode === 'KEYWORD') return `Keyword rank ${result.score.toFixed(2)}`
+  const similarity = mode === 'SEMANTIC' ? result.score : result.similarity
+  return similarity == null ? '' : `Similarity ${similarity.toFixed(2)}`
+}
+
 function ResultCard({
   result,
   mode,
@@ -323,10 +343,7 @@ function ResultCard({
           {result.title}
         </Link>
         <span className="text-sm text-muted">
-          {pages} ·{' '}
-          {mode === 'SEMANTIC'
-            ? `Similarity ${result.score.toFixed(2)}`
-            : `Keyword rank ${result.score.toFixed(2)}`}
+          {pages} · {scoreLabel(result, mode)}
         </span>
       </div>
       <p className="text-sm leading-relaxed whitespace-pre-line wrap-anywhere">

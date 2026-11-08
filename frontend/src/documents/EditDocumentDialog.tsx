@@ -8,11 +8,16 @@ import { Button } from '../components/Button'
 import { messageOf, showServerErrors } from '../components/formErrors'
 import { FormTextField } from '../components/FormTextField'
 import {
+  CATEGORY_OPTIONS,
+  EARLIEST_DATE,
+  latestDate,
   METADATA_FIELDS,
   metadataSchema,
+  TITLE_HINT,
   toMetadata,
   type MetadataForm,
 } from './metadata'
+import { FormSelect } from '../components/FormSelect'
 import { MODAL_OVERLAY } from '../components/ui'
 
 /**
@@ -32,6 +37,8 @@ export function EditDocumentDialog({
 }) {
   const form = useForm<MetadataForm>({
     resolver: zodResolver(metadataSchema),
+    // The same rules and timing as the upload form (ADR-040).
+    mode: 'onTouched',
     values: {
       title: document.title,
       description: document.description ?? '',
@@ -76,23 +83,32 @@ export function EditDocumentDialog({
           </Heading>
           {serverError && <Alert>{serverError}</Alert>}
           <form onSubmit={onSubmit} noValidate className="space-y-4">
-            <FormTextField control={form.control} name="title" label="Title" />
+            <FormTextField
+              control={form.control}
+              name="title"
+              label="Title"
+              description={TITLE_HINT}
+            />
             <FormTextField
               control={form.control}
               name="description"
               label="Description (optional)"
               multiline
             />
-            <FormTextField
+            <FormSelect
               control={form.control}
               name="category"
               label="Category (optional)"
+              options={CATEGORY_OPTIONS}
+              emptyLabel="No category"
             />
             <FormTextField
               control={form.control}
               name="documentDate"
               label="Effective date (optional)"
               type="date"
+              min={EARLIEST_DATE}
+              max={latestDate()}
             />
             <div className="flex justify-end gap-3">
               <Button
@@ -102,7 +118,10 @@ export function EditDocumentDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" isDisabled={saving}>
+              <Button
+                type="submit"
+                isDisabled={saving || !form.formState.isValid}
+              >
                 Save
               </Button>
             </div>

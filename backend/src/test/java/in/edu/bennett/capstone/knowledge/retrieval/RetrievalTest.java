@@ -211,14 +211,14 @@ class RetrievalTest {
         .containsExactly(visible);
   }
 
-  /** Section 10: the category filter narrows the results, ignoring case and surrounding space. */
+  /** Section 10: the category filter narrows the results. */
   @ParameterizedTest
   @EnumSource(SearchMode.class)
   void theCategoryFilterNarrowsTheResults(SearchMode mode) {
     String[] w = words(2);
     String query = w[0] + " " + w[1];
     UUID handbook = indexed(toStudent(), query);
-    jdbc.sql("UPDATE document SET category = 'Handbook' WHERE id = :id")
+    jdbc.sql("UPDATE document SET category = 'HANDBOOK' WHERE id = :id")
         .param("id", handbook)
         .update();
     UUID other = indexed(toStudent(), query);
@@ -231,7 +231,7 @@ class RetrievalTest {
             HttpMethod.POST,
             "/api/v1/search",
             """
-            {"mode": "%s", "query": "%s", "category": "  HANDBOOK "}
+            {"mode": "%s", "query": "%s", "category": "HANDBOOK"}
             """
                 .formatted(mode, query));
     assertThat(documentIds(hits(result))).containsExactly(handbook);
@@ -339,7 +339,7 @@ class RetrievalTest {
             "{\"mode\": \"SEMANTIC\", \"query\": \"   \"}",
             "{\"mode\": \"SEMANTIC\"}",
             "{\"query\": \"rules\"}",
-            "{\"mode\": \"HYBRID\", \"query\": \"rules\"}",
+            "{\"mode\": \"FUZZY\", \"query\": \"rules\"}",
             "{\"mode\": \"SEMANTIC\", \"query\": \"rules\", \"k\": 0}",
             "{\"mode\": \"SEMANTIC\", \"query\": \"rules\", \"k\": 51}",
             "{\"mode\": \"SEMANTIC\", \"query\": \"" + "a".repeat(1001) + "\"}",

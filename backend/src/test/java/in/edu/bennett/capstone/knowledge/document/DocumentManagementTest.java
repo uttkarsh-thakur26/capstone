@@ -63,7 +63,7 @@ class DocumentManagementTest {
             HttpMethod.PATCH,
             "/api/v1/documents/" + id,
             """
-            {"title": " New title ", "category": "Rules"}
+            {"title": " New   title ", "category": "HANDBOOK"}
             """);
 
     assertThat(result).hasStatusOk();
@@ -71,7 +71,7 @@ class DocumentManagementTest {
         .bodyJson()
         .isLenientlyEqualTo(
             """
-            {"title": "New title", "category": "Rules", "description": null,
+            {"title": "New title", "category": "HANDBOOK", "description": null,
              "documentDate": null, "canManage": true}
             """);
     assertThat(actions(id)).containsExactly("DOCUMENT_UPLOADED", "DOCUMENT_UPDATED");
@@ -303,7 +303,7 @@ class DocumentManagementTest {
             TestPdfs.unique(),
             "a.pdf",
             """
-            {"title": "Old title", "description": "Old", "category": "Old",
+            {"title": "Old title", "description": "Old", "category": "OTHER",
              "documentDate": "2026-01-01"}
             """);
     assertThat(result).hasStatus(HttpStatus.CREATED);

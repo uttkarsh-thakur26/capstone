@@ -3,15 +3,16 @@ package in.edu.bennett.capstone.knowledge.document;
 import java.time.LocalDate;
 
 /**
- * The editable description of a document (DOC-1, DOC-7), normalized: text is stripped, and blank
- * optional text is stored as null.
+ * The editable description of a document (DOC-1, DOC-7), normalized: the title is stripped with
+ * runs of white space made one space ({@link DocumentTitle.Validator#normalize}), the description
+ * stripped, and a blank description stored as null.
  */
-record DocumentMetadata(String title, String description, String category, LocalDate documentDate) {
+record DocumentMetadata(
+    String title, String description, DocumentCategory category, LocalDate documentDate) {
 
   DocumentMetadata {
-    title = title.strip();
+    title = DocumentTitle.Validator.normalize(title);
     description = blankToNull(description);
-    category = blankToNull(category);
   }
 
   private static String blankToNull(String value) {

@@ -163,6 +163,43 @@ export function Answer({
       </div>
     )
   }
+  return (
+    <div className="space-y-3">
+      <AssistantMark />
+      <GroundedText
+        text={text}
+        citations={citations}
+        selectedOrdinal={selectedOrdinal}
+        onSelect={onSelect}
+      />
+      {citations.length > 0 && (
+        <SourceList
+          citations={citations}
+          selectedOrdinal={selectedOrdinal}
+          onSelect={onSelect}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Model text with its [n] markers as source chips, through the same safe Markdown subset as an
+ * answer (UI-6). Summaries and comparisons use it too, so they read like the chat.
+ */
+export function GroundedText({
+  text,
+  citations,
+  selectedOrdinal,
+  onSelect,
+  className = 'space-y-4 text-base leading-7 wrap-anywhere',
+}: {
+  text: string
+  citations: CitationResponse[]
+  selectedOrdinal: number | null
+  onSelect: (ordinal: number) => void
+  className?: string
+}) {
   const byOrdinal = new Map(citations.map((c) => [c.ordinal, c]))
   const chips = (ordinals: number[]) =>
     ordinals.map((ordinal) => {
@@ -179,20 +216,10 @@ export function Answer({
       )
     })
   return (
-    <div className="space-y-3">
-      <AssistantMark />
-      <div className="space-y-4 text-base leading-7 wrap-anywhere">
-        {parseAnswer(text).map((block, i) => (
-          <AnswerBlock key={i} block={block} chips={chips} />
-        ))}
-      </div>
-      {citations.length > 0 && (
-        <SourceList
-          citations={citations}
-          selectedOrdinal={selectedOrdinal}
-          onSelect={onSelect}
-        />
-      )}
+    <div className={className}>
+      {parseAnswer(text).map((block, i) => (
+        <AnswerBlock key={i} block={block} chips={chips} />
+      ))}
     </div>
   )
 }
@@ -268,7 +295,7 @@ function InlineText({ nodes, chips }: { nodes: Inline[]; chips: Chips }) {
  * The sources as one row of chips: one per document and pages, however many passages of it the
  * answer cites. Each opens the panel with all of them.
  */
-function SourceList({
+export function SourceList({
   citations,
   selectedOrdinal,
   onSelect,

@@ -217,7 +217,10 @@ class QuestionAnsweringTest {
   void aFactualAnswerWithoutAValidCitationIsInsufficientEvidence() {
     String[] w = words(6);
     indexed("Doc", toStudent(), String.join(" ", w));
-    chat.answerNext("{\"answerable\": true, \"answer\": \"It is 75% [4].\", \"citations\": [4]}");
+    // Source 7 can never have been sent: a question gets at most app.retrieval.k = 6 sources,
+    // however
+    // many other documents of the shared test database the student can read.
+    chat.answerNext("{\"answerable\": true, \"answer\": \"It is 75% [7].\", \"citations\": [7]}");
 
     Reply reply = TestConversations.answer(mvc, student, String.join(" ", w));
 

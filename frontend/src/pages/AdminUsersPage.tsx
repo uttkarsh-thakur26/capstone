@@ -20,6 +20,7 @@ import { PageHeader } from '../components/PageHeader'
 import { messageOf } from '../components/formErrors'
 import { RoleSelect } from '../components/RoleSelect'
 import { CARD, FIELD, LABEL, TABLE_HEAD, TABLE_ROW } from '../components/ui'
+import { formatDateTime } from '../documents/format'
 
 const PAGE_SIZE = 20
 
@@ -34,12 +35,7 @@ function listPath(search: string, page: number): string {
 }
 
 function formatTime(value?: string): string {
-  return value
-    ? new Date(value).toLocaleString(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      })
-    : 'Never'
+  return value ? formatDateTime(value) : 'Never'
 }
 
 /**

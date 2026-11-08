@@ -32,8 +32,8 @@ import tools.jackson.databind.json.JsonMapper;
  *       FollowUpRewriter}, one extra model call).
  *   <li>Retrieve the user's retrievable chunks for that query (RET-1, through {@link
  *       SearchService#retrieve}, which embeds it with the query prefix).
- *   <li>Evidence gate: no chunk, or the best one below the similarity floor, is insufficient
- *       evidence, and the model is not asked to answer.
+ *   <li>Evidence gate: no chunk, or none at least as similar to the query as the floor, is
+ *       insufficient evidence, and the model is not asked to answer.
  *   <li>Assemble the prompt from the retrieved chunks, the history and the user's own question
  *       (RAG-1).
  *   <li>Generate structured output.
@@ -99,7 +99,15 @@ public class AnswerService {
       throw new AnswerFailedException(
           "The question could not be embedded", trace.retrieved(0, null, millisSince(started)), e);
     }
-    Double top = chunks.isEmpty() ? null : chunks.getFirst().similarity();
+    // The gate compares a cosine similarity with the floor in every mode: a hybrid ranking's fused
+    // score is not a similarity, so the best similarity among the chunks retrieved is used, and
+    // those are the chunks the prompt is built from (ADR-040).
+    Double top =
+        chunks.stream()
+            .mapToDouble(RetrievedChunk::similarity)
+            .boxed()
+            .max(Double::compare)
+            .orElse(null);
     trace = trace.retrieved(chunks.size(), top, millisSince(started));
     if (top == null || top < retrieval.similarityFloor()) {
       return abstention(trace);

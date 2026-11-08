@@ -48,9 +48,9 @@ class DocumentReadTest {
 
   @Test
   void theListFiltersByTextStatusCategoryAndArchivedState() {
-    UUID exam = uploadedWith("Exam rules 100% final", "Policy");
-    UUID fees = uploadedWith("Fee schedule", "finance");
-    UUID old = uploadedWith("Exam rules 2025", "Policy");
+    UUID exam = uploadedWith("Exam rules 100% final", "POLICY");
+    UUID fees = uploadedWith("Fee schedule", "OTHER");
+    UUID old = uploadedWith("Exam rules 2025", "POLICY");
     setState(fees, "INDEXED", false);
     setState(old, "INDEXED", true);
 

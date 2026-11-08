@@ -42,6 +42,7 @@ import {
   TABLE_HEAD,
   TABLE_ROW,
 } from '../components/ui'
+import { categoryLabel } from '../documents/metadata'
 
 const PAGE_SIZE = 20
 
@@ -239,7 +240,7 @@ export function DocumentsPage() {
                       </Link>
                     </td>
                     <td className="hidden px-4 py-3 text-muted md:table-cell">
-                      {document.category ?? '—'}
+                      {categoryLabel(document.category)}
                     </td>
                     <td className="px-4 py-3">
                       <span className="flex flex-wrap gap-1">

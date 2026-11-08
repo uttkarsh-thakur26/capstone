@@ -41,6 +41,13 @@ export const SearchIcon = () => (
   </Icon>
 )
 
+export const CompareIcon = () => (
+  <Icon>
+    <path d="M4 5h6v14H4zM14 5h6v14h-6z" />
+    <path d="M6.5 9h1M6.5 12h1M16.5 9h1M16.5 12h1M16.5 15h1" />
+  </Icon>
+)
+
 export const AssistantIcon = () => (
   <Icon>
     <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5z" />

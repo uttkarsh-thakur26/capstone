@@ -15,7 +15,7 @@ export function documentDetail(
     id: DOC_ID,
     title: 'Examination Policy 2026',
     description: 'Rules for all examinations.',
-    category: 'Policy',
+    category: 'POLICY',
     documentDate: '2026-07-01',
     originalFilename: 'exam-policy.pdf',
     contentType: 'application/pdf',
@@ -38,7 +38,7 @@ export function documentSummary(
   return {
     id: `id-${title.toLowerCase().replace(/\s+/g, '-')}`,
     title,
-    category: 'Policy',
+    category: 'POLICY',
     status: 'UPLOADED',
     archived: false,
     owner: { id: 'owner-id', displayName: 'Fatima Faculty' },

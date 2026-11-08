@@ -1,8 +1,25 @@
 # Progress
 
-Updated 2026-11-03. Format: specification Section 24.8.
+Updated 2026-11-08. Format: specification Section 24.8.
 
 ## Current phase
+
+**Phase 8, hybrid search, summaries and comparison, is built on `feat/phase-8-hybrid`, with the owner's upload-form fixes; not yet reviewed or merged (waiting for the owner's click-through on kp-demo).** Decisions: ADR-040 (S22, S23 resolved). Phase 7, the first evaluation run, is still to do.
+
+- Hybrid search ("Best match", the new default) fuses the semantic and keyword rankings with Reciprocal Rank Fusion in one SQL statement; the assistant retrieves with it; the evidence gate still compares cosine similarity.
+- Summaries: background run, one pass up to 4,000 tokens, map-reduce above, at most 8 model calls, more than 40 pages refused; every item cites its pages and is checked in code; stored per document and served only after a fresh access check while the document is indexed as it was.
+- Comparison: chunks paired by mutual closest similarity, identical passages dropped, one model call, every difference checked against both documents' text, pages on both sides.
+- Upload and edit forms: title, description, category (fixed list, migration V11) and date rules on the server and in the forms; a field of the wrong kind answers 400 naming it; times shown with their zone.
+- Checks (2026-11-08): `./mvnw verify` 848 tests: all passed in the run before the last two changes; the last run, with the frontend tests running beside it, failed `SearchAfterIngestionTest` once (semantic mode, page 3 instead of 2; passed 3 of 3 alone; see Known issues), and a clean full run was still going at the save point. Frontend 142 tests, lint, type check, build, format; Playwright 2 tests (54.5 s, the new one summarizes and compares). Mutation checks failed the tests as expected: no access check in the hybrid keyword ranking (38 of 180 matrix cases), no fresh access check on a stored summary (11), no quote check in comparison, no number check in summaries.
+- Live (kp-demo, `gpt-6-luna`, public course PDFs; the CSET203 PDF is readable by Faculty A and students, so questions were scoped to one document and no call read it). 6 calls, $0.0020 together:
+
+| Check | Result | Calls, tokens in / out | Cost |
+|---|---|---|---|
+| "module 1 java" | Best match: Module 1 passage first (a tie with Module 3, broken by keyword order); Meaning: Module 3 first; Keywords: Module 1 first | 0 (local embeddings) | $0 |
+| Ask "How long is the lab exam?", scoped | "The lab exam will be of 55 minutes duration. [1]"; off-topic question gated at similarity 0.172 | 1, 948 / 35 | $0.000112 |
+| Summary of the owner's 93-page HR manual, default limits | Refused before any call: "This document has 93 pages. Summaries are limited to 40 pages." | 0 | $0 |
+| Summary of the CSET109 course plan, limits lowered for the demo (single pass 800, groups 700) | Map-reduce, 2 groups, 9 key points and 1 date with pages; Student A reads it, Student B gets 404 | 3, 2,918 / 841 | $0.000712 |
+| Compare CSET109 with CSET305 (as Demo Admin, the only account that reads both) | First with a 0.5 floor: no pair, 2 one-sided differences; after mutual-closest pairing: 9 differences, 6 with pages on both sides (credits 6 against 4, Module 1 14 against 18 hours), 2 discarded by the checks | 1 + 1, 2,829 / 584 and 2,802 / 654 | $0.000575 + $0.000607 |
 
 **The design pass and demo data (between Phases 6 and 7) are done, through pull request [#9](https://github.com/uttkarsh-thakur26/capstone/pull/9).** Decisions: ADR-039 (D1 is Pramaan). Next: Phase 7, the first evaluation run.
 
@@ -106,7 +123,7 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 | 5 | Grounded question answering | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #7 | 2026-11-01 |
 | 6 | Conversations and citation viewer | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #8 | 2026-11-02 |
 | 7 | First evaluation run (keyword search moved to Phase 4, ADR-035) | Not started | |
-| 8 | Hybrid search, summarization, comparison | Not started | |
+| 8 | Hybrid search, summarization, comparison | Built, waiting for the owner's click-through, review and merge | 2026-11-08 |
 | 9 | Administration, audit, analytics | Not started | |
 | 10 | Full evaluation and hardening | Not started | |
 | 11 | Deployment, documentation and the final evaluation pack | Not started | |
@@ -127,6 +144,11 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 
 ## Known issues
 
+- The upload-time report (2026-11-08) was not reproduced: the database, the API (UTC with `Z`) and the browser pane (IST) agreed. Times now show their zone, so a browser reporting another zone (Firefox's fingerprinting protection reports UTC) is visible. Tell the team if a wrong time is seen again, with the screen and the zone shown.
+- No summary of a document above 40 pages: the owner's 93-page HR manual would need about 14 calls at the default limits. Raising `app.summary.max-pages` and `max-model-calls` makes it possible at a known cost; a multi-level reduce is not built.
+- Hybrid ties at the top are common with two rankings; the keyword order breaks them (ADR-040). The Phase 10 evaluation compares the modes.
+- Comparisons and summaries have no rate limit yet (T2, Phase 10); a summary is made once per document and reused, a comparison costs one call each time (about $0.0006 measured).
+- A comparison of two different documents pairs their most alike sections, even when they are only loosely alike (similarity 0.2 to 0.3); the checks keep every reported difference true to both texts, but "removed" can mean "not in that passage of the other document".
 - `docs/api.md` (error codes, ADR-023) and `docs/testing.md` (test cases, 19.4) are current only to the end of Phase 1. They are caught up when the owner asks for the documents.
 - Backend tests need Docker running; without it they fail with "Could not find a valid Docker environment".
 - On JDK 25, Mockito attaches itself as an agent during tests, which the JDK warns will be refused in a future release. It happens in every backend run, although no test creates a mock, because Spring Boot's test support loads Mockito. Fix: pass Mockito as `-javaagent` in the Surefire `argLine`.
@@ -185,8 +207,8 @@ Found while checking the specification before Phase 0. Each must be settled, and
 | S19 | CONV-5 filters history only on readability, so answers citing archived (superseded) documents still reach the model | 12 CONV-5, 8.1 DOC-11 | Phase 6 | Resolved, ADR-038 |
 | S20 | The Playwright end-to-end path needs a running backend with fake models, and no profile for that is defined; whether Playwright runs in CI is not stated | 16.4, 19.1, 19.3 | Phase 6 | Resolved, ADR-038 |
 | S21 | The rules that a question's split never changes and that questions are written before being tried cannot be checked by any test or command | 20.2, 20.5 | Phase 7 | Open |
-| S22 | The similarity floor is undefined in hybrid mode, where the fused score is not a similarity, and `message_citation.score` mixes three scales | 10, 11.1 step 5, 7.2 | Phase 8 | Open |
-| S23 | SUM-2 asks for "keywords" (T2), while keyword extraction is listed as T3 | 13.1 SUM-2, 2.3 | Phase 8 | Open |
+| S22 | The similarity floor is undefined in hybrid mode, where the fused score is not a similarity, and `message_citation.score` mixes three scales | 10, 11.1 step 5, 7.2 | Phase 8 | Resolved, ADR-040 |
+| S23 | SUM-2 asks for "keywords" (T2), while keyword extraction is listed as T3 | 13.1 SUM-2, 2.3 | Phase 8 | Resolved, ADR-040 |
 | S24 | Minor wording: SSO is both a non-goal and a T3 item; Appendix B's preamble contradicts steps 1 to 3; the reading lists of Phases 1, 2 and 6 omit 14.2 and Appendix B | 2.2, 2.3, Appendix B, 23 | Before the phase that reads them (Phase 1 for 14.2) | Resolved, ADR-025 |
 
 ## Phase reports

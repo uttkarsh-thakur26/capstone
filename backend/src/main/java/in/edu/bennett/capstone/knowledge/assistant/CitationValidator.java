@@ -21,8 +21,7 @@ final class CitationValidator {
    * of it, which go when the marker goes. Numbers have at most three digits, so a year in brackets,
    * such as {@code [2026]}, stays text.
    */
-  private static final Pattern MARKER =
-      Pattern.compile("([ \\t]*)\\[(\\d{1,3}(?:\\s*,\\s*\\d{1,3})*)]");
+  static final Pattern MARKER = Pattern.compile("([ \\t]*)\\[(\\d{1,3}(?:\\s*,\\s*\\d{1,3})*)]");
 
   /**
    * A validated answer.

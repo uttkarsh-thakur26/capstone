@@ -1,9 +1,14 @@
 package in.edu.bennett.capstone.knowledge.common;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
@@ -11,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -19,9 +25,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.MismatchedInputException;
 
 /**
  * The one place where exceptions become Problem Details (specification 15.1, 24.4, ADR-023).
@@ -131,6 +140,95 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                                     result.getMethodParameter().getParameterName(),
                                     messageOf(error)))));
     return validationProblem(ex, errors, headers, status, request);
+  }
+
+  /**
+   * A body whose JSON is well formed but holds a value of the wrong kind for a field, such as a
+   * date that does not exist ("2026-02-30") or a category that is not in the list, answers like a
+   * failed validation, naming the field, so a client that skipped the form learns what to fix
+   * (15.1, ADR-040). Anything else unreadable keeps Spring's standard answer.
+   */
+  @Override
+  protected ResponseEntity<Object> handleHttpMessageNotReadable(
+      HttpMessageNotReadableException ex,
+      HttpHeaders headers,
+      HttpStatusCode status,
+      WebRequest request) {
+    MismatchedInputException mismatch = mismatchIn(ex);
+    String field = mismatch == null ? "" : fieldOf(mismatch);
+    if (field.isEmpty()) {
+      return super.handleHttpMessageNotReadable(ex, headers, status, request);
+    }
+    return validationProblem(
+        ex,
+        List.of(new FieldErrorResponse(field, expected(mismatch.getTargetType()))),
+        headers,
+        status,
+        request);
+  }
+
+  /** A query parameter of the wrong kind, such as {@code ?category=SPORTS}, names the parameter. */
+  @Override
+  protected ResponseEntity<Object> handleTypeMismatch(
+      TypeMismatchException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+    String name =
+        ex instanceof MethodArgumentTypeMismatchException argument
+            ? argument.getName()
+            : ex.getPropertyName();
+    if (name == null) {
+      return super.handleTypeMismatch(ex, headers, status, request);
+    }
+    return validationProblem(
+        ex,
+        List.of(new FieldErrorResponse(name, expected(ex.getRequiredType()))),
+        headers,
+        status,
+        request);
+  }
+
+  private static MismatchedInputException mismatchIn(Throwable ex) {
+    for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+      if (cause instanceof MismatchedInputException mismatch) {
+        return mismatch;
+      }
+    }
+    return null;
+  }
+
+  /** The field's path, such as {@code documentDate} or {@code grants[0].type}. */
+  private static String fieldOf(JacksonException ex) {
+    StringBuilder field = new StringBuilder();
+    for (JacksonException.Reference reference : ex.getPath()) {
+      if (reference.getPropertyName() != null) {
+        if (!field.isEmpty()) {
+          field.append('.');
+        }
+        field.append(reference.getPropertyName());
+      } else if (reference.getIndex() >= 0) {
+        field.append('[').append(reference.getIndex()).append(']');
+      }
+    }
+    return field.toString();
+  }
+
+  /** What the field takes, in words. Never the rejected value. */
+  private static String expected(Class<?> type) {
+    if (type == null) {
+      return "has a value of the wrong kind";
+    }
+    if (type == LocalDate.class) {
+      return "must be a real date, written as YYYY-MM-DD";
+    }
+    if (type.isEnum()) {
+      return "must be one of "
+          + Arrays.stream(type.getEnumConstants())
+              .map(constant -> ((Enum<?>) constant).name())
+              .collect(Collectors.joining(", "));
+    }
+    if (type == UUID.class) {
+      return "must be an id";
+    }
+    return "has a value of the wrong kind";
   }
 
   @Override

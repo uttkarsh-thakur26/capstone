@@ -3,7 +3,6 @@ package in.edu.bennett.capstone.knowledge.document;
 import in.edu.bennett.capstone.knowledge.common.LikePatterns;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -13,12 +12,12 @@ import org.springframework.data.jpa.domain.Specification;
  *
  * @param text part of the title or description, ignoring case; {@code LIKE} wildcards in it are
  *     matched literally
- * @param category the exact category, ignoring case
+ * @param category only this category; null for all
  * @param mine only documents the user owns
  * @param archived only archived, or only not archived; null for both
  */
 record DocumentQuery(
-    String text, DocumentStatus status, String category, boolean mine, Boolean archived) {
+    String text, DocumentStatus status, DocumentCategory category, boolean mine, Boolean archived) {
 
   Specification<Document> toSpecification(UUID userId) {
     List<Specification<Document>> filters = new ArrayList<>();
@@ -33,9 +32,8 @@ record DocumentQuery(
     if (status != null) {
       filters.add((document, query, cb) -> cb.equal(document.get("status"), status));
     }
-    if (category != null && !category.isBlank()) {
-      String value = category.strip().toLowerCase(Locale.ROOT);
-      filters.add((document, query, cb) -> cb.equal(cb.lower(document.get("category")), value));
+    if (category != null) {
+      filters.add((document, query, cb) -> cb.equal(document.get("category"), category));
     }
     if (mine) {
       filters.add((document, query, cb) -> cb.equal(document.get("ownerId"), userId));

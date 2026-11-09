@@ -136,6 +136,55 @@ describe('SummaryCard', () => {
     ).toBeVisible()
   }, 15_000)
 
+  it('stops asking again and shows only the error when a read fails while the summary is made', async () => {
+    let reads = 0
+    const server = api(() => {
+      reads += 1
+      return reads === 1
+        ? json({ documentId: DOC_ID, status: 'PENDING' })
+        : problem(404, 'NOT_FOUND', 'The requested resource does not exist.')
+    })
+    renderApp(`/documents/${DOC_ID}`)
+
+    expect(await screen.findByText(/^Summarizing…/)).toBeVisible()
+    expect(
+      await screen.findByText(
+        'The requested resource does not exist.',
+        undefined,
+        {
+          timeout: 6000,
+        },
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText(/^Summarizing…/)).not.toBeInTheDocument()
+    const after = server.to('GET', `${DOC_PATH}/summary`).length
+    await new Promise((resolve) => setTimeout(resolve, 2500))
+    expect(server.to('GET', `${DOC_PATH}/summary`)).toHaveLength(after)
+  }, 15_000)
+
+  it('hides the old failure while a new summary is being started', async () => {
+    api(
+      () =>
+        json({
+          documentId: DOC_ID,
+          status: 'FAILED',
+          failureMessage: 'The chat model gave no answer.',
+        }),
+      {
+        // The request never answers, so the card stays in its starting state.
+        [`POST ${DOC_PATH}/summary`]: () => new Promise<Response>(() => {}),
+      },
+    )
+    const { user } = renderApp(`/documents/${DOC_ID}`)
+
+    await user.click(await screen.findByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText(/^Summarizing…/)).toBeVisible()
+    expect(
+      screen.queryByText(/The summary could not be made/),
+    ).not.toBeInTheDocument()
+  })
+
   it('says why a summary failed and offers to try again', async () => {
     api(() =>
       json({

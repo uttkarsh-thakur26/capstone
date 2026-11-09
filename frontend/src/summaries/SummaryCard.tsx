@@ -31,8 +31,12 @@ export function SummaryCard({ documentId }: { documentId: string }) {
       api<SummaryResponse>(`/api/v1/documents/${documentId}/summary`, {
         signal,
       }),
+    // Ask again while the summary is made, but not after a read failed: the last good answer
+    // would still say PENDING, and the card would ask forever.
     refetchInterval: (query) =>
-      query.state.data?.status === 'PENDING' ? SUMMARY_POLL_MS : false,
+      query.state.status !== 'error' && query.state.data?.status === 'PENDING'
+        ? SUMMARY_POLL_MS
+        : false,
     retry: false,
   })
   const start = useMutation({
@@ -44,7 +48,9 @@ export function SummaryCard({ documentId }: { documentId: string }) {
       queryClient.setQueryData(summaryKey(documentId), response),
   })
 
-  const data = summary.data
+  // After a failed read only the error is shown: the server checks access on every read
+  // (ACL-E5), so an older answer may no longer be the reader's to see.
+  const data = summary.isError ? undefined : summary.data
   const citations = data?.summary?.citations ?? []
   return (
     <Card
@@ -90,7 +96,7 @@ export function SummaryCard({ documentId }: { documentId: string }) {
           </span>
         </div>
       )}
-      {data?.status === 'FAILED' && (
+      {data?.status === 'FAILED' && !start.isPending && (
         <Alert>
           The summary could not be made. {data.failureMessage ?? ''}
         </Alert>

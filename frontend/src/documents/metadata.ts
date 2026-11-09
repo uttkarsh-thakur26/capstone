@@ -52,7 +52,13 @@ function isoDate(date: Date): string {
 
 /** The latest effective date allowed: one year from the reader's today. */
 export function latestDate(now = new Date()): string {
-  return isoDate(new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()))
+  const year = now.getFullYear() + 1
+  // Day 0 of the next month is the last day of this one: 29 February becomes 28 February in a
+  // year without it, as the server's plusYears(1) does, instead of rolling over to 1 March.
+  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
+  return isoDate(
+    new Date(year, now.getMonth(), Math.min(now.getDate(), lastDay)),
+  )
 }
 
 /** Whether YYYY-MM-DD names a day that exists, so 2026-02-30 does not. */

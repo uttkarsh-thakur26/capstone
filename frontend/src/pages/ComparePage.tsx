@@ -87,7 +87,14 @@ export function ComparePage() {
   }
 
   const options = documents.data?.items ?? []
-  const ready = leftId !== null && rightId !== null && leftId !== rightId
+  // Both picks must be documents the pickers show: an id from a shared address that is not
+  // listed (not processed, not readable, or past the first 100) would leave a picker blank.
+  const listed = (id: string | null) =>
+    id !== null && options.some((option) => option.id === id)
+  const ready = listed(leftId) && listed(rightId) && leftId !== rightId
+  const compare = () => {
+    if (ready && leftId && rightId) comparison.mutate({ leftId, rightId })
+  }
   return (
     <section className="space-y-6">
       <PageHeader
@@ -137,9 +144,7 @@ export function ComparePage() {
           )}
           <div className="flex flex-wrap gap-3">
             <Button
-              onPress={() =>
-                ready && comparison.mutate({ leftId: leftId, rightId: rightId })
-              }
+              onPress={compare}
               isDisabled={!ready || comparison.isPending}
             >
               Compare
@@ -166,11 +171,7 @@ export function ComparePage() {
       )}
       {comparison.isError && (
         <ErrorState
-          onRetry={
-            retryable(comparison.error) && ready
-              ? () => comparison.mutate({ leftId, rightId })
-              : undefined
-          }
+          onRetry={retryable(comparison.error) && ready ? compare : undefined}
         >
           {comparisonError(comparison.error)}
         </ErrorState>

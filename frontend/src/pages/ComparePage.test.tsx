@@ -136,6 +136,16 @@ describe('ComparePage', () => {
     ).toBeVisible()
   })
 
+  it('does not compare a document from the address that the pickers do not list', async () => {
+    const server = api(() => json(RESULT))
+    renderApp(`/compare?left=not-listed&right=${NEW.id}`)
+
+    const compare = await screen.findByRole('button', { name: 'Compare' })
+
+    expect(compare).toBeDisabled()
+    expect(server.to('POST', '/api/v1/documents/compare')).toHaveLength(0)
+  })
+
   it('swaps the two sides', async () => {
     api(() => json(RESULT))
     const { user, router } = renderApp(

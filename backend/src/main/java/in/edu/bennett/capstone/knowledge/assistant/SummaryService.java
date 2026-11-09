@@ -125,8 +125,14 @@ public class SummaryService {
         AuditEvent.of(AuditAction.SUMMARY_REQUESTED, AuditOutcome.SUCCESS, user.id(), user.email())
             .withResource(DocumentService.RESOURCE_DOCUMENT, documentId)
             .withDetails(Map.of("started", started.isPresent(), "modelCalls", plan.modelCalls())));
-    started.ifPresent(id -> submit(id, user, document, plan));
-    return read(document, model);
+    if (started.isEmpty()) {
+      return read(document, model);
+    }
+    submit(started.get(), user, document, plan);
+    // The run this request started is being made: say so, instead of reading the row again, which
+    // a fast run may already have finished or failed, so the answer would depend on timing.
+    return new SummaryResponse(
+        documentId, Status.PENDING, null, model, Summarizer.PROMPT_VERSION, null, null, null, null);
   }
 
   /** {@code GET /documents/{id}/summary}: a fresh access check, then what is stored (ACL-E5). */

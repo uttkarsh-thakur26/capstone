@@ -61,6 +61,22 @@ final class TestSummaries {
     }
   }
 
+  /** Waits up to 5 seconds until the captured output holds the text, then returns. */
+  static void awaitOutput(org.springframework.boot.test.system.CapturedOutput output, String text) {
+    long deadline = System.nanoTime() + 5_000_000_000L;
+    while (!output.getAll().contains(text)) {
+      if (System.nanoTime() > deadline) {
+        throw new AssertionError("The output never held: " + text);
+      }
+      try {
+        Thread.sleep(10);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new AssertionError(e);
+      }
+    }
+  }
+
   /**
    * A document of this account, indexed, with these chunks on pages 1, 2, 3 and so on, each with
    * this many tokens and the fake embedding model's vector of its text.

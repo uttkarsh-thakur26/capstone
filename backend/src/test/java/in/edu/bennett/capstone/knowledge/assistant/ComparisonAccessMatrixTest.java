@@ -18,6 +18,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -65,6 +66,11 @@ class ComparisonAccessMatrixTest {
     }
   }
 
+  /**
+   * The fake chat model is shared by every test class of the context; it is emptied before and
+   * after each test, so calls made by another class never count here, whatever the class order.
+   */
+  @BeforeEach
   @AfterEach
   void resetTheModel() {
     chat.reset();

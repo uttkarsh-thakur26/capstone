@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,6 +52,12 @@ class SummaryAccessMatrixTest {
   @BeforeAll
   void buildTheFixture() {
     matrix = AccessMatrix.build(mvc, jdbc);
+  }
+
+  /** The fake chat model is shared by every test class; the next one starts from empty. */
+  @AfterAll
+  void resetTheModel() {
+    chat.reset();
   }
 
   Stream<Cell> cells() {

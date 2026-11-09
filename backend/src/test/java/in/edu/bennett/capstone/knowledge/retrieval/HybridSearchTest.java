@@ -50,6 +50,11 @@ class HybridSearchTest {
     faculty = TestAccounts.login(mvc, TestAccounts.registerAs(mvc, jdbc, "FACULTY"));
   }
 
+  /**
+   * The fake chat model is shared by every test class of the context; it is emptied before and
+   * after each test, so calls made by another class never count here, whatever the class order.
+   */
+  @BeforeEach
   @AfterEach
   void resetTheModel() {
     chat.reset();

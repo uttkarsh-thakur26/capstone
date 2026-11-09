@@ -65,6 +65,11 @@ class SummaryTest {
     faculty = TestAccounts.login(mvc, facultyAccount);
   }
 
+  /**
+   * The fake chat model is shared by every test class of the context; it is emptied before and
+   * after each test, so calls made by another class never count here, whatever the class order.
+   */
+  @BeforeEach
   @AfterEach
   void resetTheModel() {
     chat.reset();
@@ -209,6 +214,8 @@ class SummaryTest {
     List<Map<String, Object>> citations = JsonPath.read(body, "$.summary.citations");
     assertThat(citations).extracting(c -> c.get("pageStart")).containsExactly(1, 2, 3, 6);
 
+    // The run writes this line just after it stores the summary, on its own thread.
+    TestSummaries.awaitOutput(output, "Summary user=" + facultyAccount.id() + " document=" + id);
     assertThat(output.getAll())
         .contains("Summary user=" + facultyAccount.id() + " document=" + id)
         .contains("outcome=READY path=MAP_REDUCE groups=3 textTokens=9000 modelCalls=4")

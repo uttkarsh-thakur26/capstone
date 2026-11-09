@@ -261,6 +261,42 @@ describe('DocumentDetailPage', () => {
     expect(await screen.findByText('Course plan')).toBeVisible()
   })
 
+  it('forgets a cancelled edit and its errors when the dialog opens again', async () => {
+    api('FACULTY')
+    const { user } = renderApp(`/documents/${DOC_ID}`)
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Edit details' }),
+    )
+    let dialog = await screen.findByRole('dialog')
+    const title = within(dialog).getByRole('textbox', { name: 'Title' })
+    await user.clear(title)
+    await user.type(title, '1111')
+    await user.tab()
+    expect(
+      await within(dialog).findByText(
+        'Use at least 3 letters, not only digits or symbols.',
+      ),
+    ).toBeVisible()
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Edit details' }))
+    dialog = await screen.findByRole('dialog')
+
+    expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveValue(
+      'Examination Policy 2026',
+    )
+    expect(
+      within(dialog).queryByText(
+        'Use at least 3 letters, not only digits or symbols.',
+      ),
+    ).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Save' })).toBeEnabled()
+  })
+
   it('archives the document', async () => {
     const server = api('FACULTY', {
       [`PATCH ${DOC_PATH}`]: () =>

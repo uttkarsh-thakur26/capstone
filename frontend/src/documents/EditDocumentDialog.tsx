@@ -49,6 +49,15 @@ export function EditDocumentDialog({
   const serverError = form.formState.errors.root?.server?.message
   const saving = form.formState.isSubmitting
 
+  /**
+   * Closing without saving forgets what was typed and any error, so the dialog opens again on the
+   * stored details: the dialog stays mounted between openings, and so does its form.
+   */
+  const changeOpen = (open: boolean) => {
+    if (!open) form.reset()
+    onOpenChange(open)
+  }
+
   const onSubmit = form.handleSubmit(async (values) => {
     try {
       const saved = await api<DocumentResponse>(
@@ -59,7 +68,7 @@ export function EditDocumentDialog({
         },
       )
       onSaved(saved)
-      onOpenChange(false)
+      changeOpen(false)
     } catch (error) {
       if (!showServerErrors(error, METADATA_FIELDS, form.setError)) {
         form.setError('root.server', {
@@ -72,7 +81,7 @@ export function EditDocumentDialog({
   return (
     <ModalOverlay
       isOpen={isOpen}
-      onOpenChange={onOpenChange}
+      onOpenChange={changeOpen}
       isDismissable={!saving}
       className={MODAL_OVERLAY}
     >
@@ -113,7 +122,7 @@ export function EditDocumentDialog({
             <div className="flex justify-end gap-3">
               <Button
                 variant="secondary"
-                onPress={() => onOpenChange(false)}
+                onPress={() => changeOpen(false)}
                 isDisabled={saving}
               >
                 Cancel

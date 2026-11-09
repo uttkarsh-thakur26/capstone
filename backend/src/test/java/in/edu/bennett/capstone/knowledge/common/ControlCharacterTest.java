@@ -86,7 +86,8 @@ class ControlCharacterTest {
   @Test
   void searchParametersRefuseControlCharacters() {
     assertRefused(get(mvc, faculty, "/api/v1/documents?query=%00"), "query");
-    assertRefused(get(mvc, faculty, "/api/v1/documents?category=%00"), "category");
+    // The category is a name from a fixed list (ADR-040): a control character makes it no name.
+    assertRefused(get(mvc, faculty, "/api/v1/documents?category=POL%00ICY"), "category");
     assertRefused(get(mvc, faculty, "/api/v1/users/search?query=abc%00"), "query");
   }
 

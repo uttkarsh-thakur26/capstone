@@ -3,7 +3,6 @@ package in.edu.bennett.capstone.knowledge.document;
 import in.edu.bennett.capstone.knowledge.common.PlainText;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
@@ -14,16 +13,18 @@ import java.time.LocalDate;
  * request may do both.
  */
 public record UpdateDocumentRequest(
-    @Schema(description = "Required to change the metadata; replaces all four fields.")
-        @Size(max = 200)
-        // At least one character that String.strip() keeps, since the title is stored stripped.
-        // \S would let Unicode spaces such as U+2003 through and fail at the database.
-        @Pattern(regexp = "(?s).*\\P{javaWhitespace}.*", message = "must not be blank")
+    @Schema(
+            description =
+                "Required to change the metadata; replaces all four fields. The rules of the"
+                    + " upload's title apply.",
+            minLength = DocumentTitle.MIN_LENGTH,
+            maxLength = DocumentTitle.MAX_LENGTH)
+        @DocumentTitle
         @PlainText
         String title,
-    @Size(max = 2000) @PlainText String description,
-    @Size(max = 100) @PlainText String category,
-    LocalDate documentDate,
+    @Schema(maxLength = 2000) @Size(max = 2000) @PlainText String description,
+    DocumentCategory category,
+    @DocumentDate LocalDate documentDate,
     Boolean archived) {
 
   @Schema(hidden = true)

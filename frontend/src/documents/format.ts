@@ -7,11 +7,22 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-/** A date-time from the API (UTC) in the reader's local time (ADR-016). */
-export function formatDateTime(value: string): string {
+/**
+ * A date-time from the API, an instant in UTC written with its Z, in the reader's own time zone
+ * (ADR-016). The zone is shown with it, such as "GMT+5:30", so a browser set to another zone is
+ * plain to see (ADR-040).
+ *
+ * @param timeZone for tests; the browser's own zone when absent
+ */
+export function formatDateTime(value: string, timeZone?: string): string {
   return new Date(value).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+    timeZone,
   })
 }
 

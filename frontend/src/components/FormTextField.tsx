@@ -24,6 +24,9 @@ interface FormTextFieldProps<T extends FieldValues> {
   /** A text area for longer text, such as a description. */
   multiline?: boolean
   isDisabled?: boolean
+  /** For a date: the earliest and latest the browser's picker offers, as YYYY-MM-DD. */
+  min?: string
+  max?: string
 }
 
 /**
@@ -39,6 +42,8 @@ export function FormTextField<T extends FieldValues>({
   description,
   multiline,
   isDisabled,
+  min,
+  max,
 }: FormTextFieldProps<T>) {
   // Destructured, so only `ref` is treated as a ref by React's rules of refs.
   const {
@@ -62,7 +67,7 @@ export function FormTextField<T extends FieldValues>({
       {multiline ? (
         <TextArea ref={ref} rows={4} className={FIELD} />
       ) : (
-        <Input ref={ref} className={FIELD} />
+        <Input ref={ref} min={min} max={max} className={FIELD} />
       )}
       {description && (
         <Text slot="description" className={HINT}>

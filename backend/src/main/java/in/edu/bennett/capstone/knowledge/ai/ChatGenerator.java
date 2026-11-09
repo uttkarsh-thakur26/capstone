@@ -38,6 +38,19 @@ public class ChatGenerator {
   }
 
   /**
+   * The name of the configured chat model, such as {@code gpt-6-luna}, which stored results are
+   * kept under (SUM-4); null when no chat model is configured.
+   */
+  public String configuredModel() {
+    ChatModel model = models.getIfUnique();
+    if (model == null || model.getOptions() == null) {
+      return null;
+    }
+    String name = model.getOptions().getModel();
+    return name == null || name.isBlank() ? null : name;
+  }
+
+  /**
    * One request: the system prompt, one user message, and the schema the output must follow.
    *
    * @throws ChatFailedException when no model is configured or the model gives no answer

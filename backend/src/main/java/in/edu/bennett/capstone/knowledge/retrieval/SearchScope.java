@@ -1,7 +1,7 @@
 package in.edu.bennett.capstone.knowledge.retrieval;
 
+import in.edu.bennett.capstone.knowledge.document.DocumentCategory;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -10,13 +10,11 @@ import java.util.UUID;
  * widen them: the search statement always applies the retrievable predicate as well (ACL-E2).
  *
  * @param documentIds only these documents; empty for all
- * @param category only this category, already lower-cased; null for all
+ * @param category only this category; null for all
  */
-record SearchScope(Set<UUID> documentIds, String category) {
+record SearchScope(Set<UUID> documentIds, DocumentCategory category) {
 
-  static SearchScope of(List<UUID> documentIds, String category) {
-    return new SearchScope(
-        documentIds == null ? Set.of() : Set.copyOf(documentIds),
-        category == null || category.isBlank() ? null : category.strip().toLowerCase(Locale.ROOT));
+  static SearchScope of(List<UUID> documentIds, DocumentCategory category) {
+    return new SearchScope(documentIds == null ? Set.of() : Set.copyOf(documentIds), category);
   }
 }

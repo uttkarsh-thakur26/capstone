@@ -57,7 +57,9 @@ class SearchAfterIngestionTest extends IngestionTestSupport {
                 assertThat(hit.text()).contains(PASSAGE);
               });
     }
-    assertThat(model.requests())
-        .containsExactly(List.of(embedding.queryPrefix() + "goggles chemical storage"));
+    // Semantic and hybrid mode each embed the query once, with the prefix; keyword mode embeds
+    // nothing.
+    List<String> query = List.of(embedding.queryPrefix() + "goggles chemical storage");
+    assertThat(model.requests()).containsExactly(query, query);
   }
 }

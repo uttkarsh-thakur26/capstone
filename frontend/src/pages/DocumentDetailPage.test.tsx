@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   DOC_ID,
@@ -29,6 +29,8 @@ function api(
     'POST /api/v1/auth/refresh': () => json(session(role)),
     [`GET ${DOC_PATH}`]: () => json(documentDetail()),
     [`GET ${DOC_PATH}/grants`]: () => json({ grants: [STUDENT_GRANT] }),
+    [`GET ${DOC_PATH}/summary`]: () =>
+      json({ documentId: DOC_ID, status: 'NONE' }),
     ...routes,
   })
 }
@@ -205,6 +207,94 @@ describe('DocumentDetailPage', () => {
     expect(
       server.to('GET', '/api/v1/users/search')[0].url.searchParams.get('query'),
     ).toBe('sam')
+  })
+
+  it('edits the details under the same rules as the upload, error next to the field', async () => {
+    const server = api('FACULTY', {
+      [`PATCH ${DOC_PATH}`]: (request) =>
+        json(
+          documentDetail({
+            ...(request.body as object),
+            category: 'COURSE_PLAN',
+          }),
+        ),
+    })
+    const { user } = renderApp(`/documents/${DOC_ID}`)
+    expect(await screen.findByText('Policy')).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'Edit details' }))
+    const dialog = await screen.findByRole('dialog')
+    const title = within(dialog).getByRole('textbox', { name: 'Title' })
+    const save = within(dialog).getByRole('button', { name: 'Save' })
+    await user.clear(title)
+    await user.type(title, '1111')
+    await user.tab()
+
+    expect(
+      await within(dialog).findByText(
+        'Use at least 3 letters, not only digits or symbols.',
+      ),
+    ).toBeVisible()
+    expect(title).toHaveValue('1111')
+    expect(save).toBeDisabled()
+
+    const date = within(dialog).getByLabelText('Effective date (optional)')
+    await user.clear(date)
+    await user.type(date, '2099-01-01')
+    await user.tab()
+    expect(await within(dialog).findByText(/^Pick a date from /)).toBeVisible()
+
+    await user.clear(title)
+    await user.type(title, ' Course   plan 2026 ')
+    await user.clear(date)
+    await user.click(within(dialog).getByRole('button', { name: /Category/ }))
+    await user.click(await screen.findByRole('option', { name: 'Course plan' }))
+    await waitFor(() => expect(save).toBeEnabled())
+    await user.click(save)
+
+    await waitFor(() => expect(server.to('PATCH', DOC_PATH)).toHaveLength(1))
+    expect(server.to('PATCH', DOC_PATH)[0].body).toEqual({
+      title: 'Course plan 2026',
+      description: 'Rules for all examinations.',
+      category: 'COURSE_PLAN',
+    })
+    expect(await screen.findByText('Course plan')).toBeVisible()
+  })
+
+  it('forgets a cancelled edit and its errors when the dialog opens again', async () => {
+    api('FACULTY')
+    const { user } = renderApp(`/documents/${DOC_ID}`)
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Edit details' }),
+    )
+    let dialog = await screen.findByRole('dialog')
+    const title = within(dialog).getByRole('textbox', { name: 'Title' })
+    await user.clear(title)
+    await user.type(title, '1111')
+    await user.tab()
+    expect(
+      await within(dialog).findByText(
+        'Use at least 3 letters, not only digits or symbols.',
+      ),
+    ).toBeVisible()
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Edit details' }))
+    dialog = await screen.findByRole('dialog')
+
+    expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveValue(
+      'Examination Policy 2026',
+    )
+    expect(
+      within(dialog).queryByText(
+        'Use at least 3 letters, not only digits or symbols.',
+      ),
+    ).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Save' })).toBeEnabled()
   })
 
   it('archives the document', async () => {

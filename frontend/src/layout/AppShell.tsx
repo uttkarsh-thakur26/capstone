@@ -18,6 +18,7 @@ import {
   HomeIcon,
   MenuIcon,
   SearchIcon,
+  CompareIcon,
   UploadIcon,
   UsersIcon,
 } from '../components/icons'
@@ -184,6 +185,7 @@ function Sidebar({
         {item('/', <HomeIcon />, 'Home', true)}
         {item('/documents', <DocumentIcon />, 'Documents')}
         {item('/search', <SearchIcon />, 'Search')}
+        {item('/compare', <CompareIcon />, 'Compare')}
         {item('/assistant', <AssistantIcon />, 'Assistant')}
         {item('/conversations', <ConversationsIcon />, 'Conversations')}
         {user.role === 'ADMIN' && (

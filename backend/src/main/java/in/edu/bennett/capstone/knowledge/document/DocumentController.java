@@ -70,7 +70,7 @@ class DocumentController {
       @AuthenticationPrincipal CurrentUser user,
       @RequestParam(required = false) @Size(max = 200) @PlainText String query,
       @RequestParam(required = false) DocumentStatus status,
-      @RequestParam(required = false) @Size(max = 100) @PlainText String category,
+      @RequestParam(required = false) DocumentCategory category,
       @RequestParam(defaultValue = "false") boolean mine,
       @RequestParam(required = false) Boolean archived,
       @RequestParam(defaultValue = "0") @Min(0) @Max(PageResponse.MAX_PAGE) int page,

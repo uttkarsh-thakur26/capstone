@@ -68,6 +68,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/{id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put?: never;
+        post: operations["request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{id}/reprocess": {
         parameters: {
             query?: never;
@@ -78,6 +94,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["reprocess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["compare"];
         delete?: never;
         options?: never;
         head?: never;
@@ -187,7 +219,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get"];
+        get: operations["get_1"];
         put?: never;
         post?: never;
         delete: operations["delete"];
@@ -203,7 +235,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_1"];
+        get: operations["get_2"];
         put?: never;
         post?: never;
         delete: operations["delete_1"];
@@ -372,9 +404,10 @@ export interface components {
         SearchRequest: {
             query: string;
             /** @enum {string} */
-            mode: "SEMANTIC" | "KEYWORD";
+            mode: "SEMANTIC" | "KEYWORD" | "HYBRID";
             documentIds?: string[];
-            category?: string;
+            /** @enum {string} */
+            category?: "POLICY" | "SYLLABUS" | "COURSE_PLAN" | "EXAMINATION" | "NOTICE" | "SCHEDULE" | "HANDBOOK" | "OTHER";
             /** Format: int32 */
             k?: number;
         };
@@ -386,7 +419,7 @@ export interface components {
         };
         SearchResponse: {
             /** @enum {string} */
-            mode: "SEMANTIC" | "KEYWORD";
+            mode: "SEMANTIC" | "KEYWORD" | "HYBRID";
             results: components["schemas"]["SearchResult"][];
         };
         SearchResult: {
@@ -401,14 +434,18 @@ export interface components {
             highlights: components["schemas"]["Highlight"][];
             /** Format: double */
             score: number;
+            /** Format: double */
+            similarity?: number | null;
         };
         UploadDocumentRequest: {
+            /** @description Stored stripped, with runs of white space as one space; at least 3 letters. */
             title: string;
             description?: string;
-            category?: string;
+            /** @enum {string} */
+            category?: "POLICY" | "SYLLABUS" | "COURSE_PLAN" | "EXAMINATION" | "NOTICE" | "SCHEDULE" | "HANDBOOK" | "OTHER";
             /**
              * Format: date
-             * @description The date the content takes effect, if it has one.
+             * @description The date the content takes effect, if it has one: from 2000-01-01 to one year from today.
              */
             documentDate?: string;
             grants?: components["schemas"]["GrantRequest"][];
@@ -418,7 +455,8 @@ export interface components {
             id: string;
             title: string;
             description?: string;
-            category?: string;
+            /** @enum {string} */
+            category?: "POLICY" | "SYLLABUS" | "COURSE_PLAN" | "EXAMINATION" | "NOTICE" | "SCHEDULE" | "HANDBOOK" | "OTHER";
             /** Format: date */
             documentDate?: string;
             originalFilename: string;
@@ -449,6 +487,78 @@ export interface components {
             /** Format: uuid */
             id: string;
             displayName: string;
+        };
+        Content: {
+            overview?: string;
+            keyPoints: string[];
+            rules: string[];
+            dates: string[];
+            citations: components["schemas"]["SourceResponse"][];
+        };
+        SourceResponse: {
+            /** Format: int32 */
+            ordinal: number;
+            available: boolean;
+            /** Format: uuid */
+            documentId?: string;
+            documentTitle?: string;
+            /** Format: int32 */
+            pageStart?: number;
+            /** Format: int32 */
+            pageEnd?: number;
+            snippet?: string;
+        };
+        SummaryResponse: {
+            /** Format: uuid */
+            documentId: string;
+            /** @enum {string} */
+            status: "NONE" | "PENDING" | "READY" | "FAILED";
+            summary?: components["schemas"]["Content"];
+            model?: string;
+            promptVersion?: string;
+            path?: string;
+            /** Format: int32 */
+            modelCalls?: number;
+            /** Format: date-time */
+            finishedAt?: string;
+            failureMessage?: string;
+        };
+        ComparisonRequest: {
+            /** Format: uuid */
+            leftId: string;
+            /** Format: uuid */
+            rightId: string;
+        };
+        ComparisonResponse: {
+            left: components["schemas"]["DocumentRef"];
+            right: components["schemas"]["DocumentRef"];
+            differences: components["schemas"]["Difference"][];
+            /** Format: int32 */
+            passagesCompared: number;
+            /** Format: int32 */
+            identicalPassages: number;
+            /** Format: int32 */
+            differencesDropped: number;
+            /** Format: int32 */
+            modelCalls: number;
+            model?: string;
+            promptVersion?: string;
+        };
+        Difference: {
+            /** @enum {string} */
+            category: "ADDED" | "REMOVED" | "CHANGED_REQUIREMENT" | "CHANGED_DATE" | "CHANGED_THRESHOLD" | "OTHER";
+            explanation: string;
+            left?: components["schemas"]["Side"];
+            right?: components["schemas"]["Side"];
+        };
+        DocumentRef: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+        };
+        Side: {
+            quote: string;
+            citation: components["schemas"]["SourceResponse"];
         };
         ConversationResponse: {
             /** Format: uuid */
@@ -511,10 +621,11 @@ export interface components {
             password: string;
         };
         UpdateDocumentRequest: {
-            /** @description Required to change the metadata; replaces all four fields. */
+            /** @description Required to change the metadata; replaces all four fields. The rules of the upload's title apply. */
             title?: string;
             description?: string;
-            category?: string;
+            /** @enum {string} */
+            category?: "POLICY" | "SYLLABUS" | "COURSE_PLAN" | "EXAMINATION" | "NOTICE" | "SCHEDULE" | "HANDBOOK" | "OTHER";
             /** Format: date */
             documentDate?: string;
             archived?: boolean;
@@ -559,7 +670,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             title: string;
-            category?: string;
+            /** @enum {string} */
+            category?: "POLICY" | "SYLLABUS" | "COURSE_PLAN" | "EXAMINATION" | "NOTICE" | "SCHEDULE" | "HANDBOOK" | "OTHER";
             /** Format: date */
             documentDate?: string;
             /** @enum {string} */
@@ -795,7 +907,7 @@ export interface operations {
             query?: {
                 query?: string;
                 status?: "UPLOADED" | "PROCESSING" | "INDEXED" | "FAILED";
-                category?: string;
+                category?: "POLICY" | "SYLLABUS" | "COURSE_PLAN" | "EXAMINATION" | "NOTICE" | "SCHEDULE" | "HANDBOOK" | "OTHER";
                 mine?: boolean;
                 archived?: boolean;
                 page?: number;
@@ -865,6 +977,68 @@ export interface operations {
             };
         };
     };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryResponse"];
+                };
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryResponse"];
+                };
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
     reprocess: {
         parameters: {
             query?: never;
@@ -883,6 +1057,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentResponse"];
+                };
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    compare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComparisonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComparisonResponse"];
                 };
             };
             /** @description Problem Details */
@@ -1118,7 +1325,7 @@ export interface operations {
             };
         };
     };
-    get: {
+    get_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1213,7 +1420,7 @@ export interface operations {
             };
         };
     };
-    get_1: {
+    get_2: {
         parameters: {
             query?: never;
             header?: never;

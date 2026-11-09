@@ -10,7 +10,7 @@ import java.util.UUID;
 public record DocumentSummaryResponse(
     @Schema(requiredMode = RequiredMode.REQUIRED) UUID id,
     @Schema(requiredMode = RequiredMode.REQUIRED) String title,
-    String category,
+    DocumentCategory category,
     LocalDate documentDate,
     @Schema(requiredMode = RequiredMode.REQUIRED) DocumentStatus status,
     @Schema(requiredMode = RequiredMode.REQUIRED) boolean archived,

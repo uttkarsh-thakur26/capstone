@@ -17,6 +17,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -63,7 +64,7 @@ class IngestionWorker implements SmartLifecycle {
       EmbeddingModelCheck modelCheck,
       IngestionProperties properties,
       TaskScheduler scheduler,
-      ThreadPoolTaskExecutor ingestionExecutor,
+      @Qualifier("ingestionExecutor") ThreadPoolTaskExecutor ingestionExecutor,
       Clock clock) {
     this.processing = processing;
     this.pipeline = pipeline;

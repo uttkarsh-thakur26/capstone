@@ -211,14 +211,14 @@ class RetrievalTest {
         .containsExactly(visible);
   }
 
-  /** Section 10: the category filter narrows the results, ignoring case and surrounding space. */
+  /** Section 10: the category filter narrows the results. */
   @ParameterizedTest
   @EnumSource(SearchMode.class)
   void theCategoryFilterNarrowsTheResults(SearchMode mode) {
     String[] w = words(2);
     String query = w[0] + " " + w[1];
     UUID handbook = indexed(toStudent(), query);
-    jdbc.sql("UPDATE document SET category = 'Handbook' WHERE id = :id")
+    jdbc.sql("UPDATE document SET category = 'HANDBOOK' WHERE id = :id")
         .param("id", handbook)
         .update();
     UUID other = indexed(toStudent(), query);
@@ -231,7 +231,7 @@ class RetrievalTest {
             HttpMethod.POST,
             "/api/v1/search",
             """
-            {"mode": "%s", "query": "%s", "category": "  HANDBOOK "}
+            {"mode": "%s", "query": "%s", "category": "HANDBOOK"}
             """
                 .formatted(mode, query));
     assertThat(documentIds(hits(result))).containsExactly(handbook);
@@ -301,6 +301,35 @@ class RetrievalTest {
     assertThat(documentIds(hits(mvc, student, SearchMode.KEYWORD, w[0], 6))).contains(id);
   }
 
+  /**
+   * Each mode that needs the model names itself when the model fails: best match needs search by
+   * meaning too, but the reader picked best match, so the message says so (review of Phase 8).
+   */
+  @Test
+  void aModelFailureNamesTheModeThatWasAskedFor() {
+    String[] w = words(1);
+    indexed(toStudent(), w[0]);
+
+    model.failNext(() -> new IllegalStateException("model down"), 1);
+    MvcTestResult semantic = search(mvc, student, SearchMode.SEMANTIC, w[0], 6, null);
+    model.failNext(() -> new IllegalStateException("model down"), 1);
+    MvcTestResult hybrid = search(mvc, student, SearchMode.HYBRID, w[0], 6, null);
+
+    assertThat(semantic)
+        .bodyJson()
+        .extractingPath("$.detail")
+        .isEqualTo(
+            "Search by meaning is not available right now. Try again later, or search by keywords.");
+    assertThat(hybrid).hasStatus(HttpStatus.SERVICE_UNAVAILABLE);
+    assertThat(hybrid).bodyJson().extractingPath("$.code").isEqualTo("MODEL_UNAVAILABLE");
+    assertThat(hybrid)
+        .bodyJson()
+        .extractingPath("$.detail")
+        .isEqualTo(
+            "Best match is not available right now: it needs the search-by-meaning model, which is"
+                + " not running. Try again later, or search by keywords.");
+  }
+
   /** 15.1: a query of stop words only finds nothing in keyword mode, which is a normal answer. */
   @Test
   void aQueryOfStopWordsOnlyFindsNothingInKeywordMode() {
@@ -339,7 +368,7 @@ class RetrievalTest {
             "{\"mode\": \"SEMANTIC\", \"query\": \"   \"}",
             "{\"mode\": \"SEMANTIC\"}",
             "{\"query\": \"rules\"}",
-            "{\"mode\": \"HYBRID\", \"query\": \"rules\"}",
+            "{\"mode\": \"FUZZY\", \"query\": \"rules\"}",
             "{\"mode\": \"SEMANTIC\", \"query\": \"rules\", \"k\": 0}",
             "{\"mode\": \"SEMANTIC\", \"query\": \"rules\", \"k\": 51}",
             "{\"mode\": \"SEMANTIC\", \"query\": \"" + "a".repeat(1001) + "\"}",

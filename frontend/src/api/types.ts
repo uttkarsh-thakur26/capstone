@@ -15,6 +15,7 @@ export type UpdateUserRequest = Schemas['UpdateUserRequest']
 
 export type DocumentResponse = Schemas['DocumentResponse']
 export type DocumentStatus = DocumentResponse['status']
+export type DocumentCategory = NonNullable<DocumentResponse['category']>
 export type DocumentSummary = Schemas['DocumentSummaryResponse']
 export type DocumentPage = Schemas['PageResponseDocumentSummaryResponse']
 export type UploadDocumentRequest = Schemas['UploadDocumentRequest']
@@ -58,3 +59,10 @@ export type AskRequest = Schemas['AskRequest']
 export type AnswerResponse = Schemas['AnswerResponse']
 export type AnswerOutcome = AnswerResponse['outcome']
 export type RenameConversationRequest = Schemas['RenameConversationRequest']
+
+export type SummaryResponse = Schemas['SummaryResponse']
+export type SummaryStatus = SummaryResponse['status']
+export type ComparisonResponse = Schemas['ComparisonResponse']
+export type ComparisonDifference = Schemas['Difference']
+export type ComparisonSide = Schemas['Side']
+export type ComparisonCategory = ComparisonDifference['category']

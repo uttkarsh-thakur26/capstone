@@ -43,7 +43,8 @@ class Document {
 
   private String description;
 
-  private String category;
+  @Enumerated(EnumType.STRING)
+  private DocumentCategory category;
 
   private LocalDate documentDate;
 
@@ -161,7 +162,7 @@ class Document {
     return description;
   }
 
-  String getCategory() {
+  DocumentCategory getCategory() {
     return category;
   }
 

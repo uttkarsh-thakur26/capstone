@@ -25,14 +25,25 @@ import { PageHeader } from '../components/PageHeader'
 import { LINK } from '../components/ui'
 import { formatBytes } from '../documents/format'
 import {
+  CATEGORY_OPTIONS,
+  EARLIEST_DATE,
   EMPTY_METADATA,
+  latestDate,
   METADATA_FIELDS,
   metadataSchema,
+  normalizeTitle,
+  TITLE_HINT,
   toMetadata,
   type MetadataForm,
 } from '../documents/metadata'
+import { FormSelect } from '../components/FormSelect'
 import { GrantsEditor } from '../documents/GrantsEditor'
 import { NOT_SHARED, toGrantRequests, type Sharing } from '../documents/sharing'
+
+/** A title from a file name: without ".pdf", with underscores read as spaces. */
+function titleFrom(filename: string): string {
+  return normalizeTitle(filename.replace(/\.pdf$/i, '').replace(/_+/g, ' '))
+}
 
 /** Checked again by the server from the content (DOC-1); this only saves a pointless upload. */
 function problemWith(file: File, limits: UploadLimits | undefined) {
@@ -71,9 +82,13 @@ export function UploadDocumentPage() {
   const form = useForm<MetadataForm>({
     resolver: zodResolver(metadataSchema),
     defaultValues: EMPTY_METADATA,
+    // Errors show once a field is left, then follow every change; what was typed stays.
+    mode: 'onTouched',
   })
   const serverError = form.formState.errors.root?.server?.message
   const uploading = progress !== null
+  // Upload stays off until there is a file and every field passes the rules (UI-4).
+  const canUpload = file !== null && form.formState.isValid
 
   const choose = (chosen: File) => {
     const problem = problemWith(chosen, limits.data)
@@ -85,8 +100,9 @@ export function UploadDocumentPage() {
     }
     setFile(chosen)
     if (!form.getValues('title').trim()) {
-      form.setValue('title', chosen.name.replace(/\.pdf$/i, ''), {
+      form.setValue('title', titleFrom(chosen.name), {
         shouldValidate: true,
+        shouldTouch: true,
       })
     }
   }
@@ -188,7 +204,7 @@ export function UploadDocumentPage() {
             isDisabled={uploading}
             className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-line-strong bg-surface p-6 text-center outline-none data-[drop-target]:border-accent data-[drop-target]:bg-accent-soft data-[focus-visible]:outline-2 data-[focus-visible]:outline-focus"
           >
-            <Text slot="label" className="text-sm">
+            <Text slot="label" className="max-w-full text-sm wrap-anywhere">
               {file ? (
                 <>
                   <span className="font-medium">{file.name}</span> (
@@ -221,6 +237,7 @@ export function UploadDocumentPage() {
           control={form.control}
           name="title"
           label="Title"
+          description={TITLE_HINT}
           isDisabled={uploading}
         />
         <FormTextField
@@ -231,11 +248,12 @@ export function UploadDocumentPage() {
           isDisabled={uploading}
         />
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormTextField
+          <FormSelect
             control={form.control}
             name="category"
             label="Category (optional)"
-            description="For example Policy, Syllabus or Notice."
+            options={CATEGORY_OPTIONS}
+            emptyLabel="No category"
             isDisabled={uploading}
           />
           <FormTextField
@@ -243,6 +261,9 @@ export function UploadDocumentPage() {
             name="documentDate"
             label="Effective date (optional)"
             type="date"
+            min={EARLIEST_DATE}
+            max={latestDate()}
+            description="When the content takes effect, up to a year ahead."
             isDisabled={uploading}
           />
         </div>
@@ -283,7 +304,7 @@ export function UploadDocumentPage() {
         )}
 
         <div className="flex gap-3">
-          <Button type="submit" isDisabled={uploading}>
+          <Button type="submit" isDisabled={uploading || !canUpload}>
             Upload
           </Button>
           {uploading ? (

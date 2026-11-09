@@ -20,6 +20,7 @@ import { ErrorState, LoadingState } from '../components/states'
 import { PageHeader } from '../components/PageHeader'
 import { messageOf } from '../components/formErrors'
 import { DocumentViewer } from '../documents/DocumentViewer'
+import { SummaryCard } from '../summaries/SummaryCard'
 import { downloadDocument } from '../documents/download'
 import { EditDocumentDialog } from '../documents/EditDocumentDialog'
 import {
@@ -33,6 +34,7 @@ import { GrantsEditor } from '../documents/GrantsEditor'
 import { fromGrants, toGrantRequests, type Sharing } from '../documents/sharing'
 import { ArchivedBadge, StatusBadge } from '../documents/StatusBadge'
 import { CARD, LINK } from '../components/ui'
+import { categoryLabel } from '../documents/metadata'
 
 type Notice = { tone: 'success' | 'error'; text: string }
 
@@ -107,7 +109,7 @@ export function DocumentDetailPage() {
         className={`${CARD} grid gap-x-6 gap-y-3 p-4 text-sm sm:grid-cols-[max-content_1fr] sm:p-5`}
       >
         <Field label="Description">{doc.description ?? '—'}</Field>
-        <Field label="Category">{doc.category ?? '—'}</Field>
+        <Field label="Category">{categoryLabel(doc.category)}</Field>
         <Field label="Effective date">
           {doc.documentDate ? formatDate(doc.documentDate) : '—'}
         </Field>
@@ -131,6 +133,8 @@ export function DocumentDetailPage() {
       </dl>
 
       <Actions document={doc} onChanged={replace} onNotice={setNotice} />
+
+      {doc.status === 'INDEXED' && <SummaryCard documentId={doc.id} />}
 
       <ViewerSection
         document={doc}
@@ -331,6 +335,11 @@ function Actions({
           to={`/search?documentId=${document.id}`}
         >
           Search in this document
+        </ButtonLink>
+      )}
+      {document.status === 'INDEXED' && (
+        <ButtonLink variant="secondary" to={`/compare?left=${document.id}`}>
+          Compare with…
         </ButtonLink>
       )}
       {document.canManage && (

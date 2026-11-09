@@ -70,7 +70,7 @@ class DocumentUploadTest {
             "Exam Policy.pdf",
             """
             {"title": "  Examination Policy 2026 ", "description": "Rules for exams",
-             "category": "Policy", "documentDate": "2026-07-01"}
+             "category": "POLICY", "documentDate": "2026-07-01"}
             """);
 
     assertThat(result).hasStatus(HttpStatus.CREATED);
@@ -82,7 +82,7 @@ class DocumentUploadTest {
         .isLenientlyEqualTo(
             """
             {"title": "Examination Policy 2026", "description": "Rules for exams",
-             "category": "Policy", "documentDate": "2026-07-01",
+             "category": "POLICY", "documentDate": "2026-07-01",
              "originalFilename": "Exam Policy.pdf", "contentType": "application/pdf",
              "sizeBytes": %d, "pageCount": 2, "status": "UPLOADED", "archived": false,
              "owner": {"id": "%s", "displayName": "Test User"}, "canManage": true}

@@ -414,7 +414,7 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`, unless th
 
 **message_citation**: `message_id` (cascade), `ordinal`, `document_id` (set null on delete), `document_title` (snapshot), `page_start`, `page_end`, `chunk_index`, `snippet`, `score`.
 
-**document_summary** `[T2]`: `document_id` (cascade), `content`, `model`, `prompt_version`, `status`. One row per document, model and prompt version.
+**document_summary** `[T2]` (written through `JdbcClient`, ADR-040): `document_id` (cascade), `model`, `prompt_version`, `status` (PENDING, READY, FAILED), `content` (`jsonb`, set exactly when READY), `failure_message`, `source_indexed_at` (the document's `indexed_at` when the run started; a summary is served only while they are equal), `requested_by` (set null), `model_calls`, `input_tokens`, `cached_input_tokens`, `output_tokens`, `started_at`, `finished_at`. One row per document, model and prompt version (unique).
 
 **audit_log** (written from Phase 1, read API in T2): `id` is a `bigint` identity, and the table has no `created_at` or `updated_at`, because `occurred_at` is the time and rows never change. Columns: `occurred_at`, `actor_user_id` (set null), `actor_email` (snapshot), `action`, `resource_type`, `resource_id`, `outcome` (SUCCESS, DENIED, FAILURE), `ip_address`, `details` (jsonb). Append-only: no update or delete path exists in code, and a trigger rejects `UPDATE` and `DELETE` (ADR-024).
 
@@ -437,7 +437,7 @@ Unique: `app_user(email)`, `refresh_token(token_hash)`, `document(owner_id, sha2
 
 ### 8.1 Requirements
 
-- **DOC-1 Upload.** Multipart request with the file, `title` (required), `description`, `category`, `document_date` and optional grants. T1 accepts PDF only (D9). The type is verified from the file content, not from the extension or the client's header: the file must start with the PDF signature and PDFBox must be able to open it. Empty files are rejected. A PDF that needs a password to open is rejected with `PDF_ENCRYPTED` (ADR-031). The maximum size is configurable (default 25 MB).
+- **DOC-1 Upload.** Multipart request with the file, `title` (required), `description`, `category`, `document_date` and optional grants. T1 accepts PDF only (D9). The type is verified from the file content, not from the extension or the client's header: the file must start with the PDF signature and PDFBox must be able to open it. Empty files are rejected. A PDF that needs a password to open is rejected with `PDF_ENCRYPTED` (ADR-031). The maximum size is configurable (default 25 MB). Metadata rules, checked by the server and repeated in the forms for quick feedback, on upload and on edit (DOC-7; ADR-040): the title is stored with runs of white space made one space and stripped, and must then be 3 to 200 characters with at least 3 letters; the description is stripped and at most 2,000 characters; the category is one of a fixed list (`POLICY`, `SYLLABUS`, `COURSE_PLAN`, `EXAMINATION`, `NOTICE`, `SCHEDULE`, `HANDBOOK`, `OTHER`), stored as that name; the document date is a real date from 2000-01-01 to one year after today. A refused field answers `400` `VALIDATION_FAILED` naming it, also when its value is of the wrong kind (a date that does not exist, a category outside the list). The upload time is always the server's.
 - **DOC-2 Storage.** The file is stored under a generated key. The user's filename is kept only as metadata and is never used in a path. A SHA-256 of the content is stored. An identical file uploaded again by the same owner returns `409` with the existing document id.
 - **DOC-3 Asynchronous processing.** Upload returns `201` with status `UPLOADED` as soon as the file is stored. Processing happens in the background (Section 9).
 - **DOC-4 List.** Returns readable documents only, with filters for status, category, "mine" and a text match on title or description, plus pagination and sorting.
@@ -511,7 +511,7 @@ One `ChunkSearch` component offers keyword, semantic and hybrid search. Every me
 - **RET-3 Exact first (D11).** T1 uses exact search with no vector index. It has perfect recall, cannot be starved by the permission filter, and is fast enough for a capstone-sized corpus. Add an HNSW index (`vector_cosine_ops`) only when measurements show a need, together with `SET LOCAL hnsw.iterative_scan = strict_order` inside the read transaction. Then report recall and latency of approximate versus exact search in the evaluation.
 - **RET-4 Complete results.** When at least `k` retrievable chunks exist, search returns `k` results, however selective the permission filter is.
 - **RET-5 Keyword search** (Phase 4, ADR-035). PostgreSQL full-text search on `content_tsv` with `websearch_to_tsquery`, ranked with `ts_rank_cd`. This is the baseline for the evaluation, so it belongs to T1. Text search configuration follows the corpus language (D13).
-- **RET-6 Hybrid search** `[T2]`. Reciprocal Rank Fusion of the keyword and semantic rankings (constant 60), each already permission-filtered.
+- **RET-6 Hybrid search** `[T2]`. Reciprocal Rank Fusion of the keyword and semantic rankings (constant 60), each already permission-filtered, in one statement: each ranking keeps its best `hybrid-candidates` chunks (50, and never fewer than `k`), a chunk scores `1 / (60 + rank)` in each ranking it is in, and the fused list keeps the best `k`. The keyword ranking inside hybrid search is RET-5's ranking of the chunks with every word of the query, followed by the chunks with only some of the words, because a question written as a sentence rarely holds all its words in one chunk. Equal fused scores keep the keyword order. Every hybrid result also carries its cosine similarity (ADR-040).
 - **RET-7 Result shape.** Chunk snippet, document id and title, page range and score. Nothing from a document the user cannot retrieve.
 - **RET-8 Scope filter.** When the caller passes document ids, every id is checked against ACL-1 first. An unreadable id produces `404`. It is never silently dropped. A readable id that is archived or not indexed is accepted and contributes no chunks.
 - **RET-9 Tunables.** `k` (default 6), candidate counts and similarity floor come from configuration.
@@ -527,8 +527,8 @@ One `ChunkSearch` component offers keyword, semantic and hybrid search. Every me
 1. Authenticate and build the access context.
 2. Validate the question: not blank, within the length limit.
 3. Follow-up handling (added in Phase 6; Phase 5 answers single questions): when the conversation has earlier turns, condense the filtered history plus the question into one standalone search query (Spring AI `CompressionQueryTransformer`, or an equivalent prompt, at temperature 0). The condensed query is used for retrieval. The user's original question, with the filtered history, is what the model answers.
-4. Retrieve the top `k` retrievable chunks. Semantic in T1, hybrid in T2. Restrict to selected documents when the request names them.
-5. Evidence gate: if the best similarity is below the calibrated floor, return `INSUFFICIENT_EVIDENCE` without calling the chat model.
+4. Retrieve the top `k` retrievable chunks. Semantic in T1, hybrid in T2 (`app.retrieval.assistant-mode`, ADR-040). Restrict to selected documents when the request names them.
+5. Evidence gate: if no retrieved chunk is at least as similar to the query as the calibrated floor, return `INSUFFICIENT_EVIDENCE` without calling the chat model. The gate always compares a cosine similarity, never a fused hybrid score (S22, ADR-040).
 6. Assemble the prompt: versioned system prompt, numbered sources within a token budget, filtered history, question.
 7. Generate, requesting structured output: `answerable` (boolean), `answer` (text with `[n]` markers), `citations` (list of source numbers).
 8. Validate: keep only citation numbers that exist in the supplied sources. If `answerable` is false, or a factual answer has no valid citation left, the outcome is `INSUFFICIENT_EVIDENCE`.
@@ -597,18 +597,18 @@ The system prompt contains no secrets and no internal details, so revealing it w
 ### 13.1 Summarization
 
 - **SUM-1** Access check first (ACL-1). Only `INDEXED` documents.
-- **SUM-2** Structured result: overview, key points, rules and requirements, important dates, keywords. Items carry page references where possible.
-- **SUM-3** Strategy by size. If the text fits the context budget, one pass. Otherwise map-reduce: summarize groups of consecutive chunks, then combine the partial summaries. Numbers and dates are carried through unchanged.
+- **SUM-2** Structured result: overview, key points, rules and requirements, important dates. Keywords are left out: keyword extraction is T3 (S23, ADR-040). Every item ends with the `[n]` markers of the passages it comes from, shown as source chips like an answer's citations; an item with no valid marker, or with a number that its passages do not hold, is dropped.
+- **SUM-3** Strategy by size. If the text fits the single-pass budget (4,000 tokens), one pass. Otherwise map-reduce: summarize groups of consecutive chunks (at most 3,000 tokens each), then combine the partial summaries in one more call, whose markers must come from the partial summaries. Numbers and dates are carried through unchanged. A summary makes at most `max-model-calls` calls (8); a document of more than 40 pages, or one that would need more calls, is refused with `422` `DOCUMENT_TOO_LARGE` before any call (ADR-040).
 - **SUM-4** The result is stored per document, model and prompt version and reused. Re-indexing invalidates it. Serving a stored summary still requires the access check (ACL-E5).
 - **SUM-5** Generation runs in the background with a status (`PENDING`, `READY`, `FAILED`). The interface polls.
 
 ### 13.2 Comparison
 
 - **CMP-1** Both documents must be readable by the requester and `INDEXED`.
-- **CMP-2** Diff first, explain second. Align the two texts at paragraph level with a text diff. For reorganized documents, align chunks by embedding similarity. The model then classifies and explains only the aligned differences.
+- **CMP-2** Diff first, explain second. Align the chunks of the two documents by embedding similarity: two chunks are paired when each is the other's closest, above a low floor (0.2); this serves versions and reorganized documents alike. Drop pairs whose texts read the same. The model then classifies and explains only the remaining pairs and one-sided passages, in one call, quoting each side (corrected by ADR-040; it was a paragraph-level text diff).
 - **CMP-3** Result categories: added, removed, changed requirements, changed dates, changed thresholds, other important differences.
-- **CMP-4** Every reported difference carries a page reference for each side, or is marked as present on one side only. A difference with no supporting text on either side is discarded.
-- **CMP-5** Size guard. Above a configured page or token limit, return a clear "too large to compare" error.
+- **CMP-4** Every reported difference carries a page reference for each side, or is marked as present on one side only. A difference with no supporting text on either side is discarded. Checked in code: each quote must be in its passage; an added text must be nowhere in the left document and a removed one nowhere in the right; a changed text must differ and be missing from the other document on at least one side; every number in the explanation must be in the quotes. The quote shown is the stored text (ADR-040).
+- **CMP-5** Size guard. Above a configured page or token limit (30 pages per document, 16,000 tokens together), return a clear "too large to compare" error (`422` `DOCUMENT_TOO_LARGE`) before any model call.
 
 Classification and keyword or topic extraction are T3.
 
@@ -685,9 +685,9 @@ Users by role. Documents by status. Uploads over time. Ingestion failures by cod
 | `PATCH /conversations/{id}` | owner | Rename |
 | `DELETE /conversations/{id}` | owner | Delete |
 | `POST /conversations/{id}/messages` | owner | Ask. Body: `question`, optional `documentIds` |
-| `POST /documents/{id}/summary` `[T2]` | readable | Request a summary |
-| `GET /documents/{id}/summary` `[T2]` | readable | Summary status and content |
-| `POST /documents/compare` `[T2]` | both readable | Body: `leftId`, `rightId` |
+| `POST /documents/{id}/summary` `[T2]` | readable | Request a summary: `202` while it is made, `200` when a fresh one is ready |
+| `GET /documents/{id}/summary` `[T2]` | readable | Summary status (`NONE`, `PENDING`, `READY`, `FAILED`) and content, after a fresh access check (ACL-E5) |
+| `POST /documents/compare` `[T2]` | both readable | Body: `leftId`, `rightId`. Answered at once; not stored |
 | `GET /admin/users` | ADMIN | List and search users |
 | `PATCH /admin/users/{id}` | ADMIN | Role, enabled |
 | `POST /admin/users/{id}/password` `[T2]` | ADMIN | Set a new password |
@@ -791,8 +791,10 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 | `app.upload` | Maximum file size (25 MB). Not a setting: the allowed types, because PDF is the only one the code can check (D9, ADR-029) |
 | `app.ingestion` | Worker on (yes), chunk size (400 tokens), overlap (60), embedding batch size (16), parallel documents (2), poll interval (10 s), heartbeat interval (30 s), recovery interval (1 min), stuck timeout (5 min, ADR-034), maximum attempts (3), maximum pages (500), maximum chunks (5,000), minimum characters per page (20), shutdown wait (20 s) |
 | `app.embedding` | Model name, dimension (both required, D6, ADR-033), maximum input tokens (2,048, sent as `num_ctx`), tokenizer margin (1.5), query prefix, retries (3, from 1 s doubling to 10 s) |
-| `app.retrieval` | `k` (6), similarity floor (0.30, provisional until Phase 7; ADR-037). The mode joins with hybrid search in Phase 8 |
-| `app.assistant` | Context token budget (4,000), history turns (3), history token budget (1,500), abstention message, snippet length (300). Temperature (0.1), maximum output tokens, timeout (60 s), retries and reasoning effort differ by provider, so they are the chat provider's own properties under `spring.ai.*` (ADR-037) |
+| `app.retrieval` | `k` (6), similarity floor (0.30, provisional until Phase 7; ADR-037), assistant mode (`HYBRID`; `SEMANTIC` for the evaluation), hybrid candidates (50) (ADR-040) |
+| `app.summary` | Maximum pages (40), single-pass tokens (4,000), map group tokens (3,000), maximum model calls (8), parallel summaries (2), queue (20) (ADR-040) |
+| `app.comparison` | Maximum pages per document (30), maximum tokens of both (16,000), alignment floor (0.2), maximum differences (15), maximum quote length (240 characters) (ADR-040) |
+| `app.assistant` | Context token budget (4,000), history turns (3), history token budget (1,500), abstention message, snippet length (300), prices per million tokens for the cost lines of summaries and comparisons (`app.assistant.price`: 0.10 input, 0.01 cached input, 0.50 output, `gpt-6-luna`). Temperature (0.1), maximum output tokens, timeout (60 s), retries and reasoning effort differ by provider, so they are the chat provider's own properties under `spring.ai.*` (ADR-037) |
 | `app.storage` | Root path |
 | `app.analytics` | Store question text (off) |
 

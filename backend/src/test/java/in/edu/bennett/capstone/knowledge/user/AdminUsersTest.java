@@ -237,7 +237,14 @@ class AdminUsersTest {
     assertThat(patch(admin, UUID.randomUUID(), "{\"role\": \"FACULTY\"}"))
         .hasStatus(HttpStatus.NOT_FOUND);
     assertCode(patch(admin, student.id(), "{}"), "VALIDATION_FAILED");
-    assertCode(patch(admin, student.id(), "{\"role\": \"SUPERUSER\"}"), "BAD_REQUEST");
+    // A value outside the enum names its field, like any other validation failure (ADR-040).
+    MvcTestResult unknownRole = patch(admin, student.id(), "{\"role\": \"SUPERUSER\"}");
+    assertCode(unknownRole, "VALIDATION_FAILED");
+    assertThat(unknownRole).bodyJson().extractingPath("$.errors[0].field").isEqualTo("role");
+    assertThat(unknownRole)
+        .bodyJson()
+        .extractingPath("$.errors[0].message")
+        .isEqualTo("must be one of ADMIN, FACULTY, STUDENT");
   }
 
   private String register(String displayName) {

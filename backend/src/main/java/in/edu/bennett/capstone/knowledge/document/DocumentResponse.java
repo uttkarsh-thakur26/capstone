@@ -15,7 +15,7 @@ public record DocumentResponse(
     @Schema(requiredMode = RequiredMode.REQUIRED) UUID id,
     @Schema(requiredMode = RequiredMode.REQUIRED) String title,
     String description,
-    String category,
+    DocumentCategory category,
     LocalDate documentDate,
     @Schema(requiredMode = RequiredMode.REQUIRED) String originalFilename,
     @Schema(requiredMode = RequiredMode.REQUIRED) String contentType,

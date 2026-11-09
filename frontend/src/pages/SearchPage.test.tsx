@@ -41,11 +41,14 @@ function api(
 }
 
 describe('SearchPage', () => {
-  it('searches by meaning and shows title, page, passage and similarity, linking to the page', async () => {
+  it('searches by best match by default and shows title, page, passage and similarity, linking to the page', async () => {
     const server = api(() =>
       json({
-        mode: 'SEMANTIC',
-        results: [result(), result({ pageStart: 7, pageEnd: 8, score: 0.5 })],
+        mode: 'HYBRID',
+        results: [
+          result({ score: 0.0325, similarity: 0.8123 }),
+          result({ pageStart: 7, pageEnd: 8, score: 0.0161, similarity: 0.5 }),
+        ],
       }),
     )
     const { user, router } = renderApp('/search')
@@ -53,7 +56,10 @@ describe('SearchPage', () => {
     expect(
       await screen.findByText(/Type a question or some words/),
     ).toBeVisible()
-    expect(screen.getByRole('radio', { name: 'Meaning' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Best match' })).toBeChecked()
+    expect(
+      screen.getByText(/Ranks passages by meaning and by your words together/),
+    ).toBeVisible()
     await user.type(
       screen.getByRole('searchbox', {
         name: 'Search the documents you can read',
@@ -67,7 +73,7 @@ describe('SearchPage', () => {
     ).toBeVisible()
     expect(server.to('POST', '/api/v1/search')[0].body).toEqual({
       query: 'can I enter the exam late?',
-      mode: 'SEMANTIC',
+      mode: 'HYBRID',
     })
     expect(router.state.location.search).toBe('?q=can+I+enter+the+exam+late%3F')
     const items = screen.getAllByRole('listitem')
@@ -81,6 +87,24 @@ describe('SearchPage', () => {
       within(items[1]).getByText('Pages 7–8 · Similarity 0.50'),
     ).toBeVisible()
     expect(items[0].querySelector('mark')).toBeNull()
+  })
+
+  it('searches by meaning from the address and shows the similarity as the score', async () => {
+    const server = api(() =>
+      json({
+        mode: 'SEMANTIC',
+        results: [result({ score: 0.64, similarity: 0.64 })],
+      }),
+    )
+
+    renderApp('/search?q=late&mode=meaning')
+
+    expect(await screen.findByText('Page 4 · Similarity 0.64')).toBeVisible()
+    expect(screen.getByRole('radio', { name: 'Meaning' })).toBeChecked()
+    expect(server.to('POST', '/api/v1/search')[0].body).toEqual({
+      query: 'late',
+      mode: 'SEMANTIC',
+    })
   })
 
   it('searches by keywords from the address and marks the matched words', async () => {
@@ -128,11 +152,16 @@ describe('SearchPage', () => {
     await user.click(screen.getByRole('radio', { name: 'Keywords' }))
 
     expect(await screen.findByText(/Keyword rank/)).toBeVisible()
-    expect(server.to('POST', '/api/v1/search').map((r) => r.body)).toEqual([
-      { query: 'late', mode: 'SEMANTIC' },
-      { query: 'late', mode: 'KEYWORD' },
-    ])
     expect(router.state.location.search).toBe('?q=late&mode=keywords')
+    await user.click(screen.getByRole('radio', { name: 'Best match' }))
+
+    expect(router.state.location.search).toBe('?q=late')
+    await screen.findByText('1 passage, best match first.')
+    expect(server.to('POST', '/api/v1/search').map((r) => r.body)).toEqual([
+      { query: 'late', mode: 'HYBRID' },
+      { query: 'late', mode: 'KEYWORD' },
+      { query: 'late', mode: 'HYBRID' },
+    ])
   })
 
   it('shortens a long passage and shows all of it on request', async () => {
@@ -205,7 +234,7 @@ describe('SearchPage', () => {
     await screen.findByText('1 passage, best match first.')
     expect(server.to('POST', '/api/v1/search')[0].body).toEqual({
       query: 'late',
-      mode: 'SEMANTIC',
+      mode: 'HYBRID',
       documentIds: [DOC_ID],
     })
 
@@ -217,7 +246,7 @@ describe('SearchPage', () => {
     await screen.findByText('1 passage, best match first.')
     expect(server.to('POST', '/api/v1/search')[1].body).toEqual({
       query: 'late',
-      mode: 'SEMANTIC',
+      mode: 'HYBRID',
     })
   })
 

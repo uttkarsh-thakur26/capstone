@@ -1,6 +1,7 @@
 package in.edu.bennett.capstone.knowledge.retrieval;
 
 import in.edu.bennett.capstone.knowledge.common.PlainText;
+import in.edu.bennett.capstone.knowledge.document.DocumentCategory;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import jakarta.validation.constraints.Max;
@@ -18,7 +19,7 @@ import java.util.UUID;
  *     input limit, prefix included
  * @param documentIds search only these documents. Each must be readable, or the answer is 404
  *     (RET-8)
- * @param category search only documents of this category, ignoring case
+ * @param category search only documents of this category
  * @param k how many results at most; {@code app.retrieval.k} when absent (RET-9)
  */
 public record SearchRequest(
@@ -26,7 +27,7 @@ public record SearchRequest(
         String query,
     @Schema(requiredMode = RequiredMode.REQUIRED) @NotNull SearchMode mode,
     @Size(max = 100) List<@NotNull UUID> documentIds,
-    @Size(max = 100) @PlainText String category,
+    DocumentCategory category,
     @Min(1) @Max(SearchRequest.MAX_K) Integer k) {
 
   /** The most results one search returns. */

@@ -15,6 +15,7 @@ import in.edu.bennett.capstone.knowledge.retrieval.TestSearch;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -272,7 +273,8 @@ class DocumentMetadataRulesTest {
     assertThat(result).hasStatus(HttpStatus.CREATED);
     String createdAt = JsonPath.read(body(result), "$.createdAt");
     assertThat(createdAt).endsWith("Z");
-    assertThat(Instant.parse(createdAt)).isBetween(before, after);
+    // The server clock ticks in whole microseconds, so the lower bound is cut to them too.
+    assertThat(Instant.parse(createdAt)).isBetween(before.truncatedTo(ChronoUnit.MICROS), after);
     UUID id = UUID.fromString(JsonPath.read(body(result), "$.id"));
     Instant stored =
         jdbc.sql("SELECT created_at FROM document WHERE id = :id")

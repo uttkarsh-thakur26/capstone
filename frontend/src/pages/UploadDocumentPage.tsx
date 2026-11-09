@@ -204,7 +204,7 @@ export function UploadDocumentPage() {
             isDisabled={uploading}
             className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-line-strong bg-surface p-6 text-center outline-none data-[drop-target]:border-accent data-[drop-target]:bg-accent-soft data-[focus-visible]:outline-2 data-[focus-visible]:outline-focus"
           >
-            <Text slot="label" className="text-sm">
+            <Text slot="label" className="max-w-full text-sm wrap-anywhere">
               {file ? (
                 <>
                   <span className="font-medium">{file.name}</span> (

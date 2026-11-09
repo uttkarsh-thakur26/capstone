@@ -60,9 +60,10 @@ public class SearchService {
     String query = request.query().strip();
     List<ChunkHit> hits =
         switch (request.mode()) {
-          case SEMANTIC -> chunks.semantic(user, embed(query), scope, k);
+          case SEMANTIC -> chunks.semantic(user, embed(query, request.mode()), scope, k);
           case KEYWORD -> chunks.keyword(user, query, scope, k);
-          case HYBRID -> chunks.hybrid(user, embed(query), query, anyWords(query), scope, k);
+          case HYBRID ->
+              chunks.hybrid(user, embed(query, request.mode()), query, anyWords(query), scope, k);
         };
     return new SearchResponse(
         request.mode(),
@@ -136,16 +137,21 @@ public class SearchService {
 
   /**
    * RET-2: the query goes through {@link Embedder#embedQuery}, which puts the model's instruction
-   * prefix in front of it (ADR-033), with the same model as the index.
+   * prefix in front of it (ADR-033), with the same model as the index. When the model fails, the
+   * message names the mode the reader picked: best match needs the model too.
    */
-  private float[] embed(String query) {
+  private float[] embed(String query, SearchMode mode) {
     try {
       return embedder.embedQuery(query);
     } catch (EmbeddingFailedException e) {
       throw new ApiException(
           HttpStatus.SERVICE_UNAVAILABLE,
           "MODEL_UNAVAILABLE",
-          "Search by meaning is not available right now. Try again later, or search by keywords.");
+          mode == SearchMode.HYBRID
+              ? "Best match is not available right now: it needs the search-by-meaning model, which"
+                  + " is not running. Try again later, or search by keywords."
+              : "Search by meaning is not available right now. Try again later, or search by"
+                  + " keywords.");
     }
   }
 }

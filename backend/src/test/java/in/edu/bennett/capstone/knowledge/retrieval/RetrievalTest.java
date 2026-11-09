@@ -301,6 +301,35 @@ class RetrievalTest {
     assertThat(documentIds(hits(mvc, student, SearchMode.KEYWORD, w[0], 6))).contains(id);
   }
 
+  /**
+   * Each mode that needs the model names itself when the model fails: best match needs search by
+   * meaning too, but the reader picked best match, so the message says so (review of Phase 8).
+   */
+  @Test
+  void aModelFailureNamesTheModeThatWasAskedFor() {
+    String[] w = words(1);
+    indexed(toStudent(), w[0]);
+
+    model.failNext(() -> new IllegalStateException("model down"), 1);
+    MvcTestResult semantic = search(mvc, student, SearchMode.SEMANTIC, w[0], 6, null);
+    model.failNext(() -> new IllegalStateException("model down"), 1);
+    MvcTestResult hybrid = search(mvc, student, SearchMode.HYBRID, w[0], 6, null);
+
+    assertThat(semantic)
+        .bodyJson()
+        .extractingPath("$.detail")
+        .isEqualTo(
+            "Search by meaning is not available right now. Try again later, or search by keywords.");
+    assertThat(hybrid).hasStatus(HttpStatus.SERVICE_UNAVAILABLE);
+    assertThat(hybrid).bodyJson().extractingPath("$.code").isEqualTo("MODEL_UNAVAILABLE");
+    assertThat(hybrid)
+        .bodyJson()
+        .extractingPath("$.detail")
+        .isEqualTo(
+            "Best match is not available right now: it needs the search-by-meaning model, which is"
+                + " not running. Try again later, or search by keywords.");
+  }
+
   /** 15.1: a query of stop words only finds nothing in keyword mode, which is a normal answer. */
   @Test
   void aQueryOfStopWordsOnlyFindsNothingInKeywordMode() {

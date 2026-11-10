@@ -15,21 +15,21 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /** Calls the summary and comparison endpoints, and builds indexed documents, for tests. */
-final class TestSummaries {
+public final class TestSummaries {
 
   private TestSummaries() {}
 
-  static MvcTestResult request(MockMvcTester mvc, Session session, UUID documentId) {
+  public static MvcTestResult request(MockMvcTester mvc, Session session, UUID documentId) {
     return TestDocuments.send(
         mvc, session, HttpMethod.POST, "/api/v1/documents/" + documentId + "/summary", null);
   }
 
-  static MvcTestResult get(MockMvcTester mvc, Session session, UUID documentId) {
+  public static MvcTestResult get(MockMvcTester mvc, Session session, UUID documentId) {
     return TestDocuments.send(
         mvc, session, HttpMethod.GET, "/api/v1/documents/" + documentId + "/summary", null);
   }
 
-  static MvcTestResult compare(MockMvcTester mvc, Session session, UUID left, UUID right) {
+  public static MvcTestResult compare(MockMvcTester mvc, Session session, UUID left, UUID right) {
     return TestDocuments.send(
         mvc,
         session,
@@ -39,7 +39,7 @@ final class TestSummaries {
   }
 
   /** Asks until the summary is no longer being made, for at most 15 seconds; returns the body. */
-  static String awaitFinished(MockMvcTester mvc, Session session, UUID documentId) {
+  public static String awaitFinished(MockMvcTester mvc, Session session, UUID documentId) {
     long deadline = System.nanoTime() + 15_000_000_000L;
     while (true) {
       MvcTestResult result = get(mvc, session, documentId);
@@ -81,7 +81,7 @@ final class TestSummaries {
    * A document of this account, indexed, with these chunks on pages 1, 2, 3 and so on, each with
    * this many tokens and the fake embedding model's vector of its text.
    */
-  static UUID indexed(
+  public static UUID indexed(
       MockMvcTester mvc,
       JdbcClient jdbc,
       Session owner,
@@ -102,7 +102,7 @@ final class TestSummaries {
     return id;
   }
 
-  static void insertChunk(
+  public static void insertChunk(
       JdbcClient jdbc, UUID documentId, int index, int page, String content, int tokens) {
     int dimensions =
         jdbc.sql(

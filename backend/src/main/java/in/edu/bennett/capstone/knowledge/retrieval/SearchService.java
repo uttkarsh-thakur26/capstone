@@ -2,13 +2,19 @@ package in.edu.bennett.capstone.knowledge.retrieval;
 
 import in.edu.bennett.capstone.knowledge.ai.Embedder;
 import in.edu.bennett.capstone.knowledge.ai.EmbeddingFailedException;
+import in.edu.bennett.capstone.knowledge.analytics.QueryLog;
+import in.edu.bennett.capstone.knowledge.analytics.QueryOutcome;
+import in.edu.bennett.capstone.knowledge.analytics.QueryRecord;
+import in.edu.bennett.capstone.knowledge.analytics.QueryType;
 import in.edu.bennett.capstone.knowledge.common.ApiException;
 import in.edu.bennett.capstone.knowledge.document.DocumentService;
 import in.edu.bennett.capstone.knowledge.security.CurrentUser;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
@@ -41,30 +47,61 @@ public class SearchService {
   private final Embedder embedder;
   private final ChunkSearch chunks;
   private final RetrievalProperties properties;
+  private final QueryLog queryLog;
 
   SearchService(
       DocumentService documents,
       Embedder embedder,
       ChunkSearch chunks,
-      RetrievalProperties properties) {
+      RetrievalProperties properties,
+      QueryLog queryLog) {
     this.documents = documents;
     this.embedder = embedder;
     this.chunks = chunks;
     this.properties = properties;
+    this.queryLog = queryLog;
   }
 
+  /**
+   * One {@code query_log} row per search that ran, with its time and the best similarity; a search
+   * refused before it ran (an unreadable scope, 404) has none. No query text (D14).
+   */
   public SearchResponse search(CurrentUser user, SearchRequest request) {
     SearchScope scope = SearchScope.of(request.documentIds(), request.category());
     documents.requireReadable(user, scope.documentIds());
     int k = request.k() == null ? properties.k() : request.k();
     String query = request.query().strip();
-    List<ChunkHit> hits =
-        switch (request.mode()) {
-          case SEMANTIC -> chunks.semantic(user, embed(query, request.mode()), scope, k);
-          case KEYWORD -> chunks.keyword(user, query, scope, k);
-          case HYBRID ->
-              chunks.hybrid(user, embed(query, request.mode()), query, anyWords(query), scope, k);
-        };
+    long started = System.nanoTime();
+    List<ChunkHit> hits;
+    try {
+      hits =
+          switch (request.mode()) {
+            case SEMANTIC -> chunks.semantic(user, embed(query, request.mode()), scope, k);
+            case KEYWORD -> chunks.keyword(user, query, scope, k);
+            case HYBRID ->
+                chunks.hybrid(user, embed(query, request.mode()), query, anyWords(query), scope, k);
+          };
+    } catch (RuntimeException e) {
+      long millis = millisSince(started);
+      queryLog.record(
+          QueryRecord.search(
+              user.id(), typeOf(request.mode()), QueryOutcome.ERROR, millis, null, null, null));
+      throw e;
+    }
+    long millis = millisSince(started);
+    queryLog.record(
+        QueryRecord.search(
+            user.id(),
+            typeOf(request.mode()),
+            QueryOutcome.OK,
+            millis,
+            millis,
+            hits.size(),
+            hits.stream()
+                .map(ChunkHit::similarity)
+                .filter(Objects::nonNull)
+                .max(Double::compare)
+                .orElse(null)));
     return new SearchResponse(
         request.mode(),
         hits.stream()
@@ -124,6 +161,18 @@ public class SearchService {
    * reaches the query; the word "or" itself, a stop word, is left out so it cannot be read as an
    * operator.
    */
+  private static QueryType typeOf(SearchMode mode) {
+    return switch (mode) {
+      case SEMANTIC -> QueryType.SEARCH_SEMANTIC;
+      case KEYWORD -> QueryType.SEARCH_KEYWORD;
+      case HYBRID -> QueryType.SEARCH_HYBRID;
+    };
+  }
+
+  private static long millisSince(long nanos) {
+    return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - nanos);
+  }
+
   static String anyWords(String query) {
     List<String> words = new ArrayList<>();
     Matcher word = WORD.matcher(query);

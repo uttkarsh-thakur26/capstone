@@ -39,7 +39,10 @@ function page(items: AdminUserResponse[]) {
 
 function adminApi(
   list: (request: RecordedRequest) => Response,
-  extra: Record<string, (request: RecordedRequest) => Response> = {},
+  extra: Record<
+    string,
+    (request: RecordedRequest) => Response | Promise<Response>
+  > = {},
 ) {
   return fakeApi({
     'GET /api/v1/meta': () => json(META),
@@ -252,5 +255,45 @@ describe('AdminUsersPage', () => {
     expect(
       server.to('POST', '/api/v1/admin/users/id-sam.student/password')[0].body,
     ).toEqual({ newPassword: 'a long new passphrase' })
+  })
+
+  it('keeps the password dialog open while the password is being saved', async () => {
+    let release: () => void = () => {}
+    adminApi(() => json(page([account('Sam Student', 'STUDENT')])), {
+      'POST /api/v1/admin/users/id-sam.student/password': () =>
+        new Promise<Response>((resolve) => {
+          release = () => resolve(new Response(null, { status: 204 }))
+        }),
+    })
+    const { user } = renderApp('/admin/users')
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Set a new password for Sam Student',
+      }),
+    )
+    const dialog = await screen.findByRole('dialog')
+    await user.type(
+      within(dialog).getByLabelText('New password'),
+      'a long new passphrase',
+    )
+    await user.type(
+      within(dialog).getByLabelText('New password again'),
+      'a long new passphrase',
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Set password' }),
+    )
+    // Focus inside the dialog, where Escape would normally close it.
+    screen.getByRole('dialog').focus()
+    await user.keyboard('{Escape}')
+
+    // The result belongs to this dialog: it cannot be closed until it arrives.
+    expect(screen.getByRole('dialog')).toBeVisible()
+    release()
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Sam Student has a new password',
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

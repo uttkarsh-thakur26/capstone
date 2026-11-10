@@ -66,6 +66,8 @@ export function SetPasswordDialog({
     try {
       await save.mutateAsync({ id: user.id, newPassword })
       form.reset()
+      // The mutation keeps what it sent; forget the password once it is saved.
+      save.reset()
       onDone(user)
     } catch (error) {
       if (!showServerErrors(error, ['newPassword'], form.setError)) {
@@ -80,7 +82,10 @@ export function SetPasswordDialog({
     <ModalOverlay
       isOpen={user !== null}
       onOpenChange={(open) => !open && close()}
+      // While the password is being saved, neither a click outside nor Escape closes the dialog:
+      // its result belongs to this user and this dialog.
       isDismissable={!save.isPending}
+      isKeyboardDismissDisabled={save.isPending}
       className={MODAL_OVERLAY}
     >
       <Modal className={MODAL}>

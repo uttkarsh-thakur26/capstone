@@ -26,6 +26,9 @@ import org.springframework.validation.annotation.Validated;
  *     embeddings expect a task instruction on queries only
  * @param retry retries of transient failures (ING-8). Spring AI's Ollama embedding model has none
  *     of its own, so this is the only layer
+ * @param reindexOnModelChange when indexed documents hold another model's vectors, send them back
+ *     for processing at startup instead of refusing to start (S11, ADR-041). Off by default, so a
+ *     mistyped model name never starts a full re-index by itself
  */
 @Validated
 @ConfigurationProperties("app.embedding")
@@ -39,7 +42,8 @@ public record EmbeddingProperties(
                 + " answer the question\nQuery:")
         @NotNull
         String queryPrefix,
-    @DefaultValue @NotNull @Valid Retry retry) {
+    @DefaultValue @NotNull @Valid Retry retry,
+    @DefaultValue("false") boolean reindexOnModelChange) {
 
   /**
    * Capped exponential backoff.

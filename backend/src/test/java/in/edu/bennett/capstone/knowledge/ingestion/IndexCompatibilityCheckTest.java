@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 
 import in.edu.bennett.capstone.knowledge.TestPdfs;
 import in.edu.bennett.capstone.knowledge.ai.EmbeddingProperties;
+import in.edu.bennett.capstone.knowledge.audit.AuditService;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,8 @@ class IndexCompatibilityCheckTest extends IngestionTestSupport {
   @Autowired EmbeddingProperties embedding;
 
   @Autowired ApplicationContext context;
+
+  @Autowired AuditService audit;
 
   @Test
   void theRunningApplicationPassesEveryCheck() {
@@ -61,9 +65,34 @@ class IndexCompatibilityCheckTest extends IngestionTestSupport {
         .withMessageContaining("nomic-embed-text");
   }
 
+  /** ADR-041: with the setting on, the same documents are sent back to be embedded again. */
+  @Test
+  void withTheSettingOnStartupReindexesDocumentsOfAnotherModel() {
+    UUID id = upload(TestPdfs.withPageLines(List.of(lines("modelchangemarker", 5))));
+    assertThat(processNext()).isEqualTo(IngestionPipeline.Outcome.INDEXED);
+
+    assertThatNoException()
+        .isThrownBy(
+            () -> check(ingestion, withModel("nomic-embed-text", true)).checkIndexedModels());
+
+    assertThat(
+            jdbc.sql("SELECT status FROM document WHERE id = :id")
+                .param("id", id)
+                .query(String.class)
+                .single())
+        .isEqualTo("UPLOADED");
+    String details =
+        jdbc.sql(
+                "SELECT details::text FROM audit_log WHERE action = 'REINDEX_STARTED'"
+                    + " AND actor_user_id IS NULL ORDER BY id DESC LIMIT 1")
+            .query(String.class)
+            .single();
+    assertThat(details).contains("model change").contains("nomic-embed-text");
+  }
+
   private IndexCompatibilityCheck check(
       IngestionProperties ingestion, EmbeddingProperties embedding) {
-    return new IndexCompatibilityCheck(ingestion, embedding, jdbc, processing);
+    return new IndexCompatibilityCheck(ingestion, embedding, jdbc, processing, audit);
   }
 
   private IngestionProperties withChunkSize(int size) {
@@ -88,12 +117,28 @@ class IndexCompatibilityCheckTest extends IngestionTestSupport {
   private EmbeddingProperties withDimensions(int dimensions) {
     EmbeddingProperties e = embedding;
     return new EmbeddingProperties(
-        e.model(), dimensions, e.maxInputTokens(), e.tokenizerMargin(), e.queryPrefix(), e.retry());
+        e.model(),
+        dimensions,
+        e.maxInputTokens(),
+        e.tokenizerMargin(),
+        e.queryPrefix(),
+        e.retry(),
+        false);
   }
 
   private EmbeddingProperties withModel(String model) {
+    return withModel(model, false);
+  }
+
+  private EmbeddingProperties withModel(String model, boolean reindex) {
     EmbeddingProperties e = embedding;
     return new EmbeddingProperties(
-        model, e.dimensions(), e.maxInputTokens(), e.tokenizerMargin(), e.queryPrefix(), e.retry());
+        model,
+        e.dimensions(),
+        e.maxInputTokens(),
+        e.tokenizerMargin(),
+        e.queryPrefix(),
+        e.retry(),
+        reindex);
   }
 }

@@ -214,6 +214,10 @@ class Document {
     return processingAttempts;
   }
 
+  String getEmbeddingModel() {
+    return embeddingModel;
+  }
+
   Instant getIndexedAt() {
     return indexedAt;
   }

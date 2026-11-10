@@ -1,8 +1,15 @@
 package in.edu.bennett.capstone.knowledge.ingestion;
 
 import in.edu.bennett.capstone.knowledge.ai.EmbeddingProperties;
+import in.edu.bennett.capstone.knowledge.audit.AuditAction;
+import in.edu.bennett.capstone.knowledge.audit.AuditEvent;
+import in.edu.bennett.capstone.knowledge.audit.AuditOutcome;
+import in.edu.bennett.capstone.knowledge.audit.AuditService;
 import in.edu.bennett.capstone.knowledge.document.DocumentProcessing;
 import java.util.List;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -24,20 +31,25 @@ import org.springframework.stereotype.Component;
 @Component
 class IndexCompatibilityCheck implements SmartInitializingSingleton {
 
+  private static final Logger log = LoggerFactory.getLogger(IndexCompatibilityCheck.class);
+
   private final IngestionProperties ingestion;
   private final EmbeddingProperties embedding;
   private final JdbcClient jdbc;
   private final DocumentProcessing processing;
+  private final AuditService audit;
 
   IndexCompatibilityCheck(
       IngestionProperties ingestion,
       EmbeddingProperties embedding,
       JdbcClient jdbc,
-      DocumentProcessing processing) {
+      DocumentProcessing processing,
+      AuditService audit) {
     this.ingestion = ingestion;
     this.embedding = embedding;
     this.jdbc = jdbc;
     this.processing = processing;
+    this.audit = audit;
   }
 
   @Override
@@ -88,6 +100,28 @@ class IndexCompatibilityCheck implements SmartInitializingSingleton {
         processing.indexedEmbeddingModels().stream()
             .filter(model -> !model.equals(embedding.model()))
             .toList();
+    if (!others.isEmpty() && embedding.reindexOnModelChange()) {
+      // ADR-041: asked for in the configuration, so the index is rebuilt with the new model.
+      int queued = processing.requeueOtherModels(embedding.model());
+      audit.record(
+          AuditEvent.of(AuditAction.REINDEX_STARTED, AuditOutcome.SUCCESS, null, null)
+              .withDetails(
+                  Map.of(
+                      "reason",
+                      "model change",
+                      "fromModels",
+                      others,
+                      "toModel",
+                      embedding.model(),
+                      "queued",
+                      queued)));
+      log.warn(
+          "Documents were indexed with {}; sent {} back for processing with {}",
+          others,
+          queued,
+          embedding.model());
+      return;
+    }
     if (!others.isEmpty()) {
       throw new IllegalStateException(
           "Documents are indexed with "
@@ -95,7 +129,8 @@ class IndexCompatibilityCheck implements SmartInitializingSingleton {
               + " but app.embedding.model is "
               + embedding.model()
               + ". Vectors of different models cannot be searched together; set the model back,"
-              + " or re-index every document (ING-9, S11)");
+              + " or start once with APP_EMBEDDING_REINDEX_ON_MODEL_CHANGE=true to re-index every"
+              + " document with the new model (ING-9, S11, ADR-041)");
     }
   }
 }

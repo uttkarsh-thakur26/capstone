@@ -92,7 +92,8 @@ public record AnalyticsResponse(
 
   /**
    * Latency in milliseconds by query type and stage (14.3, 21): the median and the 95th percentile
-   * of the period's rows. A stage that did not run in any row is null.
+   * of the period's requests that ran: reused summaries and failed requests are left out. A stage
+   * that did not run in any row is null.
    */
   public record Latency(
       @Schema(requiredMode = RequiredMode.REQUIRED) QueryType type,

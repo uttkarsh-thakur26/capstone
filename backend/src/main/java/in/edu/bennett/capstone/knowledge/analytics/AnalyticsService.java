@@ -256,6 +256,10 @@ public class AnalyticsService {
     return everyDay(first, last, day -> new CountDay(day, byDay.getOrDefault(day, 0L)));
   }
 
+  /**
+   * Requests that ran: a summary served from one already made took no model time, and a failed
+   * request stopped part way, so either would pull the percentiles of real work down.
+   */
   private List<Latency> latency(Map<String, Object> period) {
     return jdbc.sql(
             """
@@ -268,6 +272,7 @@ public class AnalyticsService {
                    percentile_cont(0.95) WITHIN GROUP (ORDER BY generation_ms) AS generation_p95
             FROM query_log
             WHERE created_at >= :from AND created_at < :to
+              AND outcome NOT IN ('REUSED', 'ERROR')
             GROUP BY type
             ORDER BY type
             """)

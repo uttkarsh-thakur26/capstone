@@ -197,13 +197,28 @@ class AnalyticsTest {
             """
             SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY total_ms) AS p50,
                    percentile_cont(0.95) WITHIN GROUP (ORDER BY generation_ms) AS g95
-            FROM query_log, p WHERE type = 'ASK' AND created_at >= p.f AND created_at < p.t
+            FROM query_log, p WHERE type = 'ASK' AND outcome NOT IN ('REUSED', 'ERROR')
+              AND created_at >= p.f AND created_at < p.t
             """);
     List<Map<String, Object>> ask = JsonPath.read(body, "$.latency[?(@.type == 'ASK')]");
     assertThat(((Number) ask.getFirst().get("totalP50")).doubleValue())
         .isCloseTo((Double) latency.get("p50"), within());
     assertThat(((Number) ask.getFirst().get("generationP95")).doubleValue())
         .isCloseTo((Double) latency.get("g95"), within());
+
+    // Latency describes requests that ran: a reused summary or a failed request is left out.
+    long summaryRuns =
+        asLong(
+            direct(
+                    """
+                    SELECT count(*) AS n FROM query_log, p
+                    WHERE type = 'SUMMARIZE' AND outcome NOT IN ('REUSED', 'ERROR')
+                      AND created_at >= p.f AND created_at < p.t
+                    """)
+                .get("n"));
+    List<Map<String, Object>> summarize =
+        JsonPath.read(body, "$.latency[?(@.type == 'SUMMARIZE')]");
+    assertThat(asLong(summarize.getFirst().get("count"))).isEqualTo(summaryRuns);
 
     // Current state: documents, failures, users, chunks.
     assertThat(counts(body, "$.documentsByStatus"))
@@ -284,6 +299,8 @@ class AnalyticsTest {
         .isNotEmpty();
     assertThat(request(mvc, faculty, left)).hasStatus(HttpStatus.ACCEPTED);
     awaitFinished(mvc, faculty, left);
+    // Served by the summary just made: logged as REUSED, with no model run.
+    assertThat(request(mvc, faculty, left)).hasStatusOk();
     assertThat(compare(mvc, faculty, left, right)).hasStatusOk();
     awaitSummaryRow();
   }

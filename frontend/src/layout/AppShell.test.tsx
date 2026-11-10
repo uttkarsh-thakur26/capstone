@@ -167,4 +167,58 @@ describe('AppShell', () => {
       await screen.findByRole('heading', { name: 'Page not found' }),
     ).toBeVisible()
   })
+
+  describe('sidebar on large screens', () => {
+    it('hides for reading room, comes back on the edge, and stays open again with its button', async () => {
+      window.localStorage.removeItem('sidebar')
+      signedInAs('STUDENT')
+      const { user } = renderApp('/')
+      const sidebar = await screen.findByRole('complementary', {
+        name: 'Sidebar',
+      })
+      const content = screen.getByRole('main').parentElement!
+      expect(content).toHaveClass('lg:pl-64')
+
+      const toggle = screen.getByRole('button', { name: 'Hide sidebar' })
+      // The button is not part of the sidebar: it stays in one place when the sidebar moves.
+      expect(sidebar).not.toContainElement(toggle)
+      await user.click(toggle)
+
+      expect(sidebar).toHaveClass('-translate-x-full')
+      // Off the screen, it is out of the tab order and hidden from screen readers.
+      expect(sidebar).toHaveAttribute('inert')
+      expect(content).not.toHaveClass('lg:pl-64')
+      expect(window.localStorage.getItem('sidebar')).toBe('hidden')
+
+      const show = screen.getByRole('button', { name: 'Keep sidebar open' })
+      expect(show).toBe(toggle)
+      // Right after Hide the pointer is still on the button; it comes back to it later.
+      await user.hover(screen.getByRole('main'))
+      await user.hover(show)
+      expect(sidebar).toHaveClass('translate-x-0', 'shadow-xl')
+      expect(content).not.toHaveClass('lg:pl-64')
+      // Leaving hides it again. Moving from the button onto the sidebar keeps it: jsdom cannot
+      // show that, so the Playwright test of the admin path checks it in Chromium.
+      await user.hover(screen.getByRole('main'))
+      expect(sidebar).toHaveClass('-translate-x-full')
+
+      await user.click(show)
+      expect(sidebar).toHaveClass('translate-x-0')
+      expect(sidebar).not.toHaveAttribute('inert')
+      expect(content).toHaveClass('lg:pl-64')
+      expect(window.localStorage.getItem('sidebar')).toBe('shown')
+    })
+
+    it('starts hidden when it was hidden before', async () => {
+      window.localStorage.setItem('sidebar', 'hidden')
+      signedInAs('STUDENT')
+      renderApp('/')
+
+      const sidebar = await screen.findByRole('complementary', {
+        hidden: true,
+      })
+      expect(sidebar).toHaveAttribute('inert')
+      window.localStorage.removeItem('sidebar')
+    })
+  })
 })

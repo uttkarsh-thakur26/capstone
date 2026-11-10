@@ -123,4 +123,47 @@ describe('AssistantPage', () => {
     await vi.waitFor(() => expect(asks).toBe(2))
     await vi.waitFor(() => expect(screen.queryByText(FAILED)).toBeNull())
   })
+
+  it('counts down a rate limit, keeps Ask off meanwhile and removes the empty conversation', async () => {
+    const server = fakeApi({
+      'GET /api/v1/meta': () => json(META),
+      'POST /api/v1/auth/refresh': () => json(session('STUDENT')),
+      'POST /api/v1/conversations': () =>
+        json({ ...CONVERSATION, title: undefined }, 201),
+      [`POST /api/v1/conversations/${ID}/messages`]: () =>
+        problem(
+          429,
+          'RATE_LIMITED',
+          'Too many requests. Try again in 2 seconds.',
+          undefined,
+          { retryAfterSeconds: 2 },
+        ),
+      [`DELETE /api/v1/conversations/${ID}`]: () =>
+        new Response(null, { status: 204 }),
+    })
+    const { user, router } = renderApp('/assistant')
+
+    await user.type(
+      await screen.findByRole('textbox', { name: 'Your question' }),
+      'How long is the lab exam?{Enter}',
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Too many requests. Try again in 2 seconds.',
+    )
+    expect(screen.getByRole('button', { name: 'Ask' })).toBeDisabled()
+    expect(router.state.location.pathname).toBe('/assistant')
+    expect(server.to('DELETE', `/api/v1/conversations/${ID}`)).toHaveLength(1)
+    expect(
+      await screen.findByText('Too many requests. Try again in 1 second.'),
+    ).toBeVisible()
+    expect(
+      await screen.findByText(
+        'Too many requests. You can try again now.',
+        {},
+        { timeout: 3000 },
+      ),
+    ).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Ask' })).toBeEnabled()
+  })
 })

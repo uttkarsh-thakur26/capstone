@@ -22,6 +22,7 @@ import {
   LIST_ITEM,
   POPOVER,
   SELECT_TRIGGER,
+  SELECT_VALUE,
 } from './ui'
 
 interface FormSelectProps<T extends FieldValues> {
@@ -66,7 +67,7 @@ export function FormSelect<T extends FieldValues>({
     >
       <Label className={LABEL}>{label}</Label>
       <Button ref={ref} className={SELECT_TRIGGER}>
-        <SelectValue />
+        <SelectValue className={SELECT_VALUE} />
         <span aria-hidden="true">▾</span>
       </Button>
       {description && (

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   Button as AriaButton,
   Dialog,
@@ -8,6 +8,7 @@ import {
 } from 'react-aria-components'
 import { Link, NavLink, Outlet, useMatches, useNavigation } from 'react-router'
 import type { UserResponse } from '../api/types'
+import { useSidebarPinned } from '../app/sidebar'
 import { useAuth } from '../auth/useAuth'
 import { Button, ButtonLink } from '../components/Button'
 import {
@@ -21,6 +22,9 @@ import {
   CompareIcon,
   UploadIcon,
   UsersIcon,
+  SidebarIcon,
+  AuditIcon,
+  ChartIcon,
 } from '../components/icons'
 import { FOCUS_RING, FOCUS_RING_NATIVE } from '../components/ui'
 import { ProductName, ProductVersion } from './ProductName'
@@ -36,8 +40,10 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 
 /**
  * The frame of every signed-in page: a sidebar from large screens up, a top bar with a menu
- * drawer below that. The navigation shows only what the user's role may use, for convenience;
- * the server enforces every rule (UI-2).
+ * drawer below that. On large screens the sidebar can be hidden with its button for more reading
+ * room; while hidden, pointing at the left edge or the button brings it over the page for a moment,
+ * and pressing the button keeps it open again. The navigation shows only what the user's role may
+ * use, for convenience; the server enforces every rule (UI-2).
  */
 export function AppShell() {
   const { state } = useAuth()
@@ -46,8 +52,16 @@ export function AppShell() {
   const chat = useMatches().some(
     (match) => (match.handle as { chat?: boolean } | undefined)?.chat,
   )
+  const [pinned, setPinned] = useSidebarPinned()
+  const [peek, setPeek] = useState(false)
+  const toggle = () => {
+    setPinned(!pinned)
+    setPeek(false)
+  }
+
   if (state.status !== 'authenticated') return null
   const { user } = state
+  const shown = pinned || peek
 
   return (
     <div className="min-h-screen">
@@ -66,9 +80,42 @@ export function AppShell() {
         Skip to content
       </a>
 
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-line bg-surface lg:flex">
-        <Sidebar user={user} />
-      </aside>
+      {/*
+        One hover area holds the sidebar, its button and the edge strip, so moving between them
+        never counts as leaving: a sidebar shown for a moment stays until the pointer leaves all
+        three.
+      */}
+      <div onMouseLeave={() => setPeek(false)}>
+        <aside
+          id="sidebar"
+          aria-label="Sidebar"
+          // Out of the tab order and hidden from screen readers while it is off the screen.
+          inert={!shown}
+          className={`fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-line bg-surface transition-transform duration-200 lg:flex ${
+            shown ? 'translate-x-0' : '-translate-x-full'
+          } ${!pinned && peek ? 'shadow-xl' : ''}`}
+        >
+          <Sidebar user={user} reserveToggle />
+        </aside>
+        {!pinned && (
+          // Pointing at the left edge shows the sidebar for a moment.
+          <div
+            aria-hidden="true"
+            className="fixed inset-y-0 left-0 z-20 hidden w-2 lg:block"
+            onMouseEnter={() => setPeek(true)}
+          />
+        )}
+        {/*
+          The button stays in the same place, top left, whether the sidebar is shown or hidden,
+          so it is always under the pointer that used it.
+        */}
+        <div
+          className="fixed top-3.5 left-3 z-40 hidden lg:block"
+          onMouseEnter={() => !pinned && setPeek(true)}
+        >
+          <SidebarToggle pinned={pinned} onPress={toggle} />
+        </div>
+      </div>
 
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-line bg-surface px-4 lg:hidden">
         <Link
@@ -80,7 +127,9 @@ export function AppShell() {
         <MenuDrawer user={user} />
       </header>
 
-      <div className="flex min-h-screen flex-col lg:pl-64">
+      <div
+        className={`flex min-h-screen flex-col transition-[padding] duration-200 ${pinned ? 'lg:pl-64' : ''}`}
+      >
         <main
           id="main"
           tabIndex={-1}
@@ -95,6 +144,28 @@ export function AppShell() {
         )}
       </div>
     </div>
+  )
+}
+
+/** Hides the sidebar, or shows it again and keeps it open. */
+function SidebarToggle({
+  pinned,
+  onPress,
+}: {
+  pinned: boolean
+  onPress: () => void
+}) {
+  const label = pinned ? 'Hide sidebar' : 'Keep sidebar open'
+  return (
+    <AriaButton
+      aria-label={label}
+      aria-controls="sidebar"
+      aria-expanded={pinned}
+      onPress={onPress}
+      className={`rounded-md p-1.5 text-muted data-[hovered]:bg-subtle data-[hovered]:text-fg ${FOCUS_RING}`}
+    >
+      <SidebarIcon />
+    </AriaButton>
   )
 }
 
@@ -143,10 +214,13 @@ function Sidebar({
   user,
   onNavigate,
   closeButton,
+  reserveToggle = false,
 }: {
   user: UserResponse
   onNavigate?: () => void
   closeButton?: ReactNode
+  /** Leaves room on the left of the name for the sidebar button, which sits there fixed. */
+  reserveToggle?: boolean
 }) {
   const { logout } = useAuth()
   const canUpload = user.role !== 'STUDENT'
@@ -159,7 +233,9 @@ function Sidebar({
 
   return (
     <div className="flex w-full flex-col overflow-y-auto px-3 py-4">
-      <div className="flex items-center justify-between gap-2 px-3 pb-5">
+      <div
+        className={`flex items-center justify-between gap-2 px-3 pb-5 ${reserveToggle ? 'pl-9' : ''}`}
+      >
         <Link
           to="/"
           onClick={onNavigate}
@@ -194,6 +270,9 @@ function Sidebar({
               Administration
             </p>
             {item('/admin/users', <UsersIcon />, 'Users')}
+            {item('/admin/documents', <DocumentIcon />, 'All documents')}
+            {item('/admin/audit', <AuditIcon />, 'Audit log')}
+            {item('/admin/analytics', <ChartIcon />, 'Analytics')}
           </>
         )}
       </nav>

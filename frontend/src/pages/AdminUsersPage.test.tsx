@@ -194,4 +194,63 @@ describe('AdminUsersPage', () => {
     ).toBeVisible()
     expect(server.to('GET', '/api/v1/admin/users')).toHaveLength(0)
   })
+
+  it('sets a new password for another account, never for the admin’s own', async () => {
+    const own = {
+      ...account('Ada Admin', 'ADMIN'),
+      id: '0199a1b2-0000-7000-8000-000000000001',
+    }
+    const server = adminApi(
+      () => json(page([own, account('Sam Student', 'STUDENT')])),
+      {
+        'POST /api/v1/admin/users/id-sam.student/password': () =>
+          new Response(null, { status: 204 }),
+      },
+    )
+    const { user } = renderApp('/admin/users')
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Set a new password for Sam Student',
+      }),
+    )
+    expect(
+      screen.queryByRole('button', {
+        name: 'Set a new password for Ada Admin',
+      }),
+    ).toBeNull()
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText('New password'), 'short')
+    await user.type(
+      within(dialog).getByLabelText('New password again'),
+      'short',
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Set password' }),
+    )
+    expect(
+      await within(dialog).findByText('Use at least 10 characters.'),
+    ).toBeVisible()
+
+    await user.clear(within(dialog).getByLabelText('New password'))
+    await user.clear(within(dialog).getByLabelText('New password again'))
+    await user.type(
+      within(dialog).getByLabelText('New password'),
+      'a long new passphrase',
+    )
+    await user.type(
+      within(dialog).getByLabelText('New password again'),
+      'a long new passphrase',
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Set password' }),
+    )
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Sam Student has a new password and was signed out everywhere.',
+    )
+    expect(
+      server.to('POST', '/api/v1/admin/users/id-sam.student/password')[0].body,
+    ).toEqual({ newPassword: 'a long new passphrase' })
+  })
 })

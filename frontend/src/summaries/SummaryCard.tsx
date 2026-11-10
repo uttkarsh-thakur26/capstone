@@ -6,6 +6,7 @@ import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { messageOf } from '../components/formErrors'
+import { rateLimitText, useRetryCountdown } from '../components/rateLimit'
 import { ErrorState, LoadingState } from '../components/states'
 import { CitationPanel } from '../conversations/CitationPanel'
 import { GroundedText, SourceList, Thinking } from '../conversations/Messages'
@@ -47,6 +48,7 @@ export function SummaryCard({ documentId }: { documentId: string }) {
     onSuccess: (response) =>
       queryClient.setQueryData(summaryKey(documentId), response),
   })
+  const wait = useRetryCountdown(start.error)
 
   // After a failed read only the error is shown: the server checks access on every read
   // (ACL-E5), so an older answer may no longer be the reader's to see.
@@ -60,7 +62,7 @@ export function SummaryCard({ documentId }: { documentId: string }) {
         (data.status === 'NONE' || data.status === 'FAILED') && (
           <Button
             onPress={() => start.mutate()}
-            isDisabled={start.isPending}
+            isDisabled={start.isPending || (wait ?? 0) > 0}
             size="sm"
             variant={data.status === 'FAILED' ? 'secondary' : 'primary'}
           >
@@ -76,7 +78,13 @@ export function SummaryCard({ documentId }: { documentId: string }) {
           {messageOf(summary.error, 'The summary could not be loaded.')}
         </ErrorState>
       )}
-      {start.isError && <Alert>{startError(start.error)}</Alert>}
+      {start.isError && (
+        <Alert>
+          {wait !== null
+            ? rateLimitText(start.error, wait)
+            : startError(start.error)}
+        </Alert>
+      )}
 
       {data?.status === 'NONE' && !start.isPending && (
         <p className="text-sm text-muted">

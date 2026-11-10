@@ -116,6 +116,47 @@ export const routes: RouteObject[] = [
             },
           },
           {
+            path: 'admin/documents',
+            lazy: async () => {
+              const { AdminDocumentsPage } =
+                await import('./pages/AdminDocumentsPage')
+              return {
+                element: (
+                  <RequireAuth roles={['ADMIN']}>
+                    <AdminDocumentsPage />
+                  </RequireAuth>
+                ),
+              }
+            },
+          },
+          {
+            path: 'admin/audit',
+            lazy: async () => {
+              const { AdminAuditPage } = await import('./pages/AdminAuditPage')
+              return {
+                element: (
+                  <RequireAuth roles={['ADMIN']}>
+                    <AdminAuditPage />
+                  </RequireAuth>
+                ),
+              }
+            },
+          },
+          {
+            path: 'admin/analytics',
+            lazy: async () => {
+              const { AdminAnalyticsPage } =
+                await import('./pages/AdminAnalyticsPage')
+              return {
+                element: (
+                  <RequireAuth roles={['ADMIN']}>
+                    <AdminAnalyticsPage />
+                  </RequireAuth>
+                ),
+              }
+            },
+          },
+          {
             path: '*',
             lazy: async () => ({
               Component: (await import('./pages/NotFoundPage')).NotFoundPage,

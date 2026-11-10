@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { z } from 'zod'
@@ -6,6 +7,11 @@ import { ApiError } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
+import {
+  rateLimitText,
+  retryAfterOf,
+  useRetryCountdown,
+} from '../components/rateLimit'
 import { messageOf, showServerErrors } from '../components/formErrors'
 import { FormTextField } from '../components/FormTextField'
 import { AuthLayout } from '../layout/AuthLayout'
@@ -41,6 +47,9 @@ export function RegisterPage() {
     defaultValues: { email: '', displayName: '', password: '' },
   })
   const serverError = form.formState.errors.root?.server?.message
+  // A 429 (SEC-8, AUTH-5) is kept as the error itself, so its wait can be counted down.
+  const [limited, setLimited] = useState<unknown>(null)
+  const wait = useRetryCountdown(limited)
 
   if (state.status === 'authenticated') {
     return <Navigate to="/" replace />
@@ -51,6 +60,11 @@ export function RegisterPage() {
       const account = await register(values)
       navigate('/login', { state: { registeredEmail: account.email } })
     } catch (error) {
+      if (retryAfterOf(error) !== null) {
+        setLimited(error)
+        return
+      }
+      setLimited(null)
       const code = error instanceof ApiError ? error.code : undefined
       if (code === 'EMAIL_TAKEN' || code === 'EMAIL_DOMAIN_NOT_ALLOWED') {
         form.setError('email', {
@@ -67,7 +81,11 @@ export function RegisterPage() {
 
   return (
     <AuthLayout title="Create an account">
-      {serverError && <Alert>{serverError}</Alert>}
+      {wait !== null ? (
+        <Alert>{rateLimitText(limited, wait)}</Alert>
+      ) : (
+        serverError && <Alert>{serverError}</Alert>
+      )}
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         <FormTextField
           control={form.control}
@@ -93,7 +111,7 @@ export function RegisterPage() {
         <Button
           type="submit"
           className="w-full"
-          isDisabled={form.formState.isSubmitting}
+          isDisabled={form.formState.isSubmitting || (wait ?? 0) > 0}
         >
           Create account
         </Button>

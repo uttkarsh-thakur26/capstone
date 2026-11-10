@@ -113,3 +113,25 @@ export const WarningIcon = () => (
     <path d="M12 10v4.5M12 17.2v.3" />
   </Icon>
 )
+
+export const AuditIcon = () => (
+  <Icon>
+    <path d="M8 4h11v16H5V7z" />
+    <path d="M8 4v3H5" />
+    <path d="M9 12h6M9 16h4" />
+  </Icon>
+)
+
+export const ChartIcon = () => (
+  <Icon>
+    <path d="M4 20h16" />
+    <path d="M7 16v-4M12 16V8M17 16v-7" />
+  </Icon>
+)
+
+export const SidebarIcon = () => (
+  <Icon>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+    <path d="M9.5 4.5v15" />
+  </Icon>
+)

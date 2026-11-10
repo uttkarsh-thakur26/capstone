@@ -7,6 +7,7 @@ import { Alert } from '../components/Alert'
 import { ButtonLink } from '../components/Button'
 import { Card } from '../components/Card'
 import { messageOf } from '../components/formErrors'
+import { rateLimitText, useRetryCountdown } from '../components/rateLimit'
 import { PageHeader } from '../components/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '../components/states'
 import { LINK } from '../components/ui'
@@ -47,12 +48,38 @@ export function HomePage() {
       </div>
       {user.role === 'ADMIN' && (
         <Card title="Administration">
-          <p className="text-sm text-muted">
-            Change roles and turn accounts on or off.{' '}
-            <Link className={LINK} to="/admin/users">
-              Manage users and roles
-            </Link>
-          </p>
+          <ul className="grid gap-2 text-sm sm:grid-cols-2">
+            <li>
+              <Link className={LINK} to="/admin/users">
+                Users and roles
+              </Link>
+              <span className="block text-muted">
+                Roles, accounts on or off, new passwords
+              </span>
+            </li>
+            <li>
+              <Link className={LINK} to="/admin/documents">
+                All documents
+              </Link>
+              <span className="block text-muted">
+                Status, failures, reprocess, re-index
+              </span>
+            </li>
+            <li>
+              <Link className={LINK} to="/admin/audit">
+                Audit log
+              </Link>
+              <span className="block text-muted">Who did what, and when</span>
+            </li>
+            <li>
+              <Link className={LINK} to="/admin/analytics">
+                Analytics
+              </Link>
+              <span className="block text-muted">
+                Questions, answers, cost and documents
+              </span>
+            </li>
+          </ul>
         </Card>
       )}
     </section>
@@ -61,14 +88,23 @@ export function HomePage() {
 
 function QuickAsk() {
   const start = useStartConversation()
+  const wait = useRetryCountdown(start.error)
   return (
     <Card title="Ask the assistant">
       <div className="space-y-3">
-        <AskForm onAsk={start.mutateAsync} isPending={start.isPending} />
+        <AskForm
+          onAsk={start.mutateAsync}
+          isPending={start.isPending || (wait ?? 0) > 0}
+        />
         {start.isPending && <Thinking />}
         {start.isError && (
           <Alert>
-            {messageOf(start.error, 'The conversation could not be started.')}
+            {wait !== null
+              ? rateLimitText(start.error, wait)
+              : messageOf(
+                  start.error,
+                  'The conversation could not be started.',
+                )}
           </Alert>
         )}
       </div>

@@ -7,7 +7,7 @@ import {
   SelectValue,
 } from 'react-aria-components'
 import { ROLES, type Role } from '../api/types'
-import { LIST_ITEM, POPOVER, SELECT_TRIGGER } from './ui'
+import { LIST_ITEM, POPOVER, SELECT_TRIGGER, SELECT_VALUE } from './ui'
 
 /** A role picker with keyboard and screen-reader support from React Aria (UI-8). */
 export function RoleSelect({
@@ -31,7 +31,7 @@ export function RoleSelect({
       isDisabled={isDisabled}
     >
       <Button className={`${SELECT_TRIGGER} min-w-32 py-1.5`}>
-        <SelectValue />
+        <SelectValue className={SELECT_VALUE} />
         <span aria-hidden="true">▾</span>
       </Button>
       <Popover className={POPOVER}>

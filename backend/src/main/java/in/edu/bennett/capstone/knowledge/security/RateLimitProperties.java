@@ -14,7 +14,7 @@ import org.springframework.validation.annotation.Validated;
  *
  * @param aiRequests asking, summarizing and comparing together, per user, in {@code aiPeriod}
  * @param aiDaily the most AI requests one user may make in a UTC day
- * @param loginEmailFailures failed sign-ins for one email, from any address, in {@code
+ * @param loginEmailFailures failed sign-ins for one email from one address, in {@code
  *     loginEmailPeriod}
  * @param loginAddressFailures failed sign-ins from one address, for any email, in {@code
  *     loginAddressPeriod}

@@ -785,7 +785,7 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 | Group | Settings (defaults) |
 |---|---|
 | `app` | Display name (`app.display-name`, required, no default in code; D1, ADR-007) |
-| `app.security` | Token signing key (required), access token lifetime (15 min), refresh lifetime (7 days), allowed origins (required), `Secure` refresh cookie (on; only `dev` may turn it off), rate limits `[T2]` under `app.security.rate-limits`: AI requests (ask, summarize, compare) per user (10 per minute, 200 per UTC day), failed sign-ins per email (5 per 15 minutes) and per address (20 per 15 minutes), registrations per address (50 per hour), each an environment variable (ADR-041) |
+| `app.security` | Token signing key (required), access token lifetime (15 min), refresh lifetime (7 days), allowed origins (required), `Secure` refresh cookie (on; only `dev` may turn it off), rate limits `[T2]` under `app.security.rate-limits`: AI requests (ask, summarize, compare) per user (10 per minute, 200 per UTC day), failed sign-ins per email from one address (5 per 15 minutes) and per address (20 per 15 minutes), registrations per address (50 per hour), each an environment variable (ADR-041) |
 | `app.registration` | Allowed email domains (none) |
 | `app.bootstrap-admin` | Email, password and display name of the first admin (AUTH-3). Email and password are required while no admin exists |
 | `app.upload` | Maximum file size (25 MB). Not a setting: the allowed types, because PDF is the only one the code can check (D9, ADR-029) |

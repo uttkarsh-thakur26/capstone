@@ -96,10 +96,24 @@ class RateLimiterTest {
 
     RateLimitedException refused =
         catchThrowableOfType(
-            RateLimitedException.class, () -> limiter.beforeSignIn("a@example.org", "10.0.0.2"));
+            RateLimitedException.class, () -> limiter.beforeSignIn("a@example.org", "10.0.0.1"));
     assertThat(refused.getMessage()).startsWith("Too many failed sign-ins.");
     // Two in ten minutes: one every five.
     assertThat(refused.properties().get("retryAfterSeconds")).isEqualTo(300L);
+  }
+
+  /** Nobody can lock someone else out: failures elsewhere do not count against the owner. */
+  @Test
+  void failuresFromAnotherAddressDoNotLockTheOwnerOut() {
+    limiter.beforeSignIn("admin@example.org", "203.0.113.7");
+    limiter.beforeSignIn("admin@example.org", "203.0.113.7");
+    assertThat(
+            catchThrowableOfType(
+                RateLimitedException.class,
+                () -> limiter.beforeSignIn("admin@example.org", "203.0.113.7")))
+        .isNotNull();
+
+    assertThatNoException().isThrownBy(() -> limiter.beforeSignIn("admin@example.org", "10.0.0.1"));
   }
 
   @Test

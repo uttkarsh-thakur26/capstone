@@ -87,9 +87,13 @@ public class RateLimiter {
    * so even many attempts at the same moment cannot exceed the limit. A successful sign-in gives
    * both back with {@link #signInSucceeded}, so only failures count. Unknown emails are limited
    * exactly like known ones, so a 429 says nothing about whether an account exists.
+   *
+   * <p>The email's count is kept per address: failures from elsewhere never lock the owner out, so
+   * nobody can keep an account, such as the only admin, locked by typing wrong passwords for it.
+   * The address's own count still limits guessing from any one place (review of ADR-041).
    */
   void beforeSignIn(String email, String address) {
-    String emailKey = "login-email:" + email;
+    String emailKey = emailKey(email, address);
     Optional<Duration> emailWait = take(emailKey, limits.loginPerEmail());
     if (emailWait.isPresent()) {
       throw new RateLimitedException("Too many failed sign-ins.", emailWait.get());
@@ -105,10 +109,14 @@ public class RateLimiter {
   }
 
   void signInSucceeded(String email, String address) {
-    giveBack("login-email:" + email, limits.loginPerEmail());
+    giveBack(emailKey(email, address), limits.loginPerEmail());
     if (address != null) {
       giveBack("login-address:" + address, limits.loginPerAddress());
     }
+  }
+
+  private static String emailKey(String email, String address) {
+    return "login-email:" + email + (address == null ? "" : "|" + address);
   }
 
   /** Takes a token, or says how long until the next one. */

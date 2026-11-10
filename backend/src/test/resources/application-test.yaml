@@ -11,6 +11,13 @@ app:
     # Base64 of the 32 bytes "test-only-signing-key-not-secret". A test value, not a secret.
     jwt-secret: dGVzdC1vbmx5LXNpZ25pbmcta2V5LW5vdC1zZWNyZXQ=
     allowed-origins: http://localhost:3000
+    # High enough that no test reaches them by accident; RateLimitTest sets its own low ones.
+    rate-limits:
+      ai-requests: 100000
+      ai-daily: 1000000
+      login-email-failures: 100000
+      login-address-failures: 100000
+      registration-requests: 100000
   # Test-only account. The .invalid domain is reserved and never delivers mail.
   bootstrap-admin:
     email: admin@test.invalid

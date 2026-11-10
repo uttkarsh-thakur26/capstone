@@ -1,5 +1,6 @@
 package in.edu.bennett.capstone.knowledge.assistant;
 
+import in.edu.bennett.capstone.knowledge.common.RateLimited;
 import in.edu.bennett.capstone.knowledge.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
@@ -18,6 +19,7 @@ class ComparisonController {
     this.comparisons = comparisons;
   }
 
+  @RateLimited(RateLimited.Kind.AI)
   @PostMapping(
       path = "/api/v1/documents/compare",
       consumes = MediaType.APPLICATION_JSON_VALUE,

@@ -52,7 +52,12 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
     ex.properties().forEach(problem::setProperty);
     problem.setProperty("code", ex.code());
-    return handleExceptionInternal(ex, problem, new HttpHeaders(), ex.status(), request);
+    HttpHeaders headers = new HttpHeaders();
+    // A 429 also says when to come back in the standard header (RFC 9110, SEC-8).
+    if (ex.properties().get(RateLimitedException.RETRY_AFTER_SECONDS) instanceof Long seconds) {
+      headers.set(HttpHeaders.RETRY_AFTER, Long.toString(seconds));
+    }
+    return handleExceptionInternal(ex, problem, headers, ex.status(), request);
   }
 
   /** A multipart request above the configured limit (DOC-1), stopped before the controller runs. */

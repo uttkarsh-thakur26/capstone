@@ -19,4 +19,9 @@ public record ProblemResponse(
     @Schema(requiredMode = RequiredMode.REQUIRED) String detail,
     String instance,
     @Schema(requiredMode = RequiredMode.REQUIRED, example = "VALIDATION_FAILED") String code,
-    List<FieldErrorResponse> errors) {}
+    List<FieldErrorResponse> errors,
+    @Schema(
+            description =
+                "With 429 RATE_LIMITED: whole seconds until the request is accepted again, as in"
+                    + " the Retry-After header (SEC-8).")
+        Long retryAfterSeconds) {}

@@ -1,6 +1,7 @@
 package in.edu.bennett.capstone.knowledge.assistant;
 
 import in.edu.bennett.capstone.knowledge.assistant.SummaryResponse.Status;
+import in.edu.bennett.capstone.knowledge.common.RateLimited;
 import in.edu.bennett.capstone.knowledge.security.CurrentUser;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -23,6 +24,7 @@ class SummaryController {
   }
 
   /** Starts a summary: 202 while it is being made, 200 when a fresh one is ready. */
+  @RateLimited(RateLimited.Kind.AI)
   @PostMapping(path = "/api/v1/documents/{id}/summary", produces = MediaType.APPLICATION_JSON_VALUE)
   ResponseEntity<SummaryResponse> request(
       @AuthenticationPrincipal CurrentUser user, @PathVariable UUID id) {

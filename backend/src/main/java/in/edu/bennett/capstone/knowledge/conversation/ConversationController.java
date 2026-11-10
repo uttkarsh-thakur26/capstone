@@ -1,6 +1,7 @@
 package in.edu.bennett.capstone.knowledge.conversation;
 
 import in.edu.bennett.capstone.knowledge.common.PageResponse;
+import in.edu.bennett.capstone.knowledge.common.RateLimited;
 import in.edu.bennett.capstone.knowledge.security.CurrentUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -71,6 +72,7 @@ class ConversationController {
   }
 
   /** Asking always happens inside a conversation; there is no other ask endpoint (15.2). */
+  @RateLimited(RateLimited.Kind.AI)
   @PostMapping(
       path = "/api/v1/conversations/{id}/messages",
       consumes = MediaType.APPLICATION_JSON_VALUE,

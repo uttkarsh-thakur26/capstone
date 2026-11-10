@@ -157,4 +157,54 @@ describe('AdminDocumentsPage', () => {
     expect(await screen.findByText('“Waiting” was deleted.')).toBeVisible()
     expect(server.to('DELETE', '/api/v1/documents/id-waiting')).toHaveLength(1)
   })
+
+  it('goes back to the last page that exists after deleting the only document of the last page', async () => {
+    const first = Array.from({ length: 20 }, (_, i) =>
+      document(`Doc ${i + 1}`, 'INDEXED'),
+    )
+    let deleted = false
+    const server = adminApi(
+      (request) => {
+        const page = Number(request.url.searchParams.get('page'))
+        const total = deleted ? 20 : 21
+        const items =
+          page === 0 ? first : deleted ? [] : [document('Last one', 'INDEXED')]
+        return json({
+          items,
+          page,
+          size: 20,
+          totalItems: total,
+          totalPages: Math.ceil(total / 20),
+        })
+      },
+      {
+        'DELETE /api/v1/documents/id-last-one': () => {
+          deleted = true
+          return new Response(null, { status: 204 })
+        },
+      },
+    )
+    const { user } = renderApp('/admin/documents')
+
+    await user.click(await screen.findByRole('button', { name: /Next/ }))
+    await user.click(
+      await screen.findByRole('button', { name: 'Delete “Last one”' }),
+    )
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Delete',
+      }),
+    )
+
+    expect(await screen.findByText('Page 1 of 1, 20 documents')).toBeVisible()
+    expect(
+      screen.queryByText('No documents have been uploaded yet.'),
+    ).toBeNull()
+    expect(
+      server
+        .to('GET', '/api/v1/admin/documents')
+        .at(-1)
+        ?.url.searchParams.get('page'),
+    ).toBe('0')
+  })
 })

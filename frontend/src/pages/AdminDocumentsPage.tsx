@@ -86,6 +86,16 @@ export function AdminDocumentsPage() {
         : false,
   })
 
+  // A page past the end, for example after deleting the only document of the last page, shows
+  // the last page that exists instead of an empty list.
+  if (
+    documents.data &&
+    documents.data.totalPages > 0 &&
+    page >= documents.data.totalPages
+  ) {
+    setPage(documents.data.totalPages - 1)
+  }
+
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ['admin-documents'] })
   const failed = (fallback: string) => (error: Error) =>

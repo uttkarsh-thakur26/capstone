@@ -1,5 +1,6 @@
 package in.edu.bennett.capstone.knowledge.user;
 
+import in.edu.bennett.capstone.knowledge.common.RateLimited;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -18,6 +19,8 @@ class RegistrationController {
   }
 
   /** Public (AUTH-8). Creates a STUDENT; any role in the body is ignored (AUTH-1). */
+  // Per client address: nobody is signed in yet (SEC-8).
+  @RateLimited(RateLimited.Kind.REGISTRATION)
   @PostMapping(
       path = "/api/v1/auth/register",
       consumes = MediaType.APPLICATION_JSON_VALUE,

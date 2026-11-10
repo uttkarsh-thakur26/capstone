@@ -22,6 +22,9 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
@@ -89,6 +92,17 @@ public class SecurityConfig {
                     .accessDeniedHandler(problems))
         // A stateless API with bearer tokens needs no CSRF protection. The cookie-authorized
         // refresh and logout rely on SameSite=Strict and an Origin check instead (AUTH-9).
+        // SEC-6: an API response is never a page to render or frame. Spring Security already sends
+        // nosniff, X-Frame-Options DENY and no-store; the policy is added for /api only, so the
+        // development Swagger UI keeps working. nginx sends the SPA's own policy.
+        .headers(
+            headers ->
+                headers.addHeaderWriter(
+                    new DelegatingRequestMatcherHeaderWriter(
+                        PathPatternRequestMatcher.withDefaults().matcher("/api/**"),
+                        new StaticHeadersWriter(
+                            "Content-Security-Policy",
+                            "default-src 'none'; frame-ancestors 'none'"))))
         .csrf(AbstractHttpConfigurer::disable)
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

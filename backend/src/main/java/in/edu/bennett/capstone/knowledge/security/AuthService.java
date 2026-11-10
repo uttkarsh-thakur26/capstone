@@ -17,6 +17,8 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /** Sign-in, session refresh and sign-out (AUTH-5, AUTH-6, ADR-020). */
 @Service
@@ -28,6 +30,7 @@ class AuthService {
   private final RefreshTokenService refreshTokens;
   private final AuditService audit;
   private final TransactionTemplate transactions;
+  private final RateLimiter limiter;
 
   AuthService(
       PasswordAuthenticator authenticator,
@@ -35,13 +38,15 @@ class AuthService {
       AccessTokenService accessTokens,
       RefreshTokenService refreshTokens,
       AuditService audit,
-      TransactionTemplate transactions) {
+      TransactionTemplate transactions,
+      RateLimiter limiter) {
     this.authenticator = authenticator;
     this.users = users;
     this.accessTokens = accessTokens;
     this.refreshTokens = refreshTokens;
     this.audit = audit;
     this.transactions = transactions;
+    this.limiter = limiter;
   }
 
   /**
@@ -49,9 +54,13 @@ class AuthService {
    * the email has an account (AUTH-5). The reason is kept in the audit entry only.
    */
   Session login(String email, String password) {
+    // AUTH-5: failures are throttled per email and per address, checked before the password is.
+    String address = clientAddress();
+    limiter.beforeSignIn(email, address);
     UUID id;
     try {
       id = authenticator.authenticate(email, password);
+      limiter.signInSucceeded(email, address);
     } catch (AuthenticationException e) {
       audit.recordSeparately(
           AuditEvent.of(AuditAction.LOGIN_FAILURE, AuditOutcome.DENIED, null, email)
@@ -107,6 +116,25 @@ class AuthService {
           users.changePassword(user.id(), currentPassword, newPassword);
           refreshTokens.revokeAllOfUser(user.id());
         });
+  }
+
+  /**
+   * An admin sets a new password for another account; every session of that account ends, like
+   * after changing one's own password, so whoever knew the old one is signed out (14.1).
+   */
+  void resetPassword(CurrentUser admin, UUID userId, String newPassword) {
+    transactions.executeWithoutResult(
+        status -> {
+          users.resetPassword(admin.id(), userId, newPassword);
+          refreshTokens.revokeAllOfUser(userId);
+        });
+  }
+
+  private static String clientAddress() {
+    if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes request) {
+      return request.getRequest().getRemoteAddr();
+    }
+    return null;
   }
 
   record Session(UserResponse user, AccessToken accessToken, IssuedToken refreshToken) {}

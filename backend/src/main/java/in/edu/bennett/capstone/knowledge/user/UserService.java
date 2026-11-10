@@ -150,6 +150,38 @@ public class UserService {
     log.info("User {} changed their password", user.getId());
   }
 
+  /**
+   * 14.1 {@code [T2]}: an admin sets a new password for another account, which records {@code
+   * PASSWORD_RESET} with the admin as the actor and never the password (AUD-2). An admin's own
+   * password is changed with the current one instead (S2), so a stolen access token alone cannot
+   * set it. Ending the user's sessions is the caller's part, as for {@link #changePassword}.
+   */
+  @PreAuthorize("hasRole('ADMIN')")
+  @Transactional
+  public void resetPassword(UUID actorId, UUID userId, String newPassword) {
+    if (actorId.equals(userId)) {
+      throw new ApiException(
+          HttpStatus.CONFLICT,
+          "OWN_ACCOUNT",
+          "Change your own password with your current one, not here.");
+    }
+    UserAccount user =
+        users
+            .findById(userId)
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "NOT_FOUND",
+                        "The requested resource does not exist."));
+    String actorEmail = users.findById(actorId).map(UserAccount::getEmail).orElse(null);
+    user.changePasswordHash(passwordEncoder.encode(newPassword));
+    audit.record(
+        AuditEvent.of(AuditAction.PASSWORD_RESET, AuditOutcome.SUCCESS, actorId, actorEmail)
+            .withResource(RESOURCE_USER, user.getId()));
+    log.info("Admin {} set a new password for user {}", actorId, user.getId());
+  }
+
   /** AUTH-1: self-registration always creates an enabled STUDENT. */
   @Transactional
   public UserResponse register(RegistrationRequest request) {

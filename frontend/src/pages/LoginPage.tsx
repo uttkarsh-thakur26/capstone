@@ -1,10 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { z } from 'zod'
 import { useAuth } from '../auth/useAuth'
 import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
+import {
+  rateLimitText,
+  retryAfterOf,
+  useRetryCountdown,
+} from '../components/rateLimit'
 import { messageOf } from '../components/formErrors'
 import { FormTextField } from '../components/FormTextField'
 import { AuthLayout } from '../layout/AuthLayout'
@@ -37,6 +43,9 @@ export function LoginPage() {
     defaultValues: { email: registeredEmail ?? '', password: '' },
   })
   const serverError = form.formState.errors.root?.server?.message
+  // A 429 (SEC-8, AUTH-5) is kept as the error itself, so its wait can be counted down.
+  const [limited, setLimited] = useState<unknown>(null)
+  const wait = useRetryCountdown(limited)
 
   if (state.status === 'authenticated') {
     return <Navigate to={target} replace />
@@ -47,6 +56,11 @@ export function LoginPage() {
       await login(email, password)
       navigate(target, { replace: true })
     } catch (error) {
+      if (retryAfterOf(error) !== null) {
+        setLimited(error)
+        return
+      }
+      setLimited(null)
       // One message for every failed sign-in; the server does not say which part was wrong (AUTH-5).
       form.setError('root.server', {
         message: messageOf(error, 'Sign-in failed. Try again.'),
@@ -61,7 +75,11 @@ export function LoginPage() {
           Your account is ready. Sign in with your email and password.
         </Alert>
       )}
-      {serverError && <Alert>{serverError}</Alert>}
+      {wait !== null ? (
+        <Alert>{rateLimitText(limited, wait)}</Alert>
+      ) : (
+        serverError && <Alert>{serverError}</Alert>
+      )}
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         <FormTextField
           control={form.control}
@@ -80,7 +98,7 @@ export function LoginPage() {
         <Button
           type="submit"
           className="w-full"
-          isDisabled={form.formState.isSubmitting}
+          isDisabled={form.formState.isSubmitting || (wait ?? 0) > 0}
         >
           Sign in
         </Button>

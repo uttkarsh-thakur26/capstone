@@ -40,7 +40,8 @@ class EmbedderTest {
         2048,
         1.5,
         "Instruct: Find passages\nQuery:",
-        new EmbeddingProperties.Retry(3, Duration.ofMillis(1), 2.0, Duration.ofMillis(5)));
+        new EmbeddingProperties.Retry(3, Duration.ofMillis(1), 2.0, Duration.ofMillis(5)),
+        false);
   }
 
   @Test

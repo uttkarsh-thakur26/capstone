@@ -7,6 +7,7 @@ import { Alert } from '../components/Alert'
 import { ErrorState, LoadingState } from '../components/states'
 import { PageHeader } from '../components/PageHeader'
 import { messageOf } from '../components/formErrors'
+import { rateLimitText, useRetryCountdown } from '../components/rateLimit'
 import {
   askIn,
   conversationKeys,
@@ -61,6 +62,7 @@ function Conversation({ id }: { id: string }) {
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: conversationKeys.all }),
   })
+  const wait = useRetryCountdown(ask.error)
 
   if (conversation.isPending) {
     return <LoadingState>Opening the conversation…</LoadingState>
@@ -105,7 +107,12 @@ function Conversation({ id }: { id: string }) {
             }
           />
         }
-        composer={<AskForm onAsk={ask.mutateAsync} isPending={ask.isPending} />}
+        composer={
+          <AskForm
+            onAsk={ask.mutateAsync}
+            isPending={ask.isPending || (wait ?? 0) > 0}
+          />
+        }
       >
         {data.messages.length === 0 && pending === undefined && (
           <p className="text-sm text-muted">No questions yet. Ask one below.</p>
@@ -119,7 +126,9 @@ function Conversation({ id }: { id: string }) {
         {ask.isError && (
           <div className="mt-6">
             <Alert>
-              {messageOf(ask.error, 'The question could not be sent.')}
+              {wait !== null
+                ? rateLimitText(ask.error, wait)
+                : messageOf(ask.error, 'The question could not be sent.')}
             </Alert>
           </div>
         )}

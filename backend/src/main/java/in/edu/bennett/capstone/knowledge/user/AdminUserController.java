@@ -36,7 +36,7 @@ class AdminUserController {
       @RequestParam(required = false) Boolean enabled,
       @RequestParam(defaultValue = "0") @Min(0) @Max(PageResponse.MAX_PAGE) int page,
       @RequestParam(defaultValue = "20") @Min(1) @Max(PageResponse.MAX_SIZE) int size,
-      @RequestParam(required = false) String sort) {
+      @RequestParam(required = false) @Size(max = 64) String sort) {
     return users.listUsers(new UserQuery(query, role, enabled), page, size, sort);
   }
 

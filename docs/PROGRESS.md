@@ -1,10 +1,20 @@
 # Progress
 
-Updated 2026-11-08. Format: specification Section 24.8.
+Updated 2026-11-09. Format: specification Section 24.8.
 
 ## Current phase
 
-**Phase 8, hybrid search, summaries and comparison, is done on `feat/phase-8-hybrid`, pull request [#10](https://github.com/uttkarsh-thakur26/capstone/pull/10), with the owner's upload-form fixes.** Decisions: ADR-040 (S22, S23 resolved). Phase 7, the first evaluation run, is still to do.
+**Phase 9, administration, audit and analytics, is built on `feat/phase-9-admin`**, with the rate limits and the Section 17 review that the plan put in Phase 10. Waiting for the owner's click-through on kp-demo, then review and merge. Decisions: ADR-041 (D14 off, with no column for question text).
+
+- Admin screens: All documents (status, failure reason, reprocess, delete, re-index all), Audit log (filters by who, action, outcome and days), Analytics (questions per day by outcome, AI cost per day from the logged tokens, uploads, queries by type, response times, documents by status, failures, users by role, most cited documents, system), and Set password on Users.
+- Every action of 14.2 is recorded; `PASSWORD_RESET` and `REINDEX_STARTED` are new, and a failed comparison is now recorded too. `APP_EMBEDDING_REINDEX_ON_MODEL_CHANGE` lets startup re-index after a model change (S11).
+- Rate limits, all settings in `.env.example`: AI requests 10 per minute and 200 per day per user, failed sign-ins 5 per email from one address and 20 per address in 15 minutes, registrations 50 per address per hour; a 429 counts down on screen.
+- Owner's click-through on kp-demo: long dropdown lists now scroll, a long chosen option no longer makes its box taller, and the sidebar can be hidden for reading room (pointing at its button shows it for a moment, the button keeps it open; the choice is kept in the browser).
+- Independent review (two fresh-context reviewers) found nothing in access control, SQL or what the logs hold, and five real defects, each fixed test first: failed sign-ins counted per email alone let anyone keep an account locked from anywhere (`2fe5c99`), latency percentiles included reused summaries and failed requests (`196baf8`), deleting the only document of the last admin page left an empty page with no way back (`5714c2c`), Escape closed the password dialog while it saved, and the sent password stayed in memory after it (`212386a`).
+- Section 17 review: fixed SEC-6 (no CSP, `nosniff` or frame-ancestors on the page), AUD-2 (a password typed as the sign-in email was stored in the audit log), SEC-8 (no limits; `sort` without a maximum length), SEC-14 (no `npm audit`; it found `zod` 4.6.5, moved to 4.6.7). The other items were checked and needed nothing (ADR-041).
+- Checks (2026-11-09): `./mvnw verify` 891 tests and the format check; frontend 164 tests, lint, type check, build, format; Playwright 4 tests. Mutation checks failed the tests as expected: the question text in the `AI_QUERY` entry (`AuditCoverageTest`), the ask endpoint without its rate limit (`RateLimitTest`, 3 of 6).
+
+**Phase 8, hybrid search, summaries and comparison, is done**, merged through pull request [#10](https://github.com/uttkarsh-thakur26/capstone/pull/10) (merge commit `3a92d67`) with every CI check green. Decisions: ADR-040 (S22, S23 resolved). Phase 7, the first evaluation run, is still to do.
 
 - Hybrid search ("Best match", the new default) fuses the semantic and keyword rankings with Reciprocal Rank Fusion in one SQL statement; the assistant retrieves with it; the evidence gate still compares cosine similarity.
 - Summaries: background run, one pass up to 4,000 tokens, map-reduce above, at most 8 model calls, more than 40 pages refused; every item cites its pages and is checked in code; stored per document and served only after a fresh access check while the document is indexed as it was.
@@ -124,8 +134,8 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 | 5 | Grounded question answering | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #7 | 2026-11-01 |
 | 6 | Conversations and citation viewer | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #8 | 2026-11-02 |
 | 7 | First evaluation run (keyword search moved to Phase 4, ADR-035) | Not started | |
-| 8 | Hybrid search, summarization, comparison | Built, waiting for the owner's click-through, review and merge | 2026-11-08 |
-| 9 | Administration, audit, analytics | Not started | |
+| 8 | Hybrid search, summarization, comparison | Done. All exit criteria met, CI green, reviewed under ADR-028, merged through #10 | 2026-11-09 |
+| 9 | Administration, audit, analytics (with the rate limits and Section 17 review of Phase 10) | Built on `feat/phase-9-admin`, waiting for the owner's click-through, review and merge | 2026-11-09 |
 | 10 | Full evaluation and hardening | Not started | |
 | 11 | Deployment, documentation and the final evaluation pack | Not started | |
 
@@ -148,7 +158,6 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - The upload-time report (2026-11-08) was not reproduced: the database, the API (UTC with `Z`) and the browser pane (IST) agreed. Times now show their zone, so a browser reporting another zone (Firefox's fingerprinting protection reports UTC) is visible. Tell the team if a wrong time is seen again, with the screen and the zone shown.
 - No summary of a document above 40 pages: the owner's 93-page HR manual would need about 14 calls at the default limits. Raising `app.summary.max-pages` and `max-model-calls` makes it possible at a known cost; a multi-level reduce is not built.
 - Hybrid ties at the top are common with two rankings; the keyword order breaks them (ADR-040). The Phase 10 evaluation compares the modes.
-- Comparisons and summaries have no rate limit yet (T2, Phase 10); a summary is made once per document and reused, a comparison costs one call each time (about $0.0006 measured).
 - A comparison of two different documents pairs their most alike sections, even when they are only loosely alike (similarity 0.2 to 0.3); the checks keep every reported difference true to both texts, but "removed" can mean "not in that passage of the other document".
 - `docs/api.md` (error codes, ADR-023) and `docs/testing.md` (test cases, 19.4) are current only to the end of Phase 1. They are caught up when the owner asks for the documents.
 - Backend tests need Docker running; without it they fail with "Could not find a valid Docker environment".
@@ -158,7 +167,6 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - openapi-typescript runs through an npm override until a release supports TypeScript 6 (ADR-017).
 - From Phase 1 the backend does not start without `APP_SECURITY_JWT_SECRET`, `APP_SECURITY_ALLOWED_ORIGINS` and, while no admin exists, `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD`. A `.env` created before Phase 1 must add them (README quickstart), or `docker compose up` and development mode stop at startup.
 - Expired and revoked refresh tokens stay in `refresh_token`; nothing deletes them yet. One row per sign-in and refresh, so the table grows slowly.
-- Throttling of repeated failed sign-ins (AUTH-5) is `[T2]` and not built.
 - The upload page still loads 835.6 kB of JavaScript on a first visit (its form, date and file-drop components); the other pages load less (ADR-039).
 - The theme choice is kept in the browser, not with the account: another browser starts at System.
 - Backend tests, flaky under load (2026-11-03): one `./mvnw verify` run with a Docker image build beside it failed `PromptInjectionTest` (top similarity 0.273, needs more than 0.30) and `RetrievalTest` (two scores of exactly 0.0). Both classes passed alone (27 of 27) and the next full run, with the machine idle, passed all 613. Likely an earlier test class's ingestion still writing chunks; not investigated yet.
@@ -170,8 +178,10 @@ Phase 0 is done: pull request [#1](https://github.com/uttkarsh-thakur26/capstone
 - Spring AI 2.0.2 is built against Boot 4.1.2 and Framework 7.0.10; the project resolves 4.1.1 and 7.0.9 (VERSIONS.md).
 - A crash between storing an uploaded file and inserting its row, or in the middle of writing it (a `.part` file), leaves a file on the volume that no row points at. Nothing removes it yet (ADR-031).
 - One browser profile holds one refresh cookie, so two accounts cannot be signed in at the same time in one browser. A tab whose silent refresh returns another account ends its own session.
-- Search is not logged yet: `query_log` and its latency figures arrive in Phase 9.
-- Asking has no rate limit yet (T2). One answer from `gpt-6-luna` costs about $0.0003, and the account has a hard spending limit.
+- Rate limits live in memory (SEC-8 allows it for one instance): a restart gives everyone a full budget again, including the day's AI cap.
+- After an admin sets a new password, access tokens already issued keep working until they expire (15 minutes at most), as after changing one's own; refresh tokens end at once.
+- `query_log` has no clean-up: one row per search, question, summary and comparison. Analytics start at its first row; nothing before Phase 9 was logged.
+- `npm audit` in CI reports and does not fail the build until the final demonstration (ADR-041); the development-only packages have advisories it does not list (`--omit=dev`). The Maven dependency scan is Phase 10.
 - In the live run the model put one `[n]` marker after a multi-sentence answer instead of after each sentence (11.3 rule 3). The citations were right; Phase 7 measures citation quality.
 - In the demo, the student's question answered only by the faculty document scored 0.294 against the student's own document, just under the floor of 0.30. Had it passed, the model would have had to abstain. Phase 7 calibrates the floor.
 - A follow-up costs two model calls (the rewrite and the answer); a first question costs one.
@@ -189,7 +199,7 @@ Found while checking the specification before Phase 0. Each must be settled, and
 |---|---|---|---|---|
 | S1 | The Milestone-1 checkpoint and 27.3 do not ask for the use-case diagram and level-0 DFD that Section 25 starts in the Milestone-1 pack. `deployment.md` is "first needed" at the final evaluation but used as a Milestone-2 source in 27.6 | 23, 25, 27.3, 27.6 | Milestone-1 pack | Open |
 | S2 | `GET /auth/me` and `PUT /auth/me/password` are T1 endpoints that no phase builds; changing your own password has no audit action | 15.2, 14.2, 23 | Phase 1 | Resolved, ADR-025 |
-| S3 | Data model: `audit_log` is append-only but inherits `updated_at`; tables written through JDBC cannot get JPA auditing; unique constraints for `document_grant` and `document_summary` and several foreign-key indexes are missing from 7.4; `document.owner_id` and `query_log.user_id` have no `ON DELETE` rule | 7.1, 7.2, 7.4 | Phase 1 (tables of that phase), then each phase for its own tables | Phase 1 and 2 tables resolved (ADR-024, ADR-025, ADR-030); open for Phase 9 |
+| S3 | Data model: `audit_log` is append-only but inherits `updated_at`; tables written through JDBC cannot get JPA auditing; unique constraints for `document_grant` and `document_summary` and several foreign-key indexes are missing from 7.4; `document.owner_id` and `query_log.user_id` have no `ON DELETE` rule | 7.1, 7.2, 7.4 | Phase 1 (tables of that phase), then each phase for its own tables | Resolved: Phase 1 and 2 tables (ADR-024, ADR-025, ADR-030), `query_log` (ADR-041) |
 | S4 | When `ACCESS_DENIED` is recorded is undefined (403 only, or also 404 on unreadable documents) | 14.2, 5.2 ACL-8 | Phase 1 | Resolved, ADR-024 |
 | S5 | D18's default names no component set, and neither Tailwind nor a component set is in 3.1 | 26 D18, 3.1, 16.1 | Phase 1 | Resolved, ADR-021 |
 | S6 | Problem Details: Boot's support is off by default and responses written by the Spring Security filter chain are not Problem Details | 15.1, 3.3 | Phase 1 | Resolved, ADR-023 |

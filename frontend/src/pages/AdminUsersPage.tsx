@@ -12,7 +12,9 @@ import type {
   AdminUserResponse,
   UpdateUserRequest,
 } from '../api/types'
+import { useAuth } from '../auth/useAuth'
 import { Alert } from '../components/Alert'
+import { Button } from '../components/Button'
 import { EnabledSwitch } from '../components/EnabledSwitch'
 import { Pager } from '../components/Pager'
 import { EmptyState, ErrorState, LoadingState } from '../components/states'
@@ -21,6 +23,7 @@ import { messageOf } from '../components/formErrors'
 import { RoleSelect } from '../components/RoleSelect'
 import { CARD, FIELD, LABEL, TABLE_HEAD, TABLE_ROW } from '../components/ui'
 import { formatDateTime } from '../documents/format'
+import { SetPasswordDialog } from '../users/SetPasswordDialog'
 
 const PAGE_SIZE = 20
 
@@ -51,6 +54,10 @@ export function AdminUsersPage() {
     text: string
   } | null>(null)
   const query = useDeferredValue(search.trim())
+  const { state } = useAuth()
+  const me = state.status === 'authenticated' ? state.user.id : null
+  const [settingPassword, setSettingPassword] =
+    useState<AdminUserResponse | null>(null)
 
   const users = useQuery({
     queryKey: ['admin-users', query, page],
@@ -135,6 +142,9 @@ export function AdminUsersPage() {
                   <th scope="col" className="hidden px-4 py-3 md:table-cell">
                     Last sign-in
                   </th>
+                  <th scope="col" className="px-4 py-3">
+                    <span className="sr-only">Password</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -167,6 +177,21 @@ export function AdminUsersPage() {
                     <td className="hidden px-4 py-3 whitespace-nowrap text-muted md:table-cell">
                       {formatTime(user.lastLoginAt)}
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      {user.id !== me && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onPress={() => {
+                            setNotice(null)
+                            setSettingPassword(user)
+                          }}
+                          aria-label={`Set a new password for ${user.displayName}`}
+                        >
+                          Set password
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -182,6 +207,17 @@ export function AdminUsersPage() {
           </Pager>
         </>
       )}
+      <SetPasswordDialog
+        user={settingPassword}
+        onClose={() => setSettingPassword(null)}
+        onDone={(user) => {
+          setSettingPassword(null)
+          setNotice({
+            tone: 'success',
+            text: `${user.displayName} has a new password and was signed out everywhere. Give them the password yourself.`,
+          })
+        }}
+      />
     </section>
   )
 }

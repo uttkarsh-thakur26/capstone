@@ -1,6 +1,6 @@
 # Resolved versions
 
-What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`; the libraries added in Phase 1 were recorded on 2026-10-07 from branch `feat/auth-roles`, those of Phase 2 on 2026-10-26 from branch `feat/phase-2-documents`, those of Phase 3 on 2026-10-27 from branch `feat/phase-3-ingestion`, those of Phase 5 on 2026-11-01 from branch `feat/phase-5-answers`, and those of Phase 6 on 2026-11-02 from branch `feat/phase-6-assistant`. Update this file in the same commit as any dependency change.
+What the build actually resolved, not what was requested (specification 3.2 rule 5). Updated at the end of Phase 0 on 2026-10-06, from commit `2c1d580`; the libraries added in Phase 1 were recorded on 2026-10-07 from branch `feat/auth-roles`, those of Phase 2 on 2026-10-26 from branch `feat/phase-2-documents`, those of Phase 3 on 2026-10-27 from branch `feat/phase-3-ingestion`, those of Phase 5 on 2026-11-01 from branch `feat/phase-5-answers`, and those of Phase 6 on 2026-11-02 from branch `feat/phase-6-assistant`; `zod` moved to 4.6.7 on 2026-11-09 on branch `feat/phase-9-admin` for GHSA-mrhx-c7xc-m3w5 (ADR-041). Update this file in the same commit as any dependency change.
 
 How these were collected: `./mvnw dependency:list` and `./mvnw -v` in `backend`, `npm ls --depth=0` in `frontend`, `docker image inspect --format '{{index .RepoDigests 0}}'` for images, and the tools' own `--version` output.
 
@@ -66,7 +66,7 @@ From `frontend/package-lock.json`. Ranges in `package.json` follow the generator
 | react-router (ADR-027) | 8.4.0 | runtime |
 | @tanstack/react-query | 5.104.1 | runtime |
 | react-hook-form, @hookform/resolvers | 7.89.0, 5.9.1 | runtime |
-| zod | 4.6.5 | runtime |
+| zod | 4.6.7 | runtime |
 | react-aria-components (ADR-021) | 1.21.1 | runtime |
 | tailwindcss, @tailwindcss/vite (ADR-021) | 4.3.3 | build |
 | vite | 8.3.3 | build |

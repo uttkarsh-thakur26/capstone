@@ -132,6 +132,7 @@ export function problem(
   code: string,
   detail: string,
   errors?: { field: string; message: string }[],
+  extra: Record<string, unknown> = {},
 ): Response {
   return new Response(
     JSON.stringify({
@@ -141,6 +142,7 @@ export function problem(
       detail,
       code,
       errors,
+      ...extra,
     }),
     { status, headers: { 'Content-Type': 'application/problem+json' } },
   )

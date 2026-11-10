@@ -1,6 +1,10 @@
 package in.edu.bennett.capstone.knowledge.assistant;
 
 import in.edu.bennett.capstone.knowledge.ai.ChatGenerator;
+import in.edu.bennett.capstone.knowledge.analytics.QueryLog;
+import in.edu.bennett.capstone.knowledge.analytics.QueryOutcome;
+import in.edu.bennett.capstone.knowledge.analytics.QueryRecord;
+import in.edu.bennett.capstone.knowledge.analytics.QueryType;
 import in.edu.bennett.capstone.knowledge.assistant.Answer.Usage;
 import in.edu.bennett.capstone.knowledge.assistant.Summarizer.Plan;
 import in.edu.bennett.capstone.knowledge.assistant.Summarizer.Progress;
@@ -65,6 +69,7 @@ public class SummaryService {
   private final SummaryProperties properties;
   private final ModelPrices prices;
   private final AuditService audit;
+  private final QueryLog queryLog;
   private final TaskExecutor executor;
   private final JsonMapper json;
 
@@ -77,6 +82,7 @@ public class SummaryService {
       SummaryProperties properties,
       ModelPrices prices,
       AuditService audit,
+      QueryLog queryLog,
       @Qualifier("summaryExecutor") TaskExecutor executor,
       JsonMapper json) {
     this.documents = documents;
@@ -87,6 +93,7 @@ public class SummaryService {
     this.properties = properties;
     this.prices = prices;
     this.audit = audit;
+    this.queryLog = queryLog;
     this.executor = executor;
     this.json = json;
   }
@@ -99,6 +106,7 @@ public class SummaryService {
    *     indexed, 422 when it is too large, 503 when no chat model is configured or the pool is full
    */
   public SummaryResponse request(CurrentUser user, UUID documentId) {
+    long requested = System.nanoTime();
     DocumentResponse document = documents.get(user, documentId);
     requireIndexed(document);
     String model = requireModel();
@@ -126,6 +134,23 @@ public class SummaryService {
             .withResource(DocumentService.RESOURCE_DOCUMENT, documentId)
             .withDetails(Map.of("started", started.isPresent(), "modelCalls", plan.modelCalls())));
     if (started.isEmpty()) {
+      // Served by the summary that exists or is being made: no model call.
+      queryLog.record(
+          new QueryRecord(
+              user.id(),
+              QueryType.SUMMARIZE,
+              QueryOutcome.REUSED,
+              millisSince(requested),
+              null,
+              null,
+              null,
+              null,
+              null,
+              0,
+              null,
+              null,
+              null,
+              BigDecimal.ZERO));
       return read(document, model);
     }
     submit(started.get(), user, document, plan);
@@ -243,6 +268,7 @@ public class SummaryService {
     } catch (RuntimeException e) {
       log.error("Summary {} of document {} failed", summaryId, document.id(), e);
       store.failed(summaryId, "The summary could not be made. Try again.", 0, null);
+      logSummaryQuery(user, QueryOutcome.ERROR, Progress.none(), millisSince(started));
     }
   }
 
@@ -263,6 +289,9 @@ public class SummaryService {
       String failure) {
     Usage usage = progress.usage() == null ? new Usage(null, null, null) : progress.usage();
     BigDecimal cost = prices.cost(usage);
+    long millis = millisSince(startedNanos);
+    logSummaryQuery(
+        user, "READY".equals(outcome) ? QueryOutcome.OK : QueryOutcome.ERROR, progress, millis);
     Object[] fields = {
       user.id(),
       document.id(),
@@ -279,7 +308,7 @@ public class SummaryService {
       cost.toPlainString(),
       itemsKept,
       itemsDropped,
-      TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos)
+      millis
     };
     String line =
         "Summary user={} document={} summary={} outcome={} path={} groups={} textTokens={}"
@@ -290,6 +319,32 @@ public class SummaryService {
     } else {
       log.warn(line + " failure=\"" + failure.replace("{", "(").replace("}", ")") + "\"", fields);
     }
+  }
+
+  /** The run's {@code query_log} row: the model calls, their tokens and their cost. */
+  private void logSummaryQuery(
+      CurrentUser user, QueryOutcome outcome, Progress progress, long millis) {
+    Usage usage = progress.usage();
+    queryLog.record(
+        new QueryRecord(
+            user.id(),
+            QueryType.SUMMARIZE,
+            outcome,
+            millis,
+            null,
+            progress.modelCalls() == 0 ? null : millis,
+            null,
+            null,
+            progress.model(),
+            progress.modelCalls(),
+            usage == null ? null : usage.inputTokens(),
+            usage == null ? null : usage.cachedInputTokens(),
+            usage == null ? null : usage.outputTokens(),
+            usage == null ? BigDecimal.ZERO : prices.cost(usage)));
+  }
+
+  private static long millisSince(long nanos) {
+    return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - nanos);
   }
 
   private String requireModel() {

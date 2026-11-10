@@ -1,5 +1,6 @@
 import { Alert } from '../components/Alert'
 import { messageOf } from '../components/formErrors'
+import { rateLimitText, useRetryCountdown } from '../components/rateLimit'
 import { PageHeader } from '../components/PageHeader'
 import { AskForm } from '../conversations/AskForm'
 import { ChatLayout } from '../conversations/ChatLayout'
@@ -12,6 +13,7 @@ import { useStartConversation } from '../conversations/useStartConversation'
  */
 export function AssistantPage() {
   const start = useStartConversation()
+  const wait = useRetryCountdown(start.error)
   const pending = start.isPending ? start.variables : undefined
 
   return (
@@ -24,7 +26,10 @@ export function AssistantPage() {
         />
       }
       composer={
-        <AskForm onAsk={start.mutateAsync} isPending={start.isPending} />
+        <AskForm
+          onAsk={start.mutateAsync}
+          isPending={start.isPending || (wait ?? 0) > 0}
+        />
       }
     >
       {pending !== undefined && (
@@ -37,7 +42,9 @@ export function AssistantPage() {
       )}
       {start.isError && (
         <Alert>
-          {messageOf(start.error, 'The conversation could not be started.')}
+          {wait !== null
+            ? rateLimitText(start.error, wait)
+            : messageOf(start.error, 'The conversation could not be started.')}
         </Alert>
       )}
     </ChatLayout>

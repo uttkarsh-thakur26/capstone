@@ -1,6 +1,10 @@
 package in.edu.bennett.capstone.knowledge.assistant;
 
 import in.edu.bennett.capstone.knowledge.ai.ChatGenerator;
+import in.edu.bennett.capstone.knowledge.analytics.QueryLog;
+import in.edu.bennett.capstone.knowledge.analytics.QueryOutcome;
+import in.edu.bennett.capstone.knowledge.analytics.QueryRecord;
+import in.edu.bennett.capstone.knowledge.analytics.QueryType;
 import in.edu.bennett.capstone.knowledge.assistant.Answer.Usage;
 import in.edu.bennett.capstone.knowledge.assistant.Comparer.Alignment;
 import in.edu.bennett.capstone.knowledge.assistant.Comparer.Checked;
@@ -46,6 +50,7 @@ public class ComparisonService {
   private final ComparisonProperties properties;
   private final ModelPrices prices;
   private final AuditService audit;
+  private final QueryLog queryLog;
 
   ComparisonService(
       DocumentService documents,
@@ -54,7 +59,8 @@ public class ComparisonService {
       ChatGenerator generator,
       ComparisonProperties properties,
       ModelPrices prices,
-      AuditService audit) {
+      AuditService audit,
+      QueryLog queryLog) {
     this.documents = documents;
     this.chunks = chunks;
     this.comparer = comparer;
@@ -62,6 +68,7 @@ public class ComparisonService {
     this.properties = properties;
     this.prices = prices;
     this.audit = audit;
+    this.queryLog = queryLog;
   }
 
   /**
@@ -70,6 +77,7 @@ public class ComparisonService {
    *     when no chat model is configured or it fails
    */
   public ComparisonResponse compare(CurrentUser user, ComparisonRequest request) {
+    long requested = System.nanoTime();
     DocumentResponse left = documents.get(user, request.leftId());
     DocumentResponse right = documents.get(user, request.rightId());
     requireIndexed(left);
@@ -106,7 +114,14 @@ public class ComparisonService {
     try {
       result = comparer.compare(left.title(), right.title(), leftText, rightText, alignment);
     } catch (ComparisonFailedException e) {
-      logRun(user, left, right, "ERROR", alignment, 1, e.model(), e.usage(), 0, 0, started);
+      logRun(
+          user, left, right, "ERROR", alignment, 1, e.model(), e.usage(), 0, 0, started, requested);
+      // A failed comparison was still asked for, and may have cost a call (14.2).
+      audit.recordSeparately(
+          AuditEvent.of(
+                  AuditAction.COMPARISON_REQUESTED, AuditOutcome.FAILURE, user.id(), user.email())
+              .withResource(DocumentService.RESOURCE_DOCUMENT, left.id())
+              .withDetails(Map.of("rightDocumentId", right.id().toString())));
       throw new ApiException(
           HttpStatus.SERVICE_UNAVAILABLE,
           "MODEL_UNAVAILABLE",
@@ -123,7 +138,8 @@ public class ComparisonService {
         result.usage(),
         result.differences().size(),
         result.dropped(),
-        started);
+        started,
+        requested);
     audit.record(
         AuditEvent.of(
                 AuditAction.COMPARISON_REQUESTED, AuditOutcome.SUCCESS, user.id(), user.email())
@@ -180,9 +196,27 @@ public class ComparisonService {
       Usage usage,
       int kept,
       int dropped,
-      long startedNanos) {
+      long startedNanos,
+      long requestedNanos) {
     Usage counted = usage == null ? new Usage(null, null, null) : usage;
     BigDecimal cost = prices.cost(counted);
+    long millis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos);
+    queryLog.record(
+        new QueryRecord(
+            user.id(),
+            QueryType.COMPARE,
+            "COMPARED".equals(outcome) ? QueryOutcome.OK : QueryOutcome.ERROR,
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - requestedNanos),
+            null,
+            modelCalls == 0 ? null : millis,
+            null,
+            null,
+            model,
+            modelCalls,
+            counted.inputTokens(),
+            counted.cachedInputTokens(),
+            counted.outputTokens(),
+            cost));
     log.info(
         "Comparison user={} left={} right={} outcome={} candidates={} identical={} modelCalls={}"
             + " model={} inputTokens={} cachedInputTokens={} outputTokens={} costUsd={}"
@@ -201,7 +235,7 @@ public class ComparisonService {
         cost.toPlainString(),
         kept,
         dropped,
-        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos));
+        millis);
   }
 
   /** CMP-1: both indexed; archived ones are allowed (ACL-4). */

@@ -1,16 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useDeferredValue, useState } from 'react'
-import {
-  Button as AriaButton,
-  Input,
-  Label,
-  ListBox,
-  ListBoxItem,
-  Popover,
-  SearchField,
-  Select,
-  SelectValue,
-} from 'react-aria-components'
+import { Input, Label, SearchField } from 'react-aria-components'
 import { Link, useLocation } from 'react-router'
 import { api } from '../api/client'
 import type { DocumentPage, DocumentStatus } from '../api/types'
@@ -18,6 +8,7 @@ import { DOCUMENT_STATUSES } from '../api/types'
 import { useAuth } from '../auth/useAuth'
 import { Alert } from '../components/Alert'
 import { ButtonLink } from '../components/Button'
+import { FilterSelect } from '../components/FilterSelect'
 import { PageHeader } from '../components/PageHeader'
 import { Pager } from '../components/Pager'
 import { EmptyState, ErrorState, LoadingState } from '../components/states'
@@ -36,9 +27,6 @@ import {
   FIELD,
   LABEL,
   LINK,
-  LIST_ITEM,
-  POPOVER,
-  SELECT_TRIGGER,
   TABLE_HEAD,
   TABLE_ROW,
 } from '../components/ui'
@@ -274,42 +262,5 @@ export function DocumentsPage() {
         </>
       )}
     </section>
-  )
-}
-
-function FilterSelect<T extends string>({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string
-  value: T
-  onChange: (value: T) => void
-  options: { id: T; label: string }[]
-}) {
-  return (
-    <Select
-      value={value}
-      onChange={(key) => {
-        if (key !== null) onChange(key as T)
-      }}
-      className="flex flex-col gap-1"
-    >
-      <Label className={LABEL}>{label}</Label>
-      <AriaButton className={SELECT_TRIGGER}>
-        <SelectValue />
-        <span aria-hidden="true">▾</span>
-      </AriaButton>
-      <Popover className={POPOVER}>
-        <ListBox className="p-1 outline-none">
-          {options.map((option) => (
-            <ListBoxItem key={option.id} id={option.id} className={LIST_ITEM}>
-              {option.label}
-            </ListBoxItem>
-          ))}
-        </ListBox>
-      </Popover>
-    </Select>
   )
 }

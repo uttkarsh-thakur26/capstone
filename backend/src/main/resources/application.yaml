@@ -91,6 +91,21 @@ app:
     jwt-secret: ${APP_SECURITY_JWT_SECRET:}
     # Required, comma-separated: the origins that serve the interface (AUTH-9). Never a wildcard.
     allowed-origins: ${APP_SECURITY_ALLOWED_ORIGINS:}
+    # SEC-8, AUTH-5, ADR-041: each a bucket of so many requests that refills over its period, in
+    # memory (one instance). Raise them on a demonstration day through these variables.
+    rate-limits:
+      # Asking, summarizing and comparing together, per user; and at most so many in a UTC day.
+      ai-requests: ${APP_RATE_LIMIT_AI_REQUESTS:10}
+      ai-period: ${APP_RATE_LIMIT_AI_PERIOD:1m}
+      ai-daily: ${APP_RATE_LIMIT_AI_DAILY:200}
+      # Failed sign-ins only; a successful one does not count.
+      login-email-failures: ${APP_RATE_LIMIT_LOGIN_EMAIL_FAILURES:5}
+      login-email-period: ${APP_RATE_LIMIT_LOGIN_EMAIL_PERIOD:15m}
+      login-address-failures: ${APP_RATE_LIMIT_LOGIN_ADDRESS_FAILURES:20}
+      login-address-period: ${APP_RATE_LIMIT_LOGIN_ADDRESS_PERIOD:15m}
+      # Per client address; a class behind one campus address shares it.
+      registration-requests: ${APP_RATE_LIMIT_REGISTRATION_REQUESTS:50}
+      registration-period: ${APP_RATE_LIMIT_REGISTRATION_PERIOD:1h}
   registration:
     # Comma-separated. Empty means anyone may register, always as a STUDENT (AUTH-1).
     allowed-email-domains: ${APP_REGISTRATION_ALLOWED_EMAIL_DOMAINS:}
@@ -107,6 +122,9 @@ app:
     # while indexed documents come from another model (S11).
     model: ${APP_EMBEDDING_MODEL:qwen3-embedding:0.6b}
     dimensions: ${APP_EMBEDDING_DIMENSIONS:1024}
+    # S11, ADR-041: when indexed documents come from another model, send them back for
+    # processing at startup instead of refusing to start. Set it for one start after a change.
+    reindex-on-model-change: ${APP_EMBEDDING_REINDEX_ON_MODEL_CHANGE:false}
   ingestion:
     # 5 minutes without a heartbeat means the worker died (ING-2, ADR-034).
     stuck-timeout: ${APP_INGESTION_STUCK_TIMEOUT:5m}

@@ -212,6 +212,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/users/{id}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reindex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reindex"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{id}": {
         parameters: {
             query?: never;
@@ -348,6 +380,54 @@ export interface paths {
             cookie?: never;
         };
         get: operations["list_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_4"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["analytics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -617,8 +697,18 @@ export interface components {
             user: components["schemas"]["UserResponse"];
         };
         LoginRequest: {
+            /** Format: email */
             email: string;
             password: string;
+        };
+        ResetPasswordRequest: {
+            newPassword: string;
+        };
+        ReindexResponse: {
+            /** Format: int32 */
+            queued: number;
+            /** Format: int32 */
+            skipped: number;
         };
         UpdateDocumentRequest: {
             /** @description Required to change the metadata; replaces all four fields. The rules of the upload's title apply. */
@@ -745,6 +835,207 @@ export interface components {
             /** Format: int32 */
             totalPages: number;
         };
+        AdminDocumentResponse: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            owner: components["schemas"]["OwnerResponse"];
+            /** @enum {string} */
+            status: "UPLOADED" | "PROCESSING" | "INDEXED" | "FAILED";
+            /** @enum {string} */
+            failureCode?: "UNSUPPORTED_TYPE" | "EMPTY" | "ENCRYPTED" | "NO_TEXT_LAYER" | "TOO_MANY_PAGES" | "TOO_MANY_CHUNKS" | "EXTRACTION_ERROR" | "EMBEDDING_ERROR" | "PROCESSING_TIMEOUT" | "INTERNAL";
+            failureMessage?: string;
+            archived: boolean;
+            /** Format: int32 */
+            pageCount?: number;
+            /** Format: int32 */
+            chunkCount?: number;
+            /** Format: int32 */
+            processingAttempts: number;
+            embeddingModel?: string;
+            /** Format: int64 */
+            sizeBytes: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            indexedAt?: string;
+        };
+        PageResponseAdminDocumentResponse: {
+            items: components["schemas"]["AdminDocumentResponse"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        AuditEntryResponse: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: uuid */
+            actorUserId?: string;
+            actorEmail?: string;
+            /** @enum {string} */
+            action: "LOGIN_SUCCESS" | "LOGIN_FAILURE" | "LOGOUT" | "USER_REGISTERED" | "ROLE_CHANGED" | "USER_ENABLED" | "USER_DISABLED" | "PASSWORD_CHANGED" | "PASSWORD_RESET" | "DOCUMENT_UPLOADED" | "DOCUMENT_DOWNLOADED" | "DOCUMENT_UPDATED" | "DOCUMENT_DELETED" | "DOCUMENT_REPROCESSED" | "DOCUMENT_ARCHIVED" | "GRANTS_CHANGED" | "ACCESS_DENIED" | "AI_QUERY" | "SUMMARY_REQUESTED" | "COMPARISON_REQUESTED" | "REINDEX_STARTED";
+            resourceType?: string;
+            resourceId?: string;
+            /** @enum {string} */
+            outcome: "SUCCESS" | "DENIED" | "FAILURE";
+            ipAddress?: string;
+            details: {
+                [key: string]: unknown;
+            };
+        };
+        PageResponseAuditEntryResponse: {
+            items: components["schemas"]["AuditEntryResponse"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        AnalyticsResponse: {
+            period: components["schemas"]["Period"];
+            totals: components["schemas"]["Totals"];
+            questionsPerDay: components["schemas"]["QuestionDay"][];
+            queriesPerDay: components["schemas"]["QueryDay"][];
+            costPerDay: components["schemas"]["CostDay"][];
+            uploadsPerDay: components["schemas"]["CountDay"][];
+            latency: components["schemas"]["Latency"][];
+            documentsByStatus: components["schemas"]["Count"][];
+            failuresByCode: components["schemas"]["Count"][];
+            usersByRole: components["schemas"]["Count"][];
+            mostCitedDocuments: components["schemas"]["CitedDocument"][];
+            system: components["schemas"]["SystemInfo"];
+        };
+        CitedDocument: {
+            /** Format: uuid */
+            documentId: string;
+            title: string;
+            /** Format: int64 */
+            citations: number;
+        };
+        CostDay: {
+            /** Format: date */
+            date: string;
+            /** Format: int64 */
+            modelCalls: number;
+            /** Format: int64 */
+            inputTokens: number;
+            /** Format: int64 */
+            cachedInputTokens: number;
+            /** Format: int64 */
+            outputTokens: number;
+            costUsd: number;
+        };
+        Count: {
+            name: string;
+            /** Format: int64 */
+            count: number;
+        };
+        CountDay: {
+            /** Format: date */
+            date: string;
+            /** Format: int64 */
+            count: number;
+        };
+        Latency: {
+            /** @enum {string} */
+            type: "SEARCH_KEYWORD" | "SEARCH_SEMANTIC" | "SEARCH_HYBRID" | "ASK" | "SUMMARIZE" | "COMPARE";
+            /** Format: int64 */
+            count: number;
+            /** Format: double */
+            totalP50?: number;
+            /** Format: double */
+            totalP95?: number;
+            /** Format: double */
+            retrievalP50?: number;
+            /** Format: double */
+            retrievalP95?: number;
+            /** Format: double */
+            generationP50?: number;
+            /** Format: double */
+            generationP95?: number;
+        };
+        Period: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            zone: string;
+            /** Format: date-time */
+            firstRecordedAt?: string;
+        };
+        QueryDay: {
+            /** Format: date */
+            date: string;
+            /** Format: int64 */
+            keywordSearches: number;
+            /** Format: int64 */
+            semanticSearches: number;
+            /** Format: int64 */
+            hybridSearches: number;
+            /** Format: int64 */
+            questions: number;
+            /** Format: int64 */
+            summaries: number;
+            /** Format: int64 */
+            comparisons: number;
+        };
+        QuestionDay: {
+            /** Format: date */
+            date: string;
+            /** Format: int64 */
+            answered: number;
+            /** Format: int64 */
+            noAnswer: number;
+            /** Format: int64 */
+            failed: number;
+        };
+        SystemInfo: {
+            chatModel?: string;
+            embeddingModel: string;
+            /** Format: int32 */
+            embeddingDimensions: number;
+            /** Format: int64 */
+            documents: number;
+            /** Format: int64 */
+            chunks: number;
+        };
+        Totals: {
+            /** Format: int64 */
+            questions: number;
+            /** Format: int64 */
+            answered: number;
+            /** Format: int64 */
+            noAnswer: number;
+            /** Format: int64 */
+            failedQuestions: number;
+            /** Format: double */
+            insufficientEvidenceRate?: number;
+            /** Format: int64 */
+            searches: number;
+            /** Format: int64 */
+            summaries: number;
+            /** Format: int64 */
+            comparisons: number;
+            /** Format: int64 */
+            modelCalls: number;
+            /** Format: int64 */
+            inputTokens: number;
+            /** Format: int64 */
+            cachedInputTokens: number;
+            /** Format: int64 */
+            outputTokens: number;
+            costUsd: number;
+        };
         /** @description One invalid field of the request */
         FieldErrorResponse: {
             field: string;
@@ -762,6 +1053,11 @@ export interface components {
             /** @example VALIDATION_FAILED */
             code: string;
             errors?: components["schemas"]["FieldErrorResponse"][];
+            /**
+             * Format: int64
+             * @description With 429 RATE_LIMITED: whole seconds until the request is accepted again, as in the Retry-After header (SEC-8).
+             */
+            retryAfterSeconds?: number;
         };
     };
     responses: never;
@@ -1325,6 +1621,68 @@ export interface operations {
             };
         };
     };
+    reset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    reindex: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReindexResponse"];
+                };
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
     get_1: {
         parameters: {
             query?: never;
@@ -1724,6 +2082,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PageResponseAdminUserResponse"];
+                };
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    list_3: {
+        parameters: {
+            query?: {
+                query?: string;
+                status?: "UPLOADED" | "PROCESSING" | "INDEXED" | "FAILED";
+                page?: number;
+                size?: number;
+                sort?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageResponseAdminDocumentResponse"];
+                };
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    list_4: {
+        parameters: {
+            query?: {
+                actor?: string;
+                action?: "LOGIN_SUCCESS" | "LOGIN_FAILURE" | "LOGOUT" | "USER_REGISTERED" | "ROLE_CHANGED" | "USER_ENABLED" | "USER_DISABLED" | "PASSWORD_CHANGED" | "PASSWORD_RESET" | "DOCUMENT_UPLOADED" | "DOCUMENT_DOWNLOADED" | "DOCUMENT_UPDATED" | "DOCUMENT_DELETED" | "DOCUMENT_REPROCESSED" | "DOCUMENT_ARCHIVED" | "GRANTS_CHANGED" | "ACCESS_DENIED" | "AI_QUERY" | "SUMMARY_REQUESTED" | "COMPARISON_REQUESTED" | "REINDEX_STARTED";
+                outcome?: "SUCCESS" | "DENIED" | "FAILURE";
+                from?: string;
+                to?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageResponseAuditEntryResponse"];
+                };
+            };
+            /** @description Problem Details */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+        };
+    };
+    analytics: {
+        parameters: {
+            query?: {
+                days?: number;
+                zone?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsResponse"];
                 };
             };
             /** @description Problem Details */

@@ -23,7 +23,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
  * ADR-020). The same application signs and verifies, so a shared secret is enough.
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(SecurityProperties.class)
+@EnableConfigurationProperties({SecurityProperties.class, RateLimitProperties.class})
 class JwtConfig {
 
   static final String ISSUER = "knowledge-platform";

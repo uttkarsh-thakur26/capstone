@@ -204,6 +204,26 @@ public class DocumentProcessing {
     return recovered.size();
   }
 
+  /**
+   * S11, ADR-041: sends every {@code INDEXED} document whose vectors come from another model back
+   * to {@code UPLOADED}, with the same columns reset as reprocess resets (DOC-10), so the worker
+   * embeds it again with {@code model}. Until then it is not retrievable (ACL-4).
+   *
+   * @return how many documents were sent back
+   */
+  public int requeueOtherModels(String model) {
+    return jdbc.sql(
+            """
+            UPDATE document SET status = 'UPLOADED', failure_code = NULL, failure_message = NULL,
+                processing_attempts = 0, processing_started_at = NULL, processing_run_id = NULL,
+                processing_heartbeat_at = NULL, indexed_at = NULL, updated_at = :now
+            WHERE status = 'INDEXED' AND embedding_model IS DISTINCT FROM :model
+            """)
+        .param("now", now())
+        .param("model", model)
+        .update();
+  }
+
   /** The models whose vectors the {@code INDEXED} documents hold (S11, ADR-034). */
   public List<String> indexedEmbeddingModels() {
     return jdbc.sql(

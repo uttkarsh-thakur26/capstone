@@ -27,7 +27,7 @@ public record ModelPrices(
   private static final BigDecimal MILLION = BigDecimal.valueOf(1_000_000);
 
   /** The cost of these tokens, rounded to a millionth of a dollar; unknown counts count as 0. */
-  BigDecimal cost(Usage usage) {
+  public BigDecimal cost(Usage usage) {
     long in = usage.inputTokens() == null ? 0 : usage.inputTokens();
     long cached = usage.cachedInputTokens() == null ? 0 : Math.min(usage.cachedInputTokens(), in);
     long out = usage.outputTokens() == null ? 0 : usage.outputTokens();
@@ -40,7 +40,7 @@ public record ModelPrices(
   }
 
   /** Two calls' tokens together; an unknown count stays unknown only if both are. */
-  static Usage add(Usage a, Usage b) {
+  public static Usage add(Usage a, Usage b) {
     if (a == null) {
       return b;
     }

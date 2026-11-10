@@ -59,7 +59,8 @@ class ProblemDetailsTest {
           "static resource");
 
   private static final Set<String> DOCUMENTED_FIELDS =
-      Set.of("type", "title", "status", "detail", "instance", "code", "errors");
+      Set.of(
+          "type", "title", "status", "detail", "instance", "code", "errors", "retryAfterSeconds");
 
   @Autowired MockMvcTester mvc;
 

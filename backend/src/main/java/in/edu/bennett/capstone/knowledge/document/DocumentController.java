@@ -75,7 +75,7 @@ class DocumentController {
       @RequestParam(required = false) Boolean archived,
       @RequestParam(defaultValue = "0") @Min(0) @Max(PageResponse.MAX_PAGE) int page,
       @RequestParam(defaultValue = "20") @Min(1) @Max(PageResponse.MAX_SIZE) int size,
-      @RequestParam(required = false) String sort) {
+      @RequestParam(required = false) @Size(max = 64) String sort) {
     return documents.list(
         user, new DocumentQuery(query, status, category, mine, archived), page, size, sort);
   }

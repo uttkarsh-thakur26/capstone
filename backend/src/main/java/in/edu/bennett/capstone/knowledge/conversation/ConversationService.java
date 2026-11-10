@@ -1,5 +1,9 @@
 package in.edu.bennett.capstone.knowledge.conversation;
 
+import in.edu.bennett.capstone.knowledge.analytics.QueryLog;
+import in.edu.bennett.capstone.knowledge.analytics.QueryOutcome;
+import in.edu.bennett.capstone.knowledge.analytics.QueryRecord;
+import in.edu.bennett.capstone.knowledge.analytics.QueryType;
 import in.edu.bennett.capstone.knowledge.assistant.Answer;
 import in.edu.bennett.capstone.knowledge.assistant.Answer.Citation;
 import in.edu.bennett.capstone.knowledge.assistant.Answer.Trace;
@@ -9,6 +13,7 @@ import in.edu.bennett.capstone.knowledge.assistant.AnswerFailedException;
 import in.edu.bennett.capstone.knowledge.assistant.AnswerOutcome;
 import in.edu.bennett.capstone.knowledge.assistant.AnswerService;
 import in.edu.bennett.capstone.knowledge.assistant.AssistantProperties;
+import in.edu.bennett.capstone.knowledge.assistant.ModelPrices;
 import in.edu.bennett.capstone.knowledge.audit.AuditAction;
 import in.edu.bennett.capstone.knowledge.audit.AuditEvent;
 import in.edu.bennett.capstone.knowledge.audit.AuditOutcome;
@@ -26,6 +31,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +69,8 @@ public class ConversationService {
   private final AssistantProperties assistantProperties;
   private final DocumentService documents;
   private final AuditService audit;
+  private final QueryLog queryLog;
+  private final ModelPrices prices;
   private final TransactionTemplate transactions;
   private final TransactionTemplate reads;
   private final Clock clock;
@@ -75,6 +83,8 @@ public class ConversationService {
       AssistantProperties assistantProperties,
       DocumentService documents,
       AuditService audit,
+      QueryLog queryLog,
+      ModelPrices prices,
       PlatformTransactionManager transactionManager,
       Clock clock) {
     this.conversations = conversations;
@@ -84,6 +94,8 @@ public class ConversationService {
     this.assistantProperties = assistantProperties;
     this.documents = documents;
     this.audit = audit;
+    this.queryLog = queryLog;
+    this.prices = prices;
     this.transactions = new TransactionTemplate(transactionManager);
     this.reads = new TransactionTemplate(transactionManager);
     this.reads.setReadOnly(true);
@@ -174,6 +186,7 @@ public class ConversationService {
    * is logged even when it cannot be stored, for example because the conversation was deleted.
    */
   public AnswerResponse ask(CurrentUser user, UUID conversationId, AskRequest request) {
+    long started = System.nanoTime();
     String question = request.question().strip();
     List<Turn> history = reads.execute(status -> history(user, owned(user, conversationId)));
     Answer answer;
@@ -190,6 +203,7 @@ public class ConversationService {
                 new Answer(AnswerOutcome.ERROR, ERROR_TEXT, List.of(), e.trace()));
       } finally {
         logAnswer(user, conversationId, messageId, AnswerOutcome.ERROR, e.trace(), e.getMessage());
+        logQuery(user, AnswerOutcome.ERROR, e.trace(), started);
       }
       throw new ApiException(
           HttpStatus.SERVICE_UNAVAILABLE,
@@ -198,6 +212,7 @@ public class ConversationService {
     }
     UUID messageId = store(user, conversationId, question, answer);
     logAnswer(user, conversationId, messageId, answer.outcome(), answer.trace(), null);
+    logQuery(user, answer.outcome(), answer.trace(), started);
     return new AnswerResponse(
         messageId,
         answer.outcome(),
@@ -346,6 +361,36 @@ public class ConversationService {
                           "citations", answer.citations().size())));
           return stored.getId();
         });
+  }
+
+  /**
+   * The question's {@code query_log} row: its outcome, times and the tokens of both calls (the
+   * follow-up rewrite and the answer) with their cost. No question or answer text (D14).
+   */
+  private void logQuery(CurrentUser user, AnswerOutcome outcome, Trace trace, long startedNanos) {
+    Usage usage = ModelPrices.add(trace.rewrite(), trace.answer());
+    int answering = trace.sourcesSent() > 0 ? 1 : 0;
+    int calls = (trace.rewrite() == null ? 0 : 1) + answering;
+    queryLog.record(
+        new QueryRecord(
+            user.id(),
+            QueryType.ASK,
+            switch (outcome) {
+              case ANSWERED -> QueryOutcome.ANSWERED;
+              case INSUFFICIENT_EVIDENCE -> QueryOutcome.INSUFFICIENT_EVIDENCE;
+              case ERROR -> QueryOutcome.ERROR;
+            },
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos),
+            trace.retrievalMillis(),
+            answering == 0 ? null : trace.generationMillis(),
+            trace.retrieved(),
+            trace.topSimilarity(),
+            trace.model(),
+            calls,
+            usage == null ? null : usage.inputTokens(),
+            usage == null ? null : usage.cachedInputTokens(),
+            usage == null ? null : usage.outputTokens(),
+            usage == null ? null : prices.cost(usage)));
   }
 
   /**

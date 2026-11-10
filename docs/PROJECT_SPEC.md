@@ -418,7 +418,7 @@ Columns listed are in addition to `id`, `created_at` and `updated_at`, unless th
 
 **audit_log** (written from Phase 1, read API in T2): `id` is a `bigint` identity, and the table has no `created_at` or `updated_at`, because `occurred_at` is the time and rows never change. Columns: `occurred_at`, `actor_user_id` (set null), `actor_email` (snapshot), `action`, `resource_type`, `resource_id`, `outcome` (SUCCESS, DENIED, FAILURE), `ip_address`, `details` (jsonb). Append-only: no update or delete path exists in code, and a trigger rejects `UPDATE` and `DELETE` (ADR-024).
 
-**query_log** `[T2]`: `user_id`, `type` (SEARCH_KEYWORD, SEARCH_SEMANTIC, SEARCH_HYBRID, ASK, SUMMARIZE, COMPARE), `outcome`, `total_ms`, `retrieval_ms`, `generation_ms`, `retrieved_count`, `top_score`, `model`, `input_tokens`, `output_tokens`, `query_text` (stored only when D14 allows).
+**query_log** `[T2]` (`bigint` identity id and `created_at` only: rows never change; written through `JdbcClient`, ADR-041): `user_id` (set null), `type` (SEARCH_KEYWORD, SEARCH_SEMANTIC, SEARCH_HYBRID, ASK, SUMMARIZE, COMPARE), `outcome` (OK, ANSWERED, INSUFFICIENT_EVIDENCE, REUSED, ERROR), `total_ms`, `retrieval_ms`, `generation_ms`, `retrieved_count`, `top_similarity` (the evidence gate's scale, S22), `model`, `model_calls`, `input_tokens`, `cached_input_tokens`, `output_tokens`, `cost_usd` (the row's tokens at the prices configured when it was written). No question or query text: D14 is off, and storing it would need a migration and a decision record (ADR-041).
 
 ### 7.3 Integrity rules
 
@@ -639,7 +639,7 @@ Recorded actions: `LOGIN_SUCCESS`, `LOGIN_FAILURE`, `LOGOUT`, `USER_REGISTERED`,
 
 All figures come from real tables. No placeholder numbers. Empty states when there is no data.
 
-Users by role. Documents by status. Uploads over time. Ingestion failures by code. Queries per day by type. Insufficient-evidence rate. Latency p50 and p95 by stage. Token usage. Most cited documents. "Most searched topics" only when D14 allows storing question text.
+Users by role. Documents by status. Uploads over time. Ingestion failures by code. Queries per day by type. Insufficient-evidence rate. Latency p50 and p95 by stage. Token usage and AI cost per day. Most cited documents. "Most searched topics" only when D14 allows storing question text; D14 is off, so it is not built (ADR-041). Days are the reader's calendar days.
 
 ---
 
@@ -785,18 +785,17 @@ Cross-cutting checklist. Each item is tested or reviewed in Phase 10 at the late
 | Group | Settings (defaults) |
 |---|---|
 | `app` | Display name (`app.display-name`, required, no default in code; D1, ADR-007) |
-| `app.security` | Token signing key (required), access token lifetime (15 min), refresh lifetime (7 days), allowed origins (required), `Secure` refresh cookie (on; only `dev` may turn it off), rate limits `[T2]` |
+| `app.security` | Token signing key (required), access token lifetime (15 min), refresh lifetime (7 days), allowed origins (required), `Secure` refresh cookie (on; only `dev` may turn it off), rate limits `[T2]` under `app.security.rate-limits`: AI requests (ask, summarize, compare) per user (10 per minute, 200 per UTC day), failed sign-ins per email from one address (5 per 15 minutes) and per address (20 per 15 minutes), registrations per address (50 per hour), each an environment variable (ADR-041) |
 | `app.registration` | Allowed email domains (none) |
 | `app.bootstrap-admin` | Email, password and display name of the first admin (AUTH-3). Email and password are required while no admin exists |
 | `app.upload` | Maximum file size (25 MB). Not a setting: the allowed types, because PDF is the only one the code can check (D9, ADR-029) |
 | `app.ingestion` | Worker on (yes), chunk size (400 tokens), overlap (60), embedding batch size (16), parallel documents (2), poll interval (10 s), heartbeat interval (30 s), recovery interval (1 min), stuck timeout (5 min, ADR-034), maximum attempts (3), maximum pages (500), maximum chunks (5,000), minimum characters per page (20), shutdown wait (20 s) |
-| `app.embedding` | Model name, dimension (both required, D6, ADR-033), maximum input tokens (2,048, sent as `num_ctx`), tokenizer margin (1.5), query prefix, retries (3, from 1 s doubling to 10 s) |
+| `app.embedding` | Model name, dimension (both required, D6, ADR-033), maximum input tokens (2,048, sent as `num_ctx`), tokenizer margin (1.5), query prefix, retries (3, from 1 s doubling to 10 s), re-index on a model change (off; ADR-041) |
 | `app.retrieval` | `k` (6), similarity floor (0.30, provisional until Phase 7; ADR-037), assistant mode (`HYBRID`; `SEMANTIC` for the evaluation), hybrid candidates (50) (ADR-040) |
 | `app.summary` | Maximum pages (40), single-pass tokens (4,000), map group tokens (3,000), maximum model calls (8), parallel summaries (2), queue (20) (ADR-040) |
 | `app.comparison` | Maximum pages per document (30), maximum tokens of both (16,000), alignment floor (0.2), maximum differences (15), maximum quote length (240 characters) (ADR-040) |
 | `app.assistant` | Context token budget (4,000), history turns (3), history token budget (1,500), abstention message, snippet length (300), prices per million tokens for the cost lines of summaries and comparisons (`app.assistant.price`: 0.10 input, 0.01 cached input, 0.50 output, `gpt-6-luna`). Temperature (0.1), maximum output tokens, timeout (60 s), retries and reasoning effort differ by provider, so they are the chat provider's own properties under `spring.ai.*` (ADR-037) |
 | `app.storage` | Root path |
-| `app.analytics` | Store question text (off) |
 
 `.env.example` lists, with placeholder values, the environment variables that the phases built so far actually read. Each phase adds its own (ADR-013). The complete set: database URL, user and password. Token signing key. Bootstrap admin email and password. Model provider keys and base URLs. Chat model, embedding model and embedding dimension. Storage path. Allowed origins. Display name (`APP_DISPLAY_NAME`). The SPA calls the API on its own origin under `/api`, so no `VITE_*` variable is needed (ADR-007).
 
@@ -1327,7 +1326,7 @@ Limitations to state plainly in the report: PDF text layer only, no OCR. Tables 
 | D11 | Vector index | Exact search first | Phase 4 | Accepted: the default (ADR-035) |
 | D12 | Chunk storage design | Application-owned table (ADR-001) | Phase 3 | Accepted: the default (ADR-001, ADR-034) |
 | D13 | Corpus and answer language | English | Phase 5 | Accepted: the default, taken in Phase 4 for keyword search (ADR-035) |
-| D14 | Store question text for analytics | Off | Phase 9 | Default |
+| D14 | Store question text for analytics | Off | Phase 9 | Accepted: off, with no column for it (ADR-041) |
 | D15 | Admin reach | Admins read all documents, but not other users' conversations | Phase 2 | Accepted (ADR-029) |
 | D16 | Student uploads | Not allowed | Phase 2 | Accepted (ADR-029) |
 | D17 | Hosting target for the final demo | A team machine running Docker Compose, because the final evaluation is preferably held in person. A hosted copy is optional | Phase 11 | Default |

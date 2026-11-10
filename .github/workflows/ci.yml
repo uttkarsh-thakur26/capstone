@@ -63,6 +63,12 @@ jobs:
       - run: npm run build
       - run: npm run format:check
 
+      # SEC-14, report only until the final demonstration (ADR-041): known vulnerabilities in the
+      # packages that ship in the bundle are listed here without failing the build.
+      - name: Dependency audit (report only)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
   # The Playwright test of 16.4 (S20, ADR-038): the SPA in Chromium against the test application,
   # which runs PostgreSQL in Testcontainers and the fake models, so no real model is called.
   e2e:
@@ -118,6 +124,17 @@ jobs:
 
       - run: docker compose up --build -d --wait
       - run: curl -fsS http://localhost:3000/api/v1/meta
+
+      # SEC-6: the page and the API each send their policy through nginx.
+      - name: Security headers
+        run: |
+          curl -fsS -D page.txt -o /dev/null http://localhost:3000/
+          grep -i "^content-security-policy: default-src 'self'" page.txt
+          grep -i "frame-ancestors 'none'" page.txt
+          grep -i "^x-content-type-options: nosniff" page.txt
+          curl -fsS -D api.txt -o /dev/null http://localhost:3000/api/v1/meta
+          grep -i "^content-security-policy: default-src 'none'; frame-ancestors 'none'" api.txt
+          grep -i "^x-content-type-options: nosniff" api.txt
 
       # The bootstrap admin signs in through nginx, reads the current user, and refreshes the
       # session with the cookie from the sign-in (AUTH-3, AUTH-6, AUTH-9). Then a PDF goes up and

@@ -223,6 +223,62 @@ public class DocumentService {
   }
 
   /**
+   * 14.1: every document with its status and failure reason, for admins only (URL rule and method
+   * security). Admins read every document (ACL-1, D15), but the readable predicate still goes into
+   * the query, so the rule has one definition (ACL-E3).
+   */
+  @PreAuthorize("hasRole('ADMIN')")
+  @Transactional(readOnly = true)
+  public PageResponse<AdminDocumentResponse> listForAdmin(
+      CurrentUser admin, DocumentQuery query, int page, int size, String sort) {
+    Page<Document> found =
+        documents.findAll(
+            policy.readableBy(admin).and(query.toSpecification(admin.id())),
+            PageResponse.request(
+                page,
+                size,
+                sort,
+                SORTABLE,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id"))));
+    Map<UUID, UserSummary> owners = users.findSummaries(found.map(Document::getOwnerId).toSet());
+    return PageResponse.of(
+        found.map(document -> AdminDocumentResponse.of(document, ownerName(owners, document))));
+  }
+
+  /**
+   * 14.1 {@code [T2]}: sends every indexed or failed document, archived ones included, back for
+   * processing with the configured embedding model, through the same transition as reprocess
+   * (DOC-10: a fresh attempt counter). Documents already waiting or being processed are left as
+   * they are. One {@code REINDEX_STARTED} entry records how many; until its run finishes, each
+   * document is out of search and questions, because only {@code INDEXED} ones are retrievable
+   * (ACL-4).
+   */
+  @PreAuthorize("hasRole('ADMIN')")
+  @Transactional
+  public ReindexResponse reindexAll(CurrentUser admin) {
+    List<Document> all = documents.findAll(policy.readableBy(admin), Sort.by("createdAt", "id"));
+    int queued = 0;
+    int skipped = 0;
+    for (Document document : all) {
+      if (document.getStatus().canBeReprocessed()) {
+        document.reprocess();
+        queued++;
+      } else {
+        skipped++;
+      }
+    }
+    audit.record(
+        AuditEvent.of(AuditAction.REINDEX_STARTED, AuditOutcome.SUCCESS, admin.id(), admin.email())
+            .withDetails(Map.of("queued", queued, "skipped", skipped)));
+    documents.flush();
+    if (queued > 0) {
+      events.publishEvent(new DocumentQueued(null));
+    }
+    log.info("Admin {} sent {} documents back for processing", admin.id(), queued);
+    return new ReindexResponse(queued, skipped);
+  }
+
+  /**
    * RET-8: every id names a document the user can read, or the answer is 404, exactly as for a
    * document that does not exist (ACL-8). One counting query with the readable predicate in its
    * SQL; whether the documents are indexed or archived does not matter here.

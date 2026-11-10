@@ -24,6 +24,7 @@ import type {
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { messageOf } from '../components/formErrors'
+import { rateLimitText, useRetryCountdown } from '../components/rateLimit'
 import { PageHeader } from '../components/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '../components/states'
 import { FIELD, HINT, LINK, LIST_ITEM, POPOVER } from '../components/ui'
@@ -68,6 +69,7 @@ export function ComparePage() {
         body: pair,
       }),
   })
+  const wait = useRetryCountdown(comparison.error)
 
   const pick = (side: 'left' | 'right', id: string | null) => {
     const next = new URLSearchParams(params)
@@ -145,7 +147,7 @@ export function ComparePage() {
           <div className="flex flex-wrap gap-3">
             <Button
               onPress={compare}
-              isDisabled={!ready || comparison.isPending}
+              isDisabled={!ready || comparison.isPending || (wait ?? 0) > 0}
             >
               Compare
             </Button>
@@ -171,9 +173,13 @@ export function ComparePage() {
       )}
       {comparison.isError && (
         <ErrorState
-          onRetry={retryable(comparison.error) && ready ? compare : undefined}
+          onRetry={
+            retryable(comparison.error) && ready && !wait ? compare : undefined
+          }
         >
-          {comparisonError(comparison.error)}
+          {wait !== null
+            ? rateLimitText(comparison.error, wait)
+            : comparisonError(comparison.error)}
         </ErrorState>
       )}
       {comparison.data && (

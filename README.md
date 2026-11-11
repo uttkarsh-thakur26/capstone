@@ -1,127 +1,143 @@
 # Pramaan
 
-Answers with proof from your documents. The running application shows the name set in `APP_DISPLAY_NAME` (ADR-007, ADR-039).
+**Answers with proof from your documents.**
 
-Users upload PDFs, the system indexes them, and people search and ask questions in natural language. Answers are built only from documents the asking user is allowed to read, they cite the pages they come from, and the system says so when the documents do not contain the answer. Final-year capstone project (CSET400C).
+Pramaan (प्रमाण, "proof") is a document platform for a university. Staff upload PDFs, and students and faculty ask questions in plain language. Every answer cites the exact page it came from, and it only uses documents the person asking is allowed to read. When the documents don't contain the answer, Pramaan says so instead of guessing.
 
-**Status:** Phases 0 to 3 are built: accounts and roles, document upload and sharing, and ingestion, which reads each PDF page by page, splits it into chunks and indexes them with an embedding model. Search and questions come in later phases. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
+![Java](https://img.shields.io/badge/Java-25-orange) ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F) ![React](https://img.shields.io/badge/React-TypeScript-61DAFB) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18%20%2B%20pgvector-336791) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
 
-## Quickstart
+---
 
-Needs Docker Desktop (or Docker Engine) with Docker Compose v2 or later, and [Ollama](https://ollama.com) running on the same machine with the embedding model pulled once:
+## Features
 
-```bash
-ollama pull qwen3-embedding:0.6b
+- Ask questions and get short answers with numbered citations. Click a citation to open the PDF at that page.
+- Ask follow-up questions that build on the earlier conversation.
+- "No answer found" when the documents don't support an answer.
+- Search three ways: Best match (hybrid), Meaning (semantic) and Keywords.
+- Summaries of documents up to 40 pages, with page references.
+- Compare two documents and see where they differ, with pages on both sides.
+- Sharing: faculty choose who can read each document (a role, a person, or nobody else).
+- Three roles: Student, Faculty and Admin.
+- Admin tools: users, all documents, re-indexing, an audit log and usage analytics.
+- Security: rate limits, security headers, and an audit log that never stores passwords, questions or document text.
+- Light and dark mode, and works at phone width.
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[Upload PDF] --> B[Extract text page by page]
+    B --> C[Split into passages]
+    C --> D[Embed with Qwen3]
+    D --> E[(PostgreSQL + pgvector)]
+    Q[Question] --> R[Search only documents<br/>the user may read]
+    E --> R
+    R --> G{Enough evidence?}
+    G -- No --> N[No answer found]
+    G -- Yes --> M[AI answers from the passages]
+    M --> V[Citations checked<br/>against the database]
+    V --> S[Answer with page citations]
 ```
 
-Ollama runs outside Compose so it can use the GPU; the backend container reaches it at `http://host.docker.internal:11434`. Without Ollama the stack still starts, and uploaded documents wait as "Waiting for processing" until the model answers.
+- **Permissions live inside the database query**, so a document a user can't read is never searched, counted or sent to the AI.
+- **The AI can only cite passages it was given.** Titles and page numbers come from the database, never from the AI.
+
+## Tech stack
+
+| Part | Technology |
+|---|---|
+| Backend | Java 25, Spring Boot 4.1, Spring AI 2.0 |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, React Aria |
+| Database | PostgreSQL 18 with pgvector (vectors and keyword search) |
+| Embeddings | `qwen3-embedding:0.6b` running locally in Ollama |
+| Chat model | OpenAI `gpt-6-luna` (configurable) |
+| Running it | Docker Compose |
+| Testing | JUnit, Testcontainers, Vitest, Playwright, GitHub Actions |
+
+## Getting started
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [Ollama](https://ollama.com/download), then pull the embedding model:
+  ```bash
+  ollama pull qwen3-embedding:0.6b
+  ```
+- An OpenAI API key (with a spending limit set on your account)
+- Node.js 24 (only for loading the demo data)
+
+### Run
 
 ```bash
-git clone <repository-url>
-cd <repository-folder>
-cp .env.example .env
-```
-
-Open `.env` and set these to values of your own:
-
-- `POSTGRES_PASSWORD`.
-- `APP_SECURITY_JWT_SECRET`: the key that signs sign-in tokens, base64 of 32 random bytes. Generate it with `openssl rand -base64 32` (Git Bash, macOS, Linux), or in Windows PowerShell with `$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`.
-- `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD` (10 to 128 characters): the first admin account, created on the first start because no admin exists yet. There is no built-in account; with the placeholder password the backend refuses to start.
-- `OPENAI_API_KEY`: the key of the OpenAI account that answers questions (`gpt-6-luna`, billed per token). Without it the backend refuses to start; set `CHAT_PROVIDER=none` instead to run everything except answering questions. The passages an answer is built from are sent to OpenAI, so use public documents only.
-
-Then:
-
-```bash
+git clone https://github.com/uttkarsh-thakur26/capstone.git
+cd capstone
+cp .env.example .env      # then fill in your values (see Configuration)
 docker compose up --build
 ```
 
-Open <http://localhost:3000> and sign in with `APP_BOOTSTRAP_ADMIN_EMAIL` and `APP_BOOTSTRAP_ADMIN_PASSWORD`, or register: self-registration always creates a student account, and the admin can then change its role under Users. Stop with `Ctrl+C`; `docker compose down` removes the containers, and `docker compose down -v` also deletes the database volume.
+Open **http://localhost:3000** and sign in with the admin account you set in `.env`.
 
-### Demo data
+### Load demo data (optional)
 
-With the stack running and Ollama serving the embedding model, one command creates the demo accounts (an admin, two faculty, two students, all `@example.org`), uploads four public course PDFs from `test-files/` as the two faculty members, shares them so the two students read different documents, and waits until each is indexed:
+Creates demo users (admin, two faculty, two students) and sample documents with different sharing, so the permission rules are easy to see:
 
 ```bash
 node --env-file=.env scripts/demo-data.mjs http://localhost:3000
 ```
 
-It signs in as the bootstrap admin from `.env` and prints the logins at the end, with one generated password for all five accounts. It is meant for a fresh database; to run it again, set `DEMO_PASSWORD` to the password it printed. The second argument is the folder of the PDFs, `test-files` by default.
+The logins are printed at the end.
 
-The stack runs three containers: `db` (PostgreSQL 18 with pgvector), `backend` (Spring Boot, `prod` profile) and `frontend` (the built interface behind nginx, which also forwards `/api` to the backend). Only ports 3000 and 5432 are published, and only on `127.0.0.1`.
+## Configuration
 
-## Development mode
+Settings live in `.env`. The main ones:
 
-The database runs in Docker; the backend and frontend run on your machine with hot reload.
+| Variable | What it does |
+|---|---|
+| `APP_DISPLAY_NAME` | Name shown in the app (`Pramaan`) |
+| `OPENAI_API_KEY` | Your OpenAI key. Never commit it |
+| `OPENAI_CHAT_MODEL` | Chat model, default `gpt-6-luna` |
+| `CHAT_PROVIDER` | `openai`, or `none` to run everything except AI answers |
+| `OLLAMA_BASE_URL` | Where Ollama runs, default `http://localhost:11434` |
 
-Needs, in addition: JDK 25 (Eclipse Temurin 25, with `JAVA_HOME` set) and Node.js 24 (see `frontend/.nvmrc`). No Maven installation is needed; the Maven Wrapper downloads it.
+See `.env.example` for the full list, including the admin account and rate limits.
 
-```bash
-docker compose up -d db
-```
+> **Privacy:** questions and matching passages are sent to the chat model provider. Only upload documents that are allowed to leave your machine.
 
-Backend, in one terminal. The `dev` profile reads the repository's `.env`, so it uses the same database credentials, signing key and first admin; `.env` needs the same variables as for the quickstart. It accepts the refresh cookie only from the Vite dev server's origin, `http://localhost:5173`, and sends that cookie without `Secure`, because development runs on plain HTTP:
-
-```bash
-cd backend
-./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-```
-
-On Windows PowerShell use `.\mvnw.cmd` instead of `./mvnw`. The backend listens on <http://localhost:8080>; in the `dev` profile the API documentation is at <http://localhost:8080/swagger-ui/index.html>.
-
-From an IDE, use `backend` as the working directory. If the IDE builds the project itself rather than through Maven, run `./mvnw generate-resources` in `backend` once after cloning and after every full rebuild: it writes the build information that `/api/v1/meta` reports, and without it the application does not start. Tests started from an IDE need `-Duser.timezone=UTC` in their run configuration; Maven passes it by itself (ADR-016).
-
-Frontend, in another terminal:
+## Development
 
 ```bash
-cd frontend
-npm ci
-npm run dev
+docker compose up -d db                                                 # database only
+cd backend && ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev     # API on :8080
+cd frontend && npm run dev                                              # UI on :5173
 ```
 
-Open <http://localhost:5173>. The dev server forwards `/api` to the backend on port 8080.
+API documentation (dev mode): http://localhost:8080/swagger-ui/index.html
 
-## Checks
-
-These are the commands CI runs. Integration tests start PostgreSQL in a container, so Docker must be running.
+### Tests
 
 ```bash
 cd backend && ./mvnw verify
+cd frontend && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-```bash
-cd frontend && npm run lint && npm run typecheck && npm test && npm run build && npm run format:check
-```
+Automated tests use fake AI models, so they never call a paid API. CI runs the backend, frontend, Playwright end-to-end and Docker Compose checks on every pull request.
 
-The end-to-end test signs in, uploads a PDF, waits until it is indexed, asks a question and opens the citation in Chromium. Playwright starts the backend itself as the test application, with its own database container and the fake models, so no real model is called; ports 18080 and 5174 must be free. Install the browser once with `npx playwright install chromium`.
-
-```bash
-cd frontend && npx playwright test
-```
-
-CI also builds both images and starts the stack from `.env.example`, with a generated signing key and admin password and no chat model (`CHAT_PROVIDER=none`), with `docker compose up --build -d --wait`, then calls `/api/v1/meta` through nginx.
-
-Formatting: `./mvnw spotless:apply` in `backend`, `npm run format` in `frontend`.
-
-When an endpoint changes, run `./mvnw verify` in `backend` (it writes `backend/target/openapi.json`) and then `npm run gen:api` in `frontend` to regenerate the TypeScript types. CI fails if they differ.
-
-## Repository layout
+## Project structure
 
 ```
-.github/workflows/  CI
-backend/            Spring Boot application (Java 25, Maven Wrapper)
-frontend/           React, TypeScript, Vite
-scripts/            demo data loader (Node.js)
-docs/               specification, progress, decisions, versions, architecture, testing, deployment
-compose.yaml        the whole system
-.env.example        environment variables, with placeholders
+backend/    Spring Boot application (API, security, ingestion, search, assistant)
+frontend/   React application
+docs/       Specification, decisions and progress
+scripts/    Demo data loader
+compose.yaml
 ```
 
-## Documentation
+## Status
 
-- [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md): what the system does and how it is built
-- [`docs/PROGRESS.md`](docs/PROGRESS.md): where the work stands
-- [`docs/DECISIONS.md`](docs/DECISIONS.md): decision records
-- [`docs/VERSIONS.md`](docs/VERSIONS.md): resolved versions
-- [`docs/architecture.md`](docs/architecture.md), [`docs/data-model.md`](docs/data-model.md), [`docs/security.md`](docs/security.md), [`docs/api.md`](docs/api.md)
-- [`docs/testing.md`](docs/testing.md), [`docs/deployment.md`](docs/deployment.md)
-- [`docs/phase-reports/`](docs/phase-reports/): one report per finished phase
+Core features, search, summaries, comparison and administration are complete. Evaluation of answer quality and deployment notes are in progress.
+
+## About
+
+Final-year capstone project (CSET400C), Bennett University.
+
+Built by [Uttkarsh Thakur](https://github.com/uttkarsh-thakur26).
